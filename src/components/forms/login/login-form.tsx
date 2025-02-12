@@ -18,7 +18,7 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-7xl px-4 flex items-center justify-center">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-12 lg:gap-16 text-white">
           {/* Logo and Title Section */}
-          <div className="flex items-center gap-6 whitespace-nowrap md:self-end md:mb-[52px]">
+          <div className="flex items-center gap-6 whitespace-nowrap md:self-center md:mt+[200px]">
             <div className="w-24 h-24 md:w-24 md:h-24 relative flex-shrink-0">
               <Image
                 src="/images/cics logo.png"
@@ -38,17 +38,12 @@ export default function LoginPage() {
           </div>
 
           {/* Login Form */}
-          <div className="w-full md:w-[350px] lg:w-[450px] space-y-4">
+          <div className="w-full md:w-[450px] space-y-4">
             <Input type="email" placeholder="Email" className="h-12 bg-white text-black text-lg" />
             <Input type="password" placeholder="Password" className="h-12 bg-white text-black text-lg" />
             <Button className="w-full h-12 text-lg font-medium bg-[#8B3A3A] hover:bg-[#722F2F] text-white">
               Log in
             </Button>
-            <div className="text-center">
-              <Link href="#" className="text-white hover:underline">
-                Forgot Password?
-              </Link>
-            </div>
           </div>
         </div>
       </div>
