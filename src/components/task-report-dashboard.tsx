@@ -337,407 +337,408 @@ export default function TaskReportDashboard() {
 
   return (
     <>
-      {/* Sidebar */}
-      <Sidebar />
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 overflow-x-auto">
+          <div className="min-w-[1024px] p-6">
+            <div>
+              <h1 className="text-5xl font-bold mb-6">Reports</h1>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          <h1 className="text-5xl font-bold mb-6">Reports</h1>
-
-          {/* Filter Controls */}
-          <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4">
-            <div className="grid grid-cols-5 gap-4">
-              <div>
-                <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
-                  Task Receiver
-                </label>
-                <Select
-                  onValueChange={(value) => handleFilterChange("taskReceiver", value)}
-                  value={currentFilters.taskReceiver}
-                >
-                  <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
-                    <SelectValue placeholder="Task Receiver" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Receivers</SelectItem>
-                    <SelectItem value="John Smith">John Smith</SelectItem>
-                    <SelectItem value="Jane Doe">Jane Doe</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label htmlFor="from-date" className="block text-sm font-medium mb-1">
-                  From Date
-                </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="from-date"
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal bg-white text-black"
+              {/* Filter Controls */}
+              <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div>
+                    <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
+                      Task Receiver
+                    </label>
+                    <Select
+                      onValueChange={(value) => handleFilterChange("taskReceiver", value)}
+                      value={currentFilters.taskReceiver}
                     >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {currentFilters.fromDate ? format(currentFilters.fromDate, "PPP") : <span>From</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={currentFilters.fromDate}
-                      onSelect={(date) => handleFilterChange("fromDate", date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div>
-                <label htmlFor="to-date" className="block text-sm font-medium mb-1">
-                  To Date
-                </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="to-date"
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal bg-white text-black"
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {currentFilters.toDate ? format(currentFilters.toDate, "PPP") : <span>To</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={currentFilters.toDate}
-                      onSelect={(date) => handleFilterChange("toDate", date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div>
-                <label htmlFor="task-status" className="block text-sm font-medium mb-1">
-                  Task Status
-                </label>
-                <Select
-                  onValueChange={(value) => handleFilterChange("taskStatus", value)}
-                  value={currentFilters.taskStatus}
-                >
-                  <SelectTrigger id="task-status" className="bg-white text-black w-full">
-                    <SelectValue placeholder="Task Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Task Status</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label htmlFor="priority" className="block text-sm font-medium mb-1">
-                  Priority
-                </label>
-                <Select
-                  onValueChange={(value) => handleFilterChange("priority", value)}
-                  value={currentFilters.priority}
-                >
-                  <SelectTrigger id="priority" className="bg-white text-black w-full">
-                    <SelectValue placeholder="Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Priorities</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
-                Generate Report
-              </Button>
-            </div>
-          </div>
-
-          {showReport && (
-            <>
-              {/* User Profile and Stats */}
-              <div className="bg-gray-300 rounded-md p-4 mb-6">
-                <div className="flex">
-                  {/* User Avatar */}
-                  <div className="mr-4">
-                    <div className="w-32 h-32 bg-gray-500 rounded-full overflow-hidden">
-                      <div className="w-full h-full bg-[#4A5568] flex items-center justify-center">
-                        {/* Silhouette placeholder */}
-                      </div>
-                    </div>
+                      <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
+                        <SelectValue placeholder="Task Receiver" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Receivers</SelectItem>
+                        <SelectItem value="John Smith">John Smith</SelectItem>
+                        <SelectItem value="Jane Doe">Jane Doe</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {/* User Info and Filters */}
-                  <div className="flex-1">
-                    <div className="flex gap-2 mb-4">
-                      <Button className="bg-[#8B2332] text-white rounded-md">
-                        {appliedFilters.taskReceiver === "all" ? "All Receivers" : appliedFilters.taskReceiver}
-                      </Button>
-                      <Button className="bg-[#8B2332] text-white rounded-md">{`${format(appliedFilters.fromDate, "PPP")} - ${format(appliedFilters.toDate, "PPP")}`}</Button>
-                      <Button className="bg-[#8B2332] text-white rounded-md">
-                        {appliedFilters.taskStatus === "all" ? "All Task Status" : appliedFilters.taskStatus}
-                      </Button>
-                      <Button className="bg-[#8B2332] text-white rounded-md">
-                        {appliedFilters.priority === "all" ? "All Priorities" : appliedFilters.priority}
-                      </Button>
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-x-16 gap-y-1">
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Number of tasks Assigned:</span>
-                        <span>{stats.tasksAssigned}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Tasks Completed Late:</span>
-                        <span>{stats.completedLate.toString().padStart(2, "0")}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Completed Tasks:</span>
-                        <span>{stats.completedTasks}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Tasks Not Completed:</span>
-                        <span>{stats.notCompleted.toString().padStart(2, "0")}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Pending Tasks:</span>
-                        <span>{stats.pendingTasks.toString().padStart(2, "0")}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Average Completion Time:</span>
-                        <span>{stats.avgCompletionTime}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Overdue Tasks:</span>
-                        <span>{stats.overdueTasks.toString().padStart(2, "0")}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Average Completion Rate:</span>
-                        <span>{stats.avgCompletionRate}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Tasks Completed on time:</span>
-                        <span>{stats.completedOnTime}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Reopened Tasks:</span>
-                        <span>{stats.reopenedTasks}</span>
-                      </div>
-                    </div>
+                  <div>
+                    <label htmlFor="from-date" className="block text-sm font-medium mb-1">
+                      From Date
+                    </label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="from-date"
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal bg-white text-black"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {currentFilters.fromDate ? format(currentFilters.fromDate, "PPP") : <span>From</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={currentFilters.fromDate}
+                          onSelect={(date) => handleFilterChange("fromDate", date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      className="bg-gray-500 hover:bg-gray-600 text-white"
-                      onClick={() => setShowGraphs(!showGraphs)}
+                  <div>
+                    <label htmlFor="to-date" className="block text-sm font-medium mb-1">
+                      To Date
+                    </label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="to-date"
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal bg-white text-black"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {currentFilters.toDate ? format(currentFilters.toDate, "PPP") : <span>To</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={currentFilters.toDate}
+                          onSelect={(date) => handleFilterChange("toDate", date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div>
+                    <label htmlFor="task-status" className="block text-sm font-medium mb-1">
+                      Task Status
+                    </label>
+                    <Select
+                      onValueChange={(value) => handleFilterChange("taskStatus", value)}
+                      value={currentFilters.taskStatus}
                     >
-                      {showGraphs ? "Hide Graphs" : "View Graphs"}
-                    </Button>
+                      <SelectTrigger id="task-status" className="bg-white text-black w-full">
+                        <SelectValue placeholder="Task Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Task Status</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="overdue">Overdue</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  <div>
+                    <label htmlFor="priority" className="block text-sm font-medium mb-1">
+                      Priority
+                    </label>
+                    <Select
+                      onValueChange={(value) => handleFilterChange("priority", value)}
+                      value={currentFilters.priority}
+                    >
+                      <SelectTrigger id="priority" className="bg-white text-black w-full">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Priorities</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
+                    Generate Report
+                  </Button>
                 </div>
               </div>
 
-              {/* Charts Section */}
-              {showGraphs && (
-                <TooltipProvider>
-                  <div className="bg-gray-200 rounded-md p-4">
-                    {/* Chart Navigation */}
-                    <div className="flex justify-between items-center mb-6">
-                      <div className="flex space-x-2">
-                        <Button
-                          variant={activeTab === "pieCharts" ? "default" : "outline"}
-                          onClick={() => setActiveTab("pieCharts")}
-                          className={activeTab === "pieCharts" ? "bg-[#8B2332]" : ""}
-                        >
-                          Pie Charts
-                        </Button>
-                        <Button
-                          variant={activeTab === "lineCharts" ? "default" : "outline"}
-                          onClick={() => setActiveTab("lineCharts")}
-                          className={activeTab === "lineCharts" ? "bg-[#8B2332]" : ""}
-                        >
-                          Line Charts
-                        </Button>
-                        <Button
-                          variant={activeTab === "barCharts" ? "default" : "outline"}
-                          onClick={() => setActiveTab("barCharts")}
-                          className={activeTab === "barCharts" ? "bg-[#8B2332]" : ""}
-                        >
-                          Bar Charts
-                        </Button>
+              {showReport && (
+                <>
+                  {/* User Profile and Stats */}
+                  <div className="bg-gray-300 rounded-md p-4 mb-6">
+                    <div className="flex">
+                      {/* User Avatar */}
+                      <div className="mr-4">
+                        <div className="w-32 h-32 bg-gray-500 rounded-full overflow-hidden">
+                          <div className="w-full h-full bg-[#4A5568] flex items-center justify-center">
+                            {/* Silhouette placeholder */}
+                          </div>
+                        </div>
                       </div>
 
-                      {(activeTab === "lineCharts" || activeTab === "barCharts") && (
-                        <div className="flex space-x-2">
-                          <Button
-                            variant={timeFrame === "weekly" ? "default" : "outline"}
-                            onClick={() => setTimeFrame("weekly")}
-                            className={timeFrame === "weekly" ? "bg-[#8B2332]" : ""}
-                            size="sm"
-                          >
-                            Weekly
+                      {/* User Info and Filters */}
+                      <div className="flex-1">
+                        <div className="flex gap-2 mb-4">
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                            {appliedFilters.taskReceiver === "all" ? "All Receivers" : appliedFilters.taskReceiver}
                           </Button>
-                          <Button
-                            variant={timeFrame === "monthly" ? "default" : "outline"}
-                            onClick={() => setTimeFrame("monthly")}
-                            className={timeFrame === "monthly" ? "bg-[#8B2332]" : ""}
-                            size="sm"
-                          >
-                            Monthly
+                          <Button className="bg-[#8B2332] text-white rounded-md">{`${format(appliedFilters.fromDate, "PPP")} - ${format(appliedFilters.toDate, "PPP")}`}</Button>
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                            {appliedFilters.taskStatus === "all" ? "All Task Status" : appliedFilters.taskStatus}
                           </Button>
-                          <Button
-                            variant={timeFrame === "quarterly" ? "default" : "outline"}
-                            onClick={() => setTimeFrame("quarterly")}
-                            className={timeFrame === "quarterly" ? "bg-[#8B2332]" : ""}
-                            size="sm"
-                          >
-                            Quarterly
-                          </Button>
-                          <Button
-                            variant={timeFrame === "yearly" ? "default" : "outline"}
-                            onClick={() => setTimeFrame("yearly")}
-                            className={timeFrame === "yearly" ? "bg-[#8B2332]" : ""}
-                            size="sm"
-                          >
-                            Yearly
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                            {appliedFilters.priority === "all" ? "All Priorities" : appliedFilters.priority}
                           </Button>
                         </div>
-                      )}
+
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-1">
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Number of tasks Assigned:</span>
+                            <span>{stats.tasksAssigned}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Tasks Completed Late:</span>
+                            <span>{stats.completedLate.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Completed Tasks:</span>
+                            <span>{stats.completedTasks}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Tasks Not Completed:</span>
+                            <span>{stats.notCompleted.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Pending Tasks:</span>
+                            <span>{stats.pendingTasks.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Average Completion Time:</span>
+                            <span>{stats.avgCompletionTime}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Overdue Tasks:</span>
+                            <span>{stats.overdueTasks.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Average Completion Rate:</span>
+                            <span>{stats.avgCompletionRate}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Tasks Completed on time:</span>
+                            <span>{stats.completedOnTime}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Reopened Tasks:</span>
+                            <span>{stats.reopenedTasks}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          className="bg-gray-500 hover:bg-gray-600 text-white"
+                          onClick={() => setShowGraphs(!showGraphs)}
+                        >
+                          {showGraphs ? "Hide Graphs" : "View Graphs"}
+                        </Button>
+                      </div>
                     </div>
-
-                    {/* Pie Charts */}
-                    {activeTab === "pieCharts" && (
-                      <div>
-                        <div className="grid grid-cols-2 gap-6 mb-6">
-                          {/* Completed Tasks Breakdown */}
-                          <div>
-                            <h3 className="text-lg font-semibold mb-2 text-center">Completed Tasks Breakdown</h3>
-                            <TaskCompletionPieChart
-                              data={chartData.completedTasksBreakdown}
-                              title="On Time"
-                              subtitle1="Late"
-                              subtitle2="Not Completed"
-                            />
-                          </div>
-
-                          {/* Overall Tasks Breakdown */}
-                          <div>
-                            <h3 className="text-lg font-semibold mb-2 text-center">Overall Tasks Breakdown</h3>
-                            <TaskCompletionPieChart
-                              data={chartData.overallTasksBreakdown}
-                              title="Completed"
-                              subtitle1="Pending"
-                              subtitle2="Overdue"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-6 mb-6">
-                          {/* Tasks Reopened Percentage */}
-                          <div>
-                            <h3 className="text-lg font-semibold mb-2 text-center">Tasks Reopened Percentage</h3>
-                            <TaskCompletionPieChart
-                              data={chartData.taskReopenedPercentage}
-                              title="Reopened"
-                              subtitle1="Not Reopened"
-                              subtitle2=""
-                            />
-                          </div>
-
-                          {/* Completion Timing Breakdown */}
-                          <div>
-                            <h3 className="text-lg font-semibold mb-2 text-center">Completion Timing Breakdown</h3>
-                            <TaskCompletionPieChart
-                              data={chartData.completionTimingBreakdown}
-                              title="Early (≤30%)"
-                              subtitle1="Normal (31-60%)"
-                              subtitle2="Near/On Deadline (>60%)"
-                              isQuadChart={true}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Progress Bars */}
-                        <div className="grid grid-cols-2 gap-6 mb-6">
-                          <div>
-                            <ProgressBar
-                              percentage={stats.avgCompletionTime}
-                              label={`Average Completion Time is ${stats.avgCompletionTime}% of the time between task assignment and deadline`}
-                              color="#8B2332"
-                            />
-                          </div>
-                          <div>
-                            <ProgressBar
-                              percentage={stats.avgCompletionRate}
-                              label={`Average Completion Rate is ${stats.avgCompletionRate}%`}
-                              color="#8B2332"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Line Charts */}
-                    {activeTab === "lineCharts" && (
-                      <div>
-                        <h3 className="text-xl font-semibold mb-4">Average Time Completion ({timeFrame})</h3>
-                        <AverageCompletionTimeChart data={chartData.averageCompletionTimeData[timeFrame]}>
-                          <Tooltip
-                            formatter={(value) => [`${value}%`, "Avg. Completion Time"]}
-                            labelFormatter={(label, payload) => {
-                              if (payload && payload[0] && payload[0].payload) {
-                                const { startDate, endDate } = payload[0].payload
-                                return `${format(new Date(startDate), "MMM d, yyyy")} - ${format(new Date(endDate), "MMM d, yyyy")}`
-                              }
-                              return label
-                            }}
-                          />
-                        </AverageCompletionTimeChart>
-                      </div>
-                    )}
-
-                    {/* Bar Charts */}
-                    {activeTab === "barCharts" && (
-                      <div>
-                        <h3 className="text-xl font-semibold mb-4">Task Completion Status ({timeFrame})</h3>
-                        <TaskCompletionStatusChart data={chartData.taskCompletionStatusData[timeFrame]}>
-                          <Tooltip
-                            formatter={(value, name) => [
-                              value,
-                              name === "onTime" ? "Completed On/Before Time" : "Missed Deadline",
-                            ]}
-                            labelFormatter={(label, payload) => {
-                              if (payload && payload[0] && payload[0].payload) {
-                                const { startDate, endDate } = payload[0].payload
-                                return `${format(new Date(startDate), "MMM d, yyyy")} - ${format(new Date(endDate), "MMM d, yyyy")}`
-                              }
-                              return label
-                            }}
-                          />
-                        </TaskCompletionStatusChart>
-                      </div>
-                    )}
                   </div>
-                </TooltipProvider>
+
+                  {/* Charts Section */}
+                  {showGraphs && (
+                    <TooltipProvider>
+                      <div className="max-w-[1600px] mx-auto">
+                        {/* Chart Navigation */}
+                        <div className="flex justify-between items-center mb-6">
+                          <div className="flex space-x-2">
+                            <Button
+                              variant={activeTab === "pieCharts" ? "default" : "outline"}
+                              onClick={() => setActiveTab("pieCharts")}
+                              className={activeTab === "pieCharts" ? "bg-[#8B2332]" : ""}
+                            >
+                              Pie Charts
+                            </Button>
+                            <Button
+                              variant={activeTab === "lineCharts" ? "default" : "outline"}
+                              onClick={() => setActiveTab("lineCharts")}
+                              className={activeTab === "lineCharts" ? "bg-[#8B2332]" : ""}
+                            >
+                              Line Charts
+                            </Button>
+                            <Button
+                              variant={activeTab === "barCharts" ? "default" : "outline"}
+                              onClick={() => setActiveTab("barCharts")}
+                              className={activeTab === "barCharts" ? "bg-[#8B2332]" : ""}
+                            >
+                              Bar Charts
+                            </Button>
+                          </div>
+
+                          {(activeTab === "lineCharts" || activeTab === "barCharts") && (
+                            <div className="flex space-x-2">
+                              <Button
+                                variant={timeFrame === "weekly" ? "default" : "outline"}
+                                onClick={() => setTimeFrame("weekly")}
+                                className={timeFrame === "weekly" ? "bg-[#8B2332]" : ""}
+                                size="sm"
+                              >
+                                Weekly
+                              </Button>
+                              <Button
+                                variant={timeFrame === "monthly" ? "default" : "outline"}
+                                onClick={() => setTimeFrame("monthly")}
+                                className={timeFrame === "monthly" ? "bg-[#8B2332]" : ""}
+                                size="sm"
+                              >
+                                Monthly
+                              </Button>
+                              <Button
+                                variant={timeFrame === "quarterly" ? "default" : "outline"}
+                                onClick={() => setTimeFrame("quarterly")}
+                                className={timeFrame === "quarterly" ? "bg-[#8B2332]" : ""}
+                                size="sm"
+                              >
+                                Quarterly
+                              </Button>
+                              <Button
+                                variant={timeFrame === "yearly" ? "default" : "outline"}
+                                onClick={() => setTimeFrame("yearly")}
+                                className={timeFrame === "yearly" ? "bg-[#8B2332]" : ""}
+                                size="sm"
+                              >
+                                Yearly
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Pie Charts */}
+                        {activeTab === "pieCharts" && (
+                          <div className="max-w-[1600px] mx-auto">
+                            <div className="grid grid-cols-2 gap-6 mb-6">
+                              {/* Completed Tasks Breakdown */}
+                              <div>
+                                <h3 className="text-lg font-semibold mb-2 text-center">Completed Tasks Breakdown</h3>
+                                <TaskCompletionPieChart
+                                  data={chartData.completedTasksBreakdown}
+                                  title="On Time"
+                                  subtitle1="Late"
+                                  subtitle2="Not Completed"
+                                />
+                              </div>
+
+                              {/* Overall Tasks Breakdown */}
+                              <div>
+                                <h3 className="text-lg font-semibold mb-2 text-center">Overall Tasks Breakdown</h3>
+                                <TaskCompletionPieChart
+                                  data={chartData.overallTasksBreakdown}
+                                  title="Completed"
+                                  subtitle1="Pending"
+                                  subtitle2="Overdue"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-6 mb-6">
+                              {/* Tasks Reopened Percentage */}
+                              <div>
+                                <h3 className="text-lg font-semibold mb-2 text-center">Tasks Reopened Percentage</h3>
+                                <TaskCompletionPieChart
+                                  data={chartData.taskReopenedPercentage}
+                                  title="Reopened"
+                                  subtitle1="Not Reopened"
+                                  subtitle2=""
+                                />
+                              </div>
+
+                              {/* Completion Timing Breakdown */}
+                              <div>
+                                <h3 className="text-lg font-semibold mb-2 text-center">Completion Timing Breakdown</h3>
+                                <TaskCompletionPieChart
+                                  data={chartData.completionTimingBreakdown}
+                                  title="Early (≤30%)"
+                                  subtitle1="Normal (31-60%)"
+                                  subtitle2="Near/On Deadline (>60%)"
+                                  isQuadChart={true}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Progress Bars */}
+                            <div className="grid grid-cols-2 gap-6 mb-6">
+                              <div>
+                                <ProgressBar
+                                  percentage={stats.avgCompletionTime}
+                                  label={`Average Completion Time is ${stats.avgCompletionTime}% of the time between task assignment and deadline`}
+                                  color="#8B2332"
+                                />
+                              </div>
+                              <div>
+                                <ProgressBar
+                                  percentage={stats.avgCompletionRate}
+                                  label={`Average Completion Rate is ${stats.avgCompletionRate}%`}
+                                  color="#8B2332"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Line Charts */}
+                        {activeTab === "lineCharts" && (
+                          <div className="max-w-[1600px] mx-auto">
+                            <h3 className="text-xl font-semibold mb-4">Average Time Completion ({timeFrame})</h3>
+                            <AverageCompletionTimeChart data={chartData.averageCompletionTimeData[timeFrame]}>
+                              <Tooltip
+                                formatter={(value) => [`${value}%`, "Avg. Completion Time"]}
+                                labelFormatter={(label, payload) => {
+                                  if (payload && payload[0] && payload[0].payload) {
+                                    const { startDate, endDate } = payload[0].payload
+                                    return `${format(new Date(startDate), "MMM d, yyyy")} - ${format(new Date(endDate), "MMM d, yyyy")}`
+                                  }
+                                  return label
+                                }}
+                              />
+                            </AverageCompletionTimeChart>
+                          </div>
+                        )}
+
+                        {/* Bar Charts */}
+                        {activeTab === "barCharts" && (
+                          <div className="max-w-[1600px] mx-auto">
+                            <h3 className="text-xl font-semibold mb-4">Task Completion Status ({timeFrame})</h3>
+                            <TaskCompletionStatusChart data={chartData.taskCompletionStatusData[timeFrame]}>
+                              <Tooltip
+                                formatter={(value, name) => [
+                                  value,
+                                  name === "onTime" ? "Completed On/Before Time" : "Missed Deadline",
+                                ]}
+                                labelFormatter={(label, payload) => {
+                                  if (payload && payload[0] && payload[0].payload) {
+                                    const { startDate, endDate } = payload[0].payload
+                                    return `${format(new Date(startDate), "MMM d, yyyy")} - ${format(new Date(endDate), "MMM d, yyyy")}`
+                                  }
+                                  return label
+                                }}
+                              />
+                            </TaskCompletionStatusChart>
+                          </div>
+                        )}
+                      </div>
+                    </TooltipProvider>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </div>
+          </div>
         </div>
       </div>
     </>
