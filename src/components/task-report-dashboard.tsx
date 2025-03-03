@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   format,
   startOfWeek,
@@ -31,8 +32,10 @@ export default function TaskReportDashboard() {
   const [showGraphs, setShowGraphs] = useState(false)
   const [showReport, setShowReport] = useState(false)
 
+  const allReceivers = ["John Smith", "Jane Doe"]
+
   const [currentFilters, setCurrentFilters] = useState({
-    taskReceiver: "all",
+    taskReceivers: [] as string[],
     fromDate: new Date(2024, 0, 1),
     toDate: new Date(2024, 9, 10),
     taskStatus: "all",
@@ -49,9 +52,20 @@ export default function TaskReportDashboard() {
     setShowReport(true)
   }
 
+  const handleResetFilters = () => {
+    setCurrentFilters({
+      taskReceivers: [],
+      fromDate: new Date(2024, 0, 1),
+      toDate: new Date(2024, 9, 10),
+      taskStatus: "all",
+      priority: "all",
+    })
+  }
+
   const filteredTasks = useMemo(() => {
     return taskData.tasks.filter((task) => {
-      const matchesReceiver = appliedFilters.taskReceiver === "all" || task.assignedTo === appliedFilters.taskReceiver
+      const matchesReceiver =
+        currentFilters.taskReceivers.length === 0 || currentFilters.taskReceivers.includes(task.assignedTo)
       const matchesStatus =
         appliedFilters.taskStatus === "all" || task.status.toLowerCase() === appliedFilters.taskStatus.toLowerCase()
       const matchesPriority =
@@ -62,7 +76,7 @@ export default function TaskReportDashboard() {
         (!appliedFilters.toDate || taskDate <= appliedFilters.toDate)
       return matchesReceiver && matchesStatus && matchesPriority && isWithinDateRange
     })
-  }, [appliedFilters])
+  }, [appliedFilters, currentFilters.taskReceivers, currentFilters.taskReceivers.length])
 
   const stats = useMemo(() => {
     const tasksAssigned = filteredTasks.length
@@ -352,16 +366,45 @@ export default function TaskReportDashboard() {
                       Task Receiver
                     </label>
                     <Select
-                      onValueChange={(value) => handleFilterChange("taskReceiver", value)}
-                      value={currentFilters.taskReceiver}
+                      onValueChange={(value) => {
+                        if (value === "all") {
+                          handleFilterChange("taskReceivers", allReceivers)
+                        } else {
+                          handleFilterChange(
+                            "taskReceivers",
+                            currentFilters.taskReceivers.includes(value)
+                              ? currentFilters.taskReceivers.filter((r) => r !== value)
+                              : [...currentFilters.taskReceivers, value],
+                          )
+                        }
+                      }}
+                      value={currentFilters.taskReceivers.join(",")}
                     >
                       <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
-                        <SelectValue placeholder="Task Receiver" />
+                        <SelectValue placeholder="Receivers" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Receivers</SelectItem>
-                        <SelectItem value="John Smith">John Smith</SelectItem>
-                        <SelectItem value="Jane Doe">Jane Doe</SelectItem>
+                        {allReceivers.map((receiver) => (
+                          <SelectItem key={receiver} value={receiver}>
+                            <div className="flex items-center">
+                              <Checkbox
+                                checked={currentFilters.taskReceivers.includes(receiver)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver])
+                                  } else {
+                                    handleFilterChange(
+                                      "taskReceivers",
+                                      currentFilters.taskReceivers.filter((r) => r !== receiver),
+                                    )
+                                  }
+                                }}
+                              />
+                              <span className="ml-2">{receiver}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -459,7 +502,10 @@ export default function TaskReportDashboard() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex justify-end">
+                <div className="mt-4 flex justify-end space-x-2">
+                  <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleResetFilters}>
+                    Reset Filters
+                  </Button>
                   <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
                     Generate Report
                   </Button>
@@ -484,7 +530,9 @@ export default function TaskReportDashboard() {
                       <div className="flex-1">
                         <div className="flex gap-2 mb-4">
                           <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.taskReceiver === "all" ? "All Receivers" : appliedFilters.taskReceiver}
+                            {appliedFilters.taskReceivers.length === 0
+                              ? "All Receivers"
+                              : appliedFilters.taskReceivers.join(", ")}
                           </Button>
                           <Button className="bg-[#8B2332] text-white rounded-md">{`${format(appliedFilters.fromDate, "PPP")} - ${format(appliedFilters.toDate, "PPP")}`}</Button>
                           <Button className="bg-[#8B2332] text-white rounded-md">
