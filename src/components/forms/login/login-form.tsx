@@ -1,10 +1,45 @@
-'use client'
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import Link from "next/link"
+'use client';
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { auth, googleProvider, db } from "@/app/firebase/firebase.config";
+import { signInWithPopup } from "firebase/auth";
+import { collection, getDocs, query, where } from "firebase/firestore";
 
 export default function LoginPage() {
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+  
+      if (user?.email) {
+        // Query the "users" collection to check if the email exists
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("email", "==", user.email)); // Ensure field name is "email"
+        const querySnapshot = await getDocs(q);
+  
+        if (!querySnapshot.empty) {
+          router.push("/dashboard");
+        } else {
+          setError("Your email is not authorized to access this system.");
+          await auth.signOut();
+        }
+      } else {
+        setError("No email found in Google account.");
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred.");
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center">
       {/* Background Image */}
@@ -37,21 +72,25 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Login Form */}
+          {/* Login with Google Button */}
           <div className="w-full space-y-4 mt-4">
-            <Input type="email" placeholder="Email" className="h-12 bg-white text-black" />
-            <Input type="password" placeholder="Password" className="h-12 bg-white text-black" />
-            <Button className="w-full h-12 text-lg font-medium bg-[#8B3A3A] hover:bg-[#722F2F] text-white">
-              Log in
+            <Button 
+              onClick={handleGoogleLogin}
+              className="w-full h-12 text-lg font-medium bg-white text-black border border-gray-300 hover:bg-gray-100 flex items-center justify-center gap-2">
+              <Image
+                src="https://www.svgrepo.com/show/475656/google-color.svg"
+                alt="Google Logo"
+                width={20}
+                height={20}
+                className="object-contain"
+              />
+              Log in with Google
             </Button>
-            <div className="text-center">
-              <Link href="#" className="text-white hover:underline">
-                Forgot Password?
-              </Link>
-            </div>
+
+            {error && <p className="text-red-500 text-center">{error}</p>}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
