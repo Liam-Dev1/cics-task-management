@@ -23,7 +23,7 @@ export default function LoginPage() {
         const querySnapshot = await getDocs(q);
   
         if (!querySnapshot.empty) {
-          router.push("/dashboard");
+          router.push("/receivers");
         } else {
           setError("Your email is not authorized to access this system.");
           await auth.signOut();
