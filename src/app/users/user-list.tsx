@@ -1,28 +1,33 @@
+// user-list.tsx
 "use client"
 
 import { useState } from "react"
-import { Search, Download, Plus, Edit, Trash2, Check, X } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { User } from "@/app/users/types"
 
-export default function ReceiverList({ receivers, onEdit, onDelete, onToggleActive, onAddNew }) {
+interface UserListProps {
+  users: User[];
+  onEdit: (user: User) => void;
+  onDelete: (id: string) => void;
+  onToggleActive: (id: string) => void;
+  onChangeRole: (id: string, role: "user" | "admin" | "super admin") => void;
+  onAddNew: () => void;
+  currentUserRole: string;
+}
+
+export default function UserList({ users, onEdit, onDelete, onToggleActive, onChangeRole, onAddNew, currentUserRole }: UserListProps) {
   const [searchTerm, setSearchTerm] = useState("")
 
-  const filteredReceivers = receivers.filter(
-    (receiver) =>
-      receiver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      receiver.role.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  const handleExportCSV = () => {
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      "Name,Role,Email,Status\n" +
-      receivers.map((r) => `${r.name},${r.role},${r.email},${r.isActive ? "Active" : "Inactive"}`).join("\n")
-    const encodedUri = encodeURI(csvContent)
-    window.open(encodedUri)
-  }
+  const filteredUsers = users.filter(
+    (user) =>
+      (user.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (user.role?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+  );
+  
 
   return (
     <div className="bg-white rounded border border-gray-200">
@@ -38,13 +43,9 @@ export default function ReceiverList({ receivers, onEdit, onDelete, onToggleActi
           />
         </div>
         <div className="flex space-x-2">
-          <Button className="bg-[#812c2d] hover:bg-[#9f393b] text-white flex items-center" onClick={handleExportCSV}>
-            <Download className="mr-2 h-4 w-4" />
-            <span>Export CSV</span>
-          </Button>
           <Button className="bg-[#812c2d] hover:bg-[#9f393b] text-white flex items-center" onClick={onAddNew}>
             <Plus className="mr-2 h-4 w-4" />
-            <span>Add Receiver</span>
+            <span>Add User</span>
           </Button>
         </div>
       </div>
@@ -61,34 +62,49 @@ export default function ReceiverList({ receivers, onEdit, onDelete, onToggleActi
             </tr>
           </thead>
           <tbody className="text-gray-700">
-            {filteredReceivers.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-2 text-center text-gray-500">
-                  No receivers found
+                  No users found
                 </td>
               </tr>
             ) : (
-              filteredReceivers.map((receiver) => (
-                <tr key={receiver.id} className="border-b hover:bg-gray-50">
+              filteredUsers.map((user: User) => (
+                <tr key={user.id} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-2">
                     <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden">
                       <div className="w-full h-full flex items-center justify-center text-gray-600">
-                        {receiver.name.charAt(0)}
-                      </div>
+                      {user.name ? user.name.charAt(0) : "?"}
                     </div>
+                   </div>
                   </td>
-                  <td className="px-4 py-2 font-medium">{receiver.name}</td>
-                  <td className="px-4 py-2">{receiver.role}</td>
+                  <td className="px-4 py-2 font-medium">{user.name}</td>
+                  <td className="px-4 py-2">
+                    <Select
+                      value={user.role}
+                      onValueChange={(value) => onChangeRole(user.id, value as "user" | "admin" | "super admin")}
+                      disabled={currentUserRole !== "super admin"} // Only super admin can change roles
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="super admin">Super Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </td>
                   <td className="px-4 py-2 text-center">
                     <Badge
                       variant="outline"
                       className={`${
-                        receiver.isActive
+                        user.isActive
                           ? "bg-green-100 text-green-800 border-green-400"
                           : "bg-red-100 text-red-800 border-red-400"
                       }`}
                     >
-                      {receiver.isActive ? "Active" : "Inactive"}
+                      {user.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </td>
                   <td className="px-4 py-2">
@@ -97,7 +113,7 @@ export default function ReceiverList({ receivers, onEdit, onDelete, onToggleActi
                         size="sm"
                         variant="outline"
                         className="text-xs px-2 py-1 h-8"
-                        onClick={() => onEdit(receiver)}
+                        onClick={() => onEdit(user)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -105,19 +121,19 @@ export default function ReceiverList({ receivers, onEdit, onDelete, onToggleActi
                         size="sm"
                         variant="outline"
                         className={`text-xs px-2 py-1 h-8 ${
-                          receiver.isActive
+                          user.isActive
                             ? "text-yellow-600 hover:text-yellow-700"
                             : "text-green-600 hover:text-green-700"
                         }`}
-                        onClick={() => onToggleActive(receiver.id)}
+                        onClick={() => onToggleActive(user.id)}
                       >
-                        {receiver.isActive ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                        {user.isActive ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         className="text-xs px-2 py-1 h-8 text-red-600 hover:text-red-700"
-                        onClick={() => onDelete(receiver.id)}
+                        onClick={() => onDelete(user.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -132,4 +148,3 @@ export default function ReceiverList({ receivers, onEdit, onDelete, onToggleActi
     </div>
   )
 }
-

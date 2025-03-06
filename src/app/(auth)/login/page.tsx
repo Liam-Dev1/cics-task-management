@@ -1,4 +1,6 @@
+// page.tsx
 'use client';
+
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -6,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { auth, googleProvider, db } from "@/app/firebase/firebase.config";
 import { signInWithPopup } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
+import { User } from "@/app/users/types";
 
 export default function LoginPage() {
   const [error, setError] = useState("");
@@ -15,18 +18,26 @@ export default function LoginPage() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-  
+
       if (user?.email) {
         // Query the "users" collection to check if the email exists
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("email", "==", user.email)); // Ensure field name is "email"
         const querySnapshot = await getDocs(q);
-  
+
         if (!querySnapshot.empty) {
-          router.push("/receivers");
+          const userData = querySnapshot.docs[0].data() as User;
+
+          // Check if the user is a super admin or admin
+          if (userData.role === "super admin" || userData.role === "admin") {
+            router.push("/users"); // Redirect to the user management page
+          } else {
+            setError("You do not have permission to access this system.");
+            await auth.signOut(); // Log out the user if they are not authorized
+          }
         } else {
           setError("Your email is not authorized to access this system.");
-          await auth.signOut();
+          await auth.signOut(); // Log out the user if their email is not found
         }
       } else {
         setError("No email found in Google account.");
