@@ -103,7 +103,7 @@ export default function UsersPage() {
     <div className="flex min-h-screen">
       <Sidebar />
       <div className="flex-1 p-4 bg-white">
-        <h1 className="text-2xl font-bold mb-4">User Management</h1>
+        <h1 className="text-2xl font-bold mb-4">Task Receivers</h1>
         <UserList
           users={users}
           onEdit={setEditingUser}
