@@ -1,0 +1,372 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useRef } from "react"
+import { ChevronDown, Search, Upload } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+// Remove the Firebase import, assuming it's handled elsewhere in your application
+// import { storage } from "@/firebase/firebase.config"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+
+// Declare storage variable. Assuming it's initialized elsewhere in your application.
+// Replace this with your actual storage initialization if needed.
+const storage = null
+
+export default function TaskManagement() {
+  const [showNewTask, setShowNewTask] = useState(false)
+  const [tasks, setTasks] = useState([
+    {
+      id: 1,
+      name: "Take Pictures of Spider-Man",
+      assignedBy: "J Jonah Jameson",
+      assignedTo: "Peter Parker",
+      assignedOn: "10/30/2024",
+      deadline: "11/04/2024",
+      status: "Verifying",
+      priority: "High",
+      description:
+        "Listen here, Parker! I don't pay you to sit around! I need pictures—good pictures of Spider-Man! Not blurry, not half-in-the-shadows, not one of those artsy shots you think look so clever! Give me something with action, something that'll sell papers! And I need it by tonight! Got it?",
+      completed: "11/03/20",
+      files: [{ name: "Attached File", url: "#" }],
+    },
+  ])
+
+  const [newTask, setNewTask] = useState({
+    name: "",
+    assignedTo: "",
+    deadline: "",
+    status: "",
+    priority: "",
+    description: "",
+  })
+  const [file, setFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [editingTask, setEditingTask] = useState<number | null>(null)
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    if (editingTask !== null) {
+      setTasks((prev) => prev.map((task) => (task.id === editingTask ? { ...task, [name]: value } : task)))
+    } else {
+      setNewTask((prev) => ({ ...prev, [name]: value }))
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFile(e.target.files[0])
+    }
+  }
+
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    let fileUrl = ""
+    if (file) {
+      try {
+        // Assuming 'storage' is available globally or through a context
+        const storageRef = ref(storage, `task-files/${file.name}`)
+        await uploadBytes(storageRef, file)
+        fileUrl = await getDownloadURL(storageRef)
+      } catch (error) {
+        console.error("Error uploading file:", error)
+      }
+    }
+
+    const newTaskWithFile = {
+      ...newTask,
+      id: tasks.length + 1,
+      assignedBy: "J Jonah Jameson",
+      assignedOn: new Date().toLocaleDateString(),
+      files: fileUrl ? [{ name: file!.name, url: fileUrl }] : [],
+    }
+
+    setTasks((prev) => [...prev, newTaskWithFile])
+    setNewTask({
+      name: "",
+      assignedTo: "",
+      deadline: "",
+      status: "",
+      priority: "",
+      description: "",
+    })
+    setFile(null)
+    setShowNewTask(false)
+  }
+
+  const handleEditTask = (taskId: number) => {
+    setEditingTask(taskId)
+    const taskToEdit = tasks.find((task) => task.id === taskId)
+    if (taskToEdit) {
+      setNewTask({
+        name: taskToEdit.name,
+        assignedTo: taskToEdit.assignedTo,
+        deadline: taskToEdit.deadline,
+        status: taskToEdit.status,
+        priority: taskToEdit.priority,
+        description: taskToEdit.description,
+      })
+    }
+  }
+
+  const handleSaveEdit = () => {
+    setTasks((prev) => prev.map((task) => (task.id === editingTask ? { ...task, ...newTask } : task)))
+    setEditingTask(null)
+    setNewTask({
+      name: "",
+      assignedTo: "",
+      deadline: "",
+      status: "",
+      priority: "",
+      description: "",
+    })
+  }
+
+  const handleVerifyCompletion = (taskId: number) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, status: "Completed", completed: new Date().toLocaleDateString() } : task,
+      ),
+    )
+  }
+
+  const handleReopenTask = (taskId: number) => {
+    setTasks((prev) =>
+      prev.map((task) => (task.id === taskId ? { ...task, status: "Reopened", completed: null } : task)),
+    )
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <div className="w-48 bg-zinc-800 text-white">
+        <div className="p-4">
+          <img
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-jwFgX4f0u3HXOc9jTMPAK2Jz503wTL.png"
+            alt="CICS Logo"
+            className="w-12 h-12"
+          />
+        </div>
+        <nav className="space-y-1">
+          {["Dashboard", "Tasks", "Reports", "Receivers", "Help", "User", "Log Out"].map((item) => (
+            <button
+              key={item}
+              className={`w-full text-left px-4 py-2 hover:bg-zinc-700 ${item === "Tasks" ? "bg-zinc-700" : ""}`}
+            >
+              {item}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 bg-white">
+        <div className="p-6">
+          <h1 className="text-4xl mb-6">
+            Tasks <span className="text-red-800">Admin</span>
+          </h1>
+
+          {/* Action Bar */}
+          <div className="flex gap-2 mb-6">
+            <div className="relative">
+              <Input type="search" placeholder="Search Tasks" className="pl-8 w-64" />
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+            </div>
+            <Select>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Receiver" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Receivers</SelectItem>
+                <SelectItem value="peter">Peter Parker</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="secondary">
+              Filters
+              <ChevronDown className="ml-1 h-4 w-4" />
+            </Button>
+            <Button variant="secondary">
+              Sort
+              <ChevronDown className="ml-1 h-4 w-4" />
+            </Button>
+            <Button>Generate Reports</Button>
+          </div>
+
+          {/* Tasks List */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-7 gap-4 font-semibold mb-2">
+              <div>Task Name</div>
+              <div>Assigned by</div>
+              <div>Assigned to</div>
+              <div>Assigned on</div>
+              <div>Deadline</div>
+              <div>Status</div>
+              <div>Priority</div>
+            </div>
+
+            {/* Add New Task Button */}
+            <Button onClick={() => setShowNewTask(true)} className="bg-red-800 hover:bg-red-900 text-white">
+              + Add New Task
+            </Button>
+
+            {/* New Task Form */}
+            {(showNewTask || editingTask !== null) && (
+              <form
+                onSubmit={editingTask !== null ? handleSaveEdit : handleAddTask}
+                className="border rounded-lg p-4 bg-gray-50"
+              >
+                <div className="grid grid-cols-7 gap-4">
+                  <Input
+                    placeholder="Insert Task Name Here"
+                    name="name"
+                    value={newTask.name}
+                    onChange={handleInputChange}
+                  />
+                  <div>J Jonah Jameson</div>
+                  <Select
+                    name="assignedTo"
+                    onValueChange={(value) => handleInputChange({ target: { name: "assignedTo", value } } as any)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select assignee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Peter Parker">Peter Parker</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div>{new Date().toLocaleDateString()}</div>
+                  <Input type="date" name="deadline" value={newTask.deadline} onChange={handleInputChange} />
+                  <Select
+                    name="status"
+                    onValueChange={(value) => handleInputChange({ target: { name: "status", value } } as any)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Verifying">Verifying</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    name="priority"
+                    onValueChange={(value) => handleInputChange({ target: { name: "priority", value } } as any)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Textarea
+                  placeholder="Add Description Here"
+                  className="mt-4 mb-4"
+                  name="description"
+                  value={newTask.description}
+                  onChange={handleInputChange}
+                />
+                <div className="flex justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Attach Files
+                  </Button>
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                  <Button type="submit">{editingTask !== null ? "Save Changes" : "Assign Task"}</Button>
+                </div>
+                {file && <p className="mt-2">File attached: {file.name}</p>}
+              </form>
+            )}
+
+            {/* Existing Tasks */}
+            {tasks.map((task) => (
+              <div key={task.id} className="grid grid-cols-7 gap-4 bg-red-800 text-white p-4 rounded">
+                <div>{task.name}</div>
+                <div>{task.assignedBy}</div>
+                <div>{task.assignedTo}</div>
+                <div>{task.assignedOn}</div>
+                <div>{task.deadline}</div>
+                <div>{task.status}</div>
+                <div>{task.priority}</div>
+                <div className="col-span-7 bg-white text-black p-4 rounded mt-2">
+                  <p className="text-sm text-gray-600">
+                    {task.completed ? `Completed on ${task.completed}` : "Not completed"}
+                  </p>
+                  <p className="my-2">{task.description}</p>
+                  <div className="flex justify-between mt-4">
+                    <div className="space-x-2">
+                      {task.files.map((file, index) => (
+                        <Button
+                          key={index}
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => window.open(file.url, "_blank")}
+                        >
+                          {file.name}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="space-x-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="secondary" size="sm" onClick={() => handleEditTask(task.id)}>
+                            Edit Task
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Edit Task</DialogTitle>
+                          </DialogHeader>
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault()
+                              handleSaveEdit()
+                            }}
+                            className="space-y-4"
+                          >
+                            {/* Add form fields here, similar to the new task form */}
+                            <Button type="submit">Save Changes</Button>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleVerifyCompletion(task.id)}
+                        disabled={task.status === "Completed"}
+                      >
+                        Verify Completion of Task
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleReopenTask(task.id)}
+                        disabled={task.status !== "Completed"}
+                      >
+                        Reopen Task
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
