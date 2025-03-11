@@ -19,22 +19,7 @@ const storage = null
 
 export default function TaskManagement() {
   const [showNewTask, setShowNewTask] = useState(false)
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      name: "Take Pictures of Spider-Man",
-      assignedBy: "J Jonah Jameson",
-      assignedTo: "Peter Parker",
-      assignedOn: "10/30/2024",
-      deadline: "11/04/2024",
-      status: "Verifying",
-      priority: "High",
-      description:
-        "Listen here, Parker! I don't pay you to sit around! I need pictures—good pictures of Spider-Man! Not blurry, not half-in-the-shadows, not one of those artsy shots you think look so clever! Give me something with action, something that'll sell papers! And I need it by tonight! Got it?",
-      completed: "11/03/20",
-      files: [{ name: "Attached File", url: "#" }],
-    },
-  ])
+  const [tasks, setTasks] = useState([])
 
   const [newTask, setNewTask] = useState({
     name: "",
@@ -74,7 +59,7 @@ export default function TaskManagement() {
         await uploadBytes(storageRef, file)
         fileUrl = await getDownloadURL(storageRef)
       } catch (error) {
-        console.error("Error uploading file:", error)
+        console.error("Error uploading file:", error) 
       }
     }
 
