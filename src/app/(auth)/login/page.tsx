@@ -97,3 +97,7 @@ export default function LoginPage() {
     </div>
   )
 }
+
+function setCookie(arg0: string, userId: any, arg2: { maxAge: number }) {
+  throw new Error("Function not implemented.")
+}
