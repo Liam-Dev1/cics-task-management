@@ -1,18 +1,50 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import type React from "react"
+
+import { useState, useRef } from "react"
 import { ChevronDown, Search, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, 
-  DropdownMenuRadioGroup, DropdownMenuRadioItem} from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu"
 import { Sidebar } from "@/components/ui/sidebar"
 
+// First, update the FileObject interface to match the File API
+interface FileObject extends File {
+  name: string
+  size: number
+  type: string
+}
+
+// Also, make sure your Task type is properly defined by adding this interface
+// after the FileObject interface and before the mockStorage definition:
+interface Task {
+  id: number
+  name: string
+  assignedBy: string
+  assignedTo: string
+  assignedOn: string
+  deadline: string
+  status: string
+  priority: string
+  description: string
+  completed?: string | null
+  files?: Array<{ name: string; url: string }>
+}
+
 // Mock storage for demo purposes
+// Update the mockStorage object with proper type annotations
 const mockStorage = {
-  uploadFile: async (file) => {
+  uploadFile: async (file: FileObject) => {
     // Simulate upload delay
     await new Promise((resolve) => setTimeout(resolve, 1000))
     return `https://example.com/files/${file.name}`
@@ -21,14 +53,22 @@ const mockStorage = {
 
 export default function TaskManagement() {
   const [showNewTask, setShowNewTask] = useState(false)
-  const [tasks, setTasks] = useState([])
-  const [editingTask, setEditingTask] = useState(null)
-  const [editingTaskOriginal, setEditingTaskOriginal] = useState(null)
+  // Then update the tasks state with proper typing:
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [editingTask, setEditingTask] = useState<number | null>(null)
+  const [editingTaskOriginal, setEditingTaskOriginal] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [file, setFile] = useState(null)
-  const fileInputRef = useRef(null)
+  // Update the file state with proper typing
+  const [file, setFile] = useState<FileObject | null>(null)
+  // Update the ref definition with proper typing
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  // Find the line with activeSort and setActiveSort useState declaration
+  // Replace it with this properly typed version:
+  // Update the type definition for the sort values
+  type SortValue = string | null
+
+  const [activeSort, setActiveSort] = useState<SortValue>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
-  const [activeSort, setActiveSort] = useState<string | null>(null)
 
   // Filter tasks based on search query and active filter
   const filteredTasks = tasks.filter((task) => {
@@ -64,58 +104,85 @@ export default function TaskManagement() {
     }
   })
 
-  const handleInputChange = (e, taskId = null) => {
+  // First, let's create a type for our input change handler
+  type InputChangeHandler = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    taskId: number | null,
+  ) => void
+
+  // Then create a separate handler for select changes
+  const handleSelectChange = (name: string, value: string, taskId: number) => {
+    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, [name]: value } : task)))
+  }
+
+  // Update the handleInputChange function with proper typing
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    taskId: number | null = null,
+  ) => {
     const { name, value } = e.target
     if (taskId !== null) {
       setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, [name]: value } : task)))
     }
   }
 
-  const handleFileChange = (e) => {
-    if (e.target.files) {
-      setFile(e.target.files[0])
+  // Update the handleFileChange function to ensure type safety
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0]
+      // Ensure the file has the required properties
+      if ("name" in selectedFile) {
+        setFile(selectedFile as FileObject)
+      }
     }
   }
 
-  const handleAddTask = async (e) => {
+  // Then update the handleAddTask function with proper null checking
+  const handleAddTask = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     let fileUrl = ""
-    if (file) {
+    if (file && "name" in file) {
+      // Type guard to ensure file is a FileObject
       try {
-        // Using our mock storage instead of Firebase
         fileUrl = await mockStorage.uploadFile(file)
       } catch (error) {
         console.error("Error uploading file:", error)
       }
     }
 
-    const newTask = {
+    const form = e.currentTarget
+    const formData = new FormData(form)
+
+    const newTask: Task = {
       id: tasks.length + 1,
-      name: e.target.name.value,
+      name: (formData.get("name") as string) || "",
       assignedBy: "J Jonah Jameson",
-      assignedTo: e.target.assignedTo.value,
+      assignedTo: (formData.get("assignedTo") as string) || "",
       assignedOn: new Date().toLocaleDateString(),
-      deadline: e.target.deadline.value,
-      status: e.target.status.value,
-      priority: e.target.priority.value,
-      description: e.target.description.value,
-      files: fileUrl ? [{ name: file.name, url: fileUrl }] : [],
+      deadline: (formData.get("deadline") as string) || "",
+      status: (formData.get("status") as string) || "Pending",
+      priority: (formData.get("priority") as string) || "Medium",
+      description: (formData.get("description") as string) || "",
+      files: fileUrl && file ? [{ name: file.name, url: fileUrl }] : [],
     }
 
     setTasks((prev) => [...prev, newTask])
     setFile(null)
     setShowNewTask(false)
-    e.target.reset()
+    form.reset()
   }
 
-  const handleEditTask = (taskId) => {
+  // Update the task editing functions with proper typing
+  const handleEditTask = (taskId: number) => {
     const taskToEdit = tasks.find((task) => task.id === taskId)
+    if (!taskToEdit) return // Guard clause in case task is not found
+
     setEditingTask(taskId)
     setEditingTaskOriginal({ ...taskToEdit }) // Store a copy of the original task
   }
 
-  const handleSaveEdit = (taskId) => {
+  const handleSaveEdit = (taskId: number) => {
     setEditingTask(null)
     setEditingTaskOriginal(null)
   }
@@ -128,7 +195,7 @@ export default function TaskManagement() {
     setEditingTaskOriginal(null)
   }
 
-  const handleVerifyCompletion = (taskId) => {
+  const handleVerifyCompletion = (taskId: number) => {
     setTasks((prev) =>
       prev.map((task) =>
         task.id === taskId ? { ...task, status: "Completed", completed: new Date().toLocaleDateString() } : task,
@@ -136,7 +203,7 @@ export default function TaskManagement() {
     )
   }
 
-  const handleReopenTask = (taskId) => {
+  const handleReopenTask = (taskId: number) => {
     setTasks((prev) =>
       prev.map((task) => (task.id === taskId ? { ...task, status: "Reopened", completed: null } : task)),
     )
@@ -237,8 +304,8 @@ export default function TaskManagement() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56">
-                <DropdownMenuRadioGroup value={activeSort} onValueChange={setActiveSort}>
-                  <DropdownMenuRadioItem value={null}>Default</DropdownMenuRadioItem>
+                <DropdownMenuRadioGroup value={activeSort ?? ""} onValueChange={setActiveSort}>
+                  <DropdownMenuRadioItem value="">Default</DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="nameAsc">Task Name (A-Z)</DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="nameDesc">Task Name (Z-A)</DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="receiverAsc">Task Receiver (A-Z)</DropdownMenuRadioItem>
@@ -308,6 +375,7 @@ export default function TaskManagement() {
                 </div>
                 <Textarea placeholder="Add Description Here" className="mt-4 mb-4" name="description" required />
                 <div className="flex justify-between">
+                  {/* Then the button can be typed correctly */}
                   <Button
                     type="button"
                     variant="outline"
@@ -339,7 +407,7 @@ export default function TaskManagement() {
                     <Select
                       name="assignedTo"
                       value={task.assignedTo}
-                      onValueChange={(value) => handleInputChange({ target: { name: "assignedTo", value } }, task.id)}
+                      onValueChange={(value) => handleSelectChange("assignedTo", value, task.id)}
                     >
                       <SelectTrigger className="bg-white text-black">
                         <SelectValue placeholder="Select assignee" />
@@ -359,7 +427,7 @@ export default function TaskManagement() {
                     <Select
                       name="status"
                       value={task.status}
-                      onValueChange={(value) => handleInputChange({ target: { name: "status", value } }, task.id)}
+                      onValueChange={(value) => handleSelectChange("status", value, task.id)}
                     >
                       <SelectTrigger className="bg-white text-black">
                         <SelectValue placeholder="Status" />
@@ -374,7 +442,7 @@ export default function TaskManagement() {
                     <Select
                       name="priority"
                       value={task.priority}
-                      onValueChange={(value) => handleInputChange({ target: { name: "priority", value } }, task.id)}
+                      onValueChange={(value) => handleSelectChange("priority", value, task.id)}
                     >
                       <SelectTrigger className="bg-white text-black">
                         <SelectValue placeholder="Priority" />

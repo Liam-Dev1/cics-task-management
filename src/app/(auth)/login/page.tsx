@@ -36,7 +36,7 @@ export default function LoginPage() {
 
           // Check if the user is a super admin or admin
           if (userData.role === "super admin" || userData.role === "admin") {
-            router.push("/users") // Redirect to the user management page
+            router.push("/task") // Redirect to the user management page
           } else {
             setError("You do not have permission to access this system.")
             await auth.signOut() // Log out the user if they are not authorized
