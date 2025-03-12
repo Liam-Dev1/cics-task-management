@@ -1,67 +1,67 @@
-// page.tsx
-'use client';
+"use client"
 
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { auth, googleProvider, db } from "@/app/firebase/firebase.config";
-import { signInWithPopup } from "firebase/auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { User } from "@/app/users/types";
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { auth, googleProvider, db } from "@/app/firebase/firebase.config"
+import { signInWithPopup } from "firebase/auth"
+import { collection, getDocs, query, where } from "firebase/firestore"
+import type { User } from "@/app/users/types"
 
 export default function LoginPage() {
-  const [error, setError] = useState("");
-  const router = useRouter();
+  const [error, setError] = useState("")
+  const router = useRouter()
 
   const handleGoogleLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      const result = await signInWithPopup(auth, googleProvider)
+      const user = result.user
 
       if (user?.email) {
         // Query the "users" collection to check if the email exists
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("email", "==", user.email)); // Ensure field name is "email"
-        const querySnapshot = await getDocs(q);
+        const usersRef = collection(db, "users")
+        const q = query(usersRef, where("email", "==", user.email))
+        const querySnapshot = await getDocs(q)
 
         if (!querySnapshot.empty) {
-          const userData = querySnapshot.docs[0].data() as User;
+          const userData = querySnapshot.docs[0].data() as User
+
+          // Check if the user is inactive
+          if (userData.status === "inactive" || userData.isActive === false) {
+            setError("Your account has been deactivated. Please contact an administrator.")
+            await auth.signOut() // Log out the user if they are inactive
+            return
+          }
 
           // Check if the user is a super admin or admin
           if (userData.role === "super admin" || userData.role === "admin") {
-            router.push("/users"); // Redirect to the user management page
+            router.push("/users") // Redirect to the user management page
           } else {
-            setError("You do not have permission to access this system.");
-            await auth.signOut(); // Log out the user if they are not authorized
+            setError("You do not have permission to access this system.")
+            await auth.signOut() // Log out the user if they are not authorized
           }
         } else {
-          setError("Your email is not authorized to access this system.");
-          await auth.signOut(); // Log out the user if their email is not found
+          setError("Your email is not authorized to access this system.")
+          await auth.signOut() // Log out the user if their email is not found
         }
       } else {
-        setError("No email found in Google account.");
+        setError("No email found in Google account.")
       }
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message);
+        setError(err.message)
       } else {
-        setError("An unexpected error occurred.");
+        setError("An unexpected error occurred.")
       }
     }
-  };
+  }
 
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
-        <Image
-          src="/images/frassatibg.jpeg"
-          alt="Building exterior"
-          fill
-          className="object-cover"
-          priority
-        />
+        <Image src="/images/frassatibg.jpeg" alt="Building exterior" fill className="object-cover" priority />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/50" />
       </div>
 
@@ -85,9 +85,10 @@ export default function LoginPage() {
 
           {/* Login with Google Button */}
           <div className="w-full space-y-4 mt-4">
-            <Button 
+            <Button
               onClick={handleGoogleLogin}
-              className="w-full h-12 text-lg font-medium bg-white text-black border border-gray-300 hover:bg-gray-100 flex items-center justify-center gap-2">
+              className="w-full h-12 text-lg font-medium bg-white text-black border border-gray-300 hover:bg-gray-100 flex items-center justify-center gap-2"
+            >
               <Image
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
                 alt="Google Logo"
@@ -103,5 +104,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }
