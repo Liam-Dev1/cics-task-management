@@ -1,3 +1,4 @@
+
 "use client"
 
 import Image from "next/image"
@@ -96,4 +97,9 @@ export default function LoginPage() {
       </div>
     </div>
   )
+=======
+import LoginPage from "@/components/forms/login/login-form";
+
+export default function SingInRoute() {
+  return <LoginPage />;
 }
