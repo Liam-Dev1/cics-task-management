@@ -1,176 +1,362 @@
+"use client"
+import { useState } from "react"
+import { ChevronDown, ChevronUp, Paperclip, Search, Send } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu"
 import { Sidebar } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ChevronDown, ChevronUp, Search, FileText } from "lucide-react"
 
-export default function TasksPage() {
+// Task interface definition
+interface Task {
+  id: number
+  name: string
+  assignedBy: string
+  assignedTo: string
+  assignedOn: string
+  deadline: string
+  status: string
+  priority: string
+  description: string
+  completed?: string | null
+  files?: Array<{ name: string; url: string }>
+}
+
+export default function UserTaskView() {
+  // Mock tasks for demonstration
+  const mockTasks: Task[] = [
+    {
+      id: 1,
+      name: "Complete quarterly report",
+      assignedBy: "J Jonah Jameson",
+      assignedTo: "Peter Parker",
+      assignedOn: "2023-03-15",
+      deadline: "2023-03-25",
+      status: "Pending",
+      priority: "High",
+      description:
+        "Compile all department statistics and prepare the quarterly performance report. Include charts and projections for the next quarter.",
+      files: [{ name: "Report_Template.docx", url: "https://example.com/files/template.docx" }],
+    },
+    {
+      id: 2,
+      name: "Website redesign feedback",
+      assignedBy: "J Jonah Jameson",
+      assignedTo: "Peter Parker",
+      assignedOn: "2023-03-10",
+      deadline: "2023-03-18",
+      status: "Completed",
+      completed: "2023-03-17",
+      priority: "Medium",
+      description:
+        "Review the new website mockups and provide detailed feedback on usability, design, and content placement.",
+    },
+    {
+      id: 3,
+      name: "Photograph city event",
+      assignedBy: "J Jonah Jameson",
+      assignedTo: "Peter Parker",
+      assignedOn: "2023-03-20",
+      deadline: "2023-03-22",
+      status: "Verifying",
+      priority: "High",
+      description:
+        "Take high-quality photographs of the downtown charity event. Ensure you capture key speakers and crowd reactions.",
+    },
+    {
+      id: 4,
+      name: "Update employee handbook",
+      assignedBy: "J Jonah Jameson",
+      assignedTo: "Peter Parker",
+      assignedOn: "2023-02-28",
+      deadline: "2023-04-01",
+      status: "Pending",
+      priority: "Low",
+      description:
+        "Review and update the employee handbook with new company policies and procedures. Coordinate with HR for accuracy.",
+    },
+    {
+      id: 5,
+      name: "Social media content plan",
+      assignedBy: "J Jonah Jameson",
+      assignedTo: "Peter Parker",
+      assignedOn: "2023-03-05",
+      deadline: "2023-03-19",
+      status: "Reopened",
+      priority: "Medium",
+      description:
+        "Develop a content calendar for our social media channels for the next month. Include post ideas, hashtags, and optimal posting times.",
+    },
+  ]
+
+  const [tasks, setTasks] = useState<Task[]>(mockTasks)
+  const [searchQuery, setSearchQuery] = useState("")
+  type SortValue = string | null
+
+  const [activeSort, setActiveSort] = useState<SortValue>(null)
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>(
+    mockTasks.reduce((acc, task) => ({ ...acc, [task.id]: true }), {}),
+  )
+
+  // Filter tasks based on search query and active filter
+  const filteredTasks = tasks.filter((task) => {
+    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesFilter =
+      !activeFilter ||
+      (["Pending", "Verifying", "Completed", "Reopened"].includes(activeFilter) && task.status === activeFilter) ||
+      (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter)
+    return matchesSearch && matchesFilter
+  })
+
+  // Sort tasks based on active sort option
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    switch (activeSort) {
+      case "nameAsc":
+        return a.name.localeCompare(b.name)
+      case "nameDesc":
+        return b.name.localeCompare(a.name)
+      case "receiverAsc":
+        return a.assignedTo.localeCompare(b.assignedTo)
+      case "receiverDesc":
+        return b.assignedTo.localeCompare(a.assignedTo)
+      case "assignedAsc":
+        return new Date(a.assignedOn).getTime() - new Date(b.assignedOn).getTime()
+      case "assignedDesc":
+        return new Date(b.assignedOn).getTime() - new Date(a.assignedOn).getTime()
+      case "deadlineAsc":
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+      case "deadlineDesc":
+        return new Date(b.deadline).getTime() - new Date(a.deadline).getTime()
+      default:
+        return 0
+    }
+  })
+
+  const toggleTaskExpansion = (taskId: number) => {
+    setExpandedTasks((prev) => ({
+      ...prev,
+      [taskId]: !prev[taskId],
+    }))
+  }
+
+  const handleFileAttachment = (taskId: number) => {
+    const fileInput = document.createElement("input")
+    fileInput.type = "file"
+    fileInput.onchange = (e) => {
+      const target = e.target as HTMLInputElement
+      if (target.files && target.files.length > 0) {
+        const fileName = target.files[0].name
+        // In a real app, you would upload the file to a server here
+        // For now, we'll just update the UI to show the file was attached
+        setTasks(
+          tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  files: [...(task.files || []), { name: fileName, url: "#" }],
+                }
+              : task,
+          ),
+        )
+      }
+    }
+    fileInput.click()
+  }
+
+  const handleTaskSubmit = (taskId: number) => {
+    setTasks(
+      tasks.map((task) =>
+        task.id === taskId ? { ...task, status: "Verifying", completed: new Date().toISOString().split("T")[0] } : task,
+      ),
+    )
+  }
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 bg-white">
-        <div className="p-8">
-          <h1 className="text-5xl font-bold text-zinc-800 mb-6">Tasks</h1>
+      {/* Main Content */}
+      <div className="flex-1 bg-white">
+        <div className="p-6">
+          <h1 className="mb-6">
+            <span className="text-5xl font-bold">Tasks</span>
+          </h1>
 
-          <div className="flex gap-2 mb-8">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500 h-5 w-5" />
-              <Input placeholder="Search Tasks" className="pl-10 bg-zinc-100 border-zinc-200 h-12" />
+          {/* Action Bar */}
+          <div className="flex gap-2 mb-6">
+            <div className="relative">
+              <Input
+                type="search"
+                placeholder="Search Tasks"
+                className="pl-8 w-64"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
             </div>
-            <Button variant="outline" className="h-12 px-4 flex items-center gap-2 bg-zinc-100 border-zinc-200">
-              Filters
-              <ChevronDown className="h-5 w-5" />
-            </Button>
-            <Button variant="outline" className="h-12 px-4 flex items-center gap-2 bg-zinc-100 border-zinc-200">
-              Sort
-              <ChevronDown className="h-5 w-5" />
-            </Button>
+            <Select>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Receiver" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Receivers</SelectItem>
+                <SelectItem value="peter">Peter Parker</SelectItem>
+              </SelectContent>
+            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" className={activeFilter ? "bg-red-100" : ""}>
+                  Filters
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-48">
+                <DropdownMenuCheckboxItem checked={activeFilter === null} onCheckedChange={() => setActiveFilter(null)}>
+                  All
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={activeFilter === "Pending"}
+                  onCheckedChange={() => setActiveFilter(activeFilter === "Pending" ? null : "Pending")}
+                >
+                  Pending
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={activeFilter === "Verifying"}
+                  onCheckedChange={() => setActiveFilter(activeFilter === "Verifying" ? null : "Verifying")}
+                >
+                  Verifying
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={activeFilter === "Completed"}
+                  onCheckedChange={() => setActiveFilter(activeFilter === "Completed" ? null : "Completed")}
+                >
+                  Completed
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={activeFilter === "Reopened"}
+                  onCheckedChange={() => setActiveFilter(activeFilter === "Reopened" ? null : "Reopened")}
+                >
+                  Reopened
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={activeFilter === "High"}
+                  onCheckedChange={() => setActiveFilter(activeFilter === "High" ? null : "High")}
+                >
+                  High Priority
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={activeFilter === "Medium"}
+                  onCheckedChange={() => setActiveFilter(activeFilter === "Medium" ? null : "Medium")}
+                >
+                  Medium Priority
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={activeFilter === "Low"}
+                  onCheckedChange={() => setActiveFilter(activeFilter === "Low" ? null : "Low")}
+                >
+                  Low Priority
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" className={activeSort ? "bg-red-100" : ""}>
+                  Sort
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                <DropdownMenuRadioGroup value={activeSort ?? ""} onValueChange={setActiveSort}>
+                  <DropdownMenuRadioItem value="">Default</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="nameAsc">Task Name (A-Z)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="nameDesc">Task Name (Z-A)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="receiverAsc">Task Receiver (A-Z)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="receiverDesc">Task Receiver (Z-A)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="assignedAsc">Date Assigned (Oldest First)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="assignedDesc">Date Assigned (Newest First)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="deadlineAsc">Deadline (Earliest First)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="deadlineDesc">Deadline (Latest First)</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          <h2 className="text-xl font-semibold text-zinc-800 mb-4">Tasks</h2>
+          {/* Tasks List */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-7 gap-4 font-semibold mb-2">
+              <div>Task Name</div>
+              <div>Assigned by</div>
+              <div>Assigned to</div>
+              <div>Assigned on</div>
+              <div>Deadline</div>
+              <div>Status</div>
+              <div>Priority</div>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="text-left border-b border-zinc-200">
-                  <th className="pb-2 font-medium text-zinc-700">Task Name</th>
-                  <th className="pb-2 font-medium text-zinc-700">Assigned by</th>
-                  <th className="pb-2 font-medium text-zinc-700">Assigned to</th>
-                  <th className="pb-2 font-medium text-zinc-700">Assigned on</th>
-                  <th className="pb-2 font-medium text-zinc-700">Deadline</th>
-                  <th className="pb-2 font-medium text-zinc-700">Status</th>
-                  <th className="pb-2 font-medium text-zinc-700">Priority</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Task 1 */}
-                <tr className="border-b border-zinc-200">
-                  <td className="py-4">
-                    <div className="flex items-center">
-                      <Button variant="ghost" className="p-0 mr-2">
-                        <ChevronUp className="h-5 w-5 text-red-600" />
-                      </Button>
-                      <span className="font-medium text-red-600">Take Pictures of Spider-Man</span>
-                    </div>
-                  </td>
-                  <td className="py-4">J Jonah Jameson</td>
-                  <td className="py-4">Peter Parker</td>
-                  <td className="py-4">10/30/2024</td>
-                  <td className="py-4">11/04/2024</td>
-                  <td className="py-4">
-                    <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">Verifying</span>
-                  </td>
-                  <td className="py-4">
-                    <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">High</span>
-                  </td>
-                </tr>
+            {/* Existing Tasks - Now using sortedTasks */}
+            {sortedTasks.map((task) => (
+              <div key={task.id} className="grid grid-cols-7 gap-4 bg-[#8B2332] text-white p-4 rounded">
+                <div>{task.name}</div>
+                <div>{task.assignedBy}</div>
+                <div>{task.assignedTo}</div>
+                <div>{task.assignedOn}</div>
+                <div>{task.deadline}</div>
+                <div>{task.status}</div>
+                <div className="flex justify-between items-center">
+                  <span>{task.priority}</span>
+                  <button
+                    onClick={() => toggleTaskExpansion(task.id)}
+                    className="text-white hover:bg-[#9B3342] rounded p-1"
+                  >
+                    {expandedTasks[task.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                </div>
 
-                {/* Task 1 Details */}
-                <tr className="bg-zinc-50">
-                  <td colSpan={7} className="p-4">
-                    <div className="flex flex-col gap-4">
-                      <p className="text-zinc-700">
-                        Listen here, Parker! I don't pay you to sit around! I need pictures—good pictures of Spider-Man!
-                        Not blurry, not half-in-the-shadows, not one of those artsy shots you think look so clever! Give
-                        me something with action, something that'll sell papers! And I need it by tonight! Got it?
-                      </p>
-                      <div className="flex justify-between">
-                        <div>
-                          <Button variant="outline" className="bg-zinc-200 border-zinc-300">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Attached File
+                {expandedTasks[task.id] && (
+                  <div className="col-span-7 bg-white text-black p-4 rounded mt-2">
+                    <p className="my-2">{task.description}</p>
+                    <div className="flex justify-between mt-4">
+                      <div className="space-x-2">
+                        {task.files &&
+                          task.files.map((file, index) => (
+                            <Button
+                              key={index}
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => window.open(file.url, "_blank")}
+                            >
+                              {file.name}
+                            </Button>
+                          ))}
+                      </div>
+                      <div className="space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => handleFileAttachment(task.id)}>
+                          <Paperclip className="mr-1 h-4 w-4" />
+                          Attach Files
+                        </Button>
+                        {task.status !== "Completed" && task.status !== "Verifying" && (
+                          <Button variant="default" size="sm" onClick={() => handleTaskSubmit(task.id)}>
+                            <Send className="mr-1 h-4 w-4" />
+                            Submit
                           </Button>
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="relative">
-                            <select className="appearance-none bg-zinc-800 text-white px-4 py-2 pr-8 rounded-md">
-                              <option>Completed</option>
-                              <option>In Progress</option>
-                              <option>Verifying</option>
-                              <option>Overdue</option>
-                            </select>
-                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white h-4 w-4" />
-                          </div>
-                          <Button className="bg-zinc-800 text-white hover:bg-zinc-700">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Attach Files
-                          </Button>
-                          <Button className="bg-red-600 text-white hover:bg-red-700">Verifying Completion</Button>
-                        </div>
+                        )}
                       </div>
                     </div>
-                  </td>
-                </tr>
-
-                {/* Task 2 */}
-                <tr className="border-b border-zinc-200">
-                  <td className="py-4">
-                    <div className="flex items-center">
-                      <Button variant="ghost" className="p-0 mr-2">
-                        <ChevronDown className="h-5 w-5 text-red-600" />
-                      </Button>
-                      <span className="font-medium">Buy Shawarma Machine</span>
-                    </div>
-                  </td>
-                  <td className="py-4">Jabdul Mohammed</td>
-                  <td className="py-4">Juan Cruz</td>
-                  <td className="py-4">10/30/2024</td>
-                  <td className="py-4">11/10/2024</td>
-                  <td className="py-4">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">In Progress</span>
-                  </td>
-                  <td className="py-4">
-                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">Low</span>
-                  </td>
-                </tr>
-
-                {/* Task 3 */}
-                <tr className="border-b border-zinc-200">
-                  <td className="py-4">
-                    <div className="flex items-center">
-                      <Button variant="ghost" className="p-0 mr-2">
-                        <ChevronDown className="h-5 w-5 text-red-600" />
-                      </Button>
-                      <span className="font-medium">Repair Aircon in 1905</span>
-                    </div>
-                  </td>
-                  <td className="py-4">Shihoko Hirata</td>
-                  <td className="py-4">Jason Ong</td>
-                  <td className="py-4">10/30/2024</td>
-                  <td className="py-4">11/10/2024</td>
-                  <td className="py-4">
-                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">Completed</span>
-                  </td>
-                  <td className="py-4">
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">Medium</span>
-                  </td>
-                </tr>
-
-                {/* Task 4 */}
-                <tr className="border-b border-zinc-200">
-                  <td className="py-4">
-                    <div className="flex items-center">
-                      <Button variant="ghost" className="p-0 mr-2">
-                        <ChevronDown className="h-5 w-5 text-red-600" />
-                      </Button>
-                      <span className="font-medium">Find my car</span>
-                    </div>
-                  </td>
-                  <td className="py-4">Roronoa Zoro</td>
-                  <td className="py-4">Nami</td>
-                  <td className="py-4">07/18/2024</td>
-                  <td className="py-4">08/12/2024</td>
-                  <td className="py-4">
-                    <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">Overdue</span>
-                  </td>
-                  <td className="py-4">
-                    <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">High</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
+
