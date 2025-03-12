@@ -9,7 +9,7 @@ import type { User } from "./types"
 import { db, auth } from "@/app/firebase/firebase.config"
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
 import { useAuthState } from "react-firebase-hooks/auth"
-import { createUserWithEmailAndPassword } from "firebase/auth"
+import { createUserWithEmailAndPassword, onAuthStateChanged } from "firebase/auth"
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -35,10 +35,16 @@ export default function UsersPage() {
   }, [user])
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-    }
-  }, [user, loading, router])
+    // Set up the onAuthStateChanged observer
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push("/login")
+      }
+    })
+
+    // Clean up the observer when the component unmounts
+    return () => unsubscribe()
+  }, [router])
 
   const handleAddUser = async (newUser: User) => {
     if (!user) return
