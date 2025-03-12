@@ -6,8 +6,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { auth, googleProvider, db } from "@/app/firebase/firebase.config"
 import { signInWithPopup } from "firebase/auth"
-import { collection, getDocs, query, where } from "firebase/firestore"
-import type { User } from "@/app/users/types"
+import { collection, query, where, getDocs } from "firebase/firestore"
 
 export default function LoginPage() {
   const [error, setError] = useState("")
@@ -19,27 +18,19 @@ export default function LoginPage() {
       const user = result.user
 
       if (user?.email) {
-        // Query the "users" collection to check if the email exists
+        // Query the "users" collection to check the user's role
         const usersRef = collection(db, "users")
         const q = query(usersRef, where("email", "==", user.email))
         const querySnapshot = await getDocs(q)
 
         if (!querySnapshot.empty) {
-          const userData = querySnapshot.docs[0].data() as User
+          const userData = querySnapshot.docs[0].data()
 
-          // Check if the user is inactive
-          if (userData.status === "inactive" || userData.isActive === false) {
-            setError("Your account has been deactivated. Please contact an administrator.")
-            await auth.signOut() // Log out the user if they are inactive
-            return
-          }
-
-          // Check if the user is a super admin or admin
-          if (userData.role === "super admin" || userData.role === "admin") {
-            router.push("/users") // Redirect to the user management page
+          // Check the user's role and redirect accordingly
+          if (userData.role === "admin" || userData.role === "super admin") {
+            router.push("/task") // Redirect admins to the admin task view
           } else {
-            setError("You do not have permission to access this system.")
-            await auth.signOut() // Log out the user if they are not authorized
+            router.push("/task") // Redirect normal users to the user task view
           }
         } else {
           setError("Your email is not authorized to access this system.")

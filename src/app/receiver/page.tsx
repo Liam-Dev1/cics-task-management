@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation"
 import UserList from "./user-list"
 import AddEditUserForm from "./add-edit-user-form"
 import { Sidebar } from "@/components/ui/sidebar"
-import type { User } from "./types"
+import type { User } from "../../lib/types"
 import { db, auth } from "@/app/firebase/firebase.config"
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { createUserWithEmailAndPassword, onAuthStateChanged } from "firebase/auth"
 
-export default function UsersPage() {
+export default function AdminRecieverPage() {
   const [users, setUsers] = useState<User[]>([])
   const [editingUser, setEditingUser] = useState<User | undefined>(undefined)
   const [isAddingUser, setIsAddingUser] = useState(false)

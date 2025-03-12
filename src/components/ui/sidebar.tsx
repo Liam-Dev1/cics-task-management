@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button"
 
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { name: "Tasks", icon: ClipboardList, href: "/tasks" },
+  { name: "Tasks", icon: ClipboardList, href: "/task" },
   { name: "Reports", icon: BarChart3, href: "/reports" },
-  { name: "Receivers", icon: Users, href: "/" },
+  { name: "Receivers", icon: Users, href: "/receiver" },
   { name: "Help", icon: HelpCircle, href: "/help" },
   { name: "User", icon: User, href: "/user" },
 ]
