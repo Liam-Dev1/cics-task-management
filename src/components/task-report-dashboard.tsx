@@ -24,7 +24,7 @@ import { AverageCompletionTimeChart } from "@/components/average-completion-time
 import { TaskCompletionStatusChart } from "@/components/task-completion-status-chart"
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip"
 import { taskData } from "@/lib/sample-data"
-import { Sidebar } from "@/components/sidebar"
+import { Sidebar } from "@/components/sidebar-admin"
 
 export default function TaskReportDashboard() {
   const [timeFrame, setTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly")
@@ -33,13 +33,15 @@ export default function TaskReportDashboard() {
   const [showReport, setShowReport] = useState(false)
 
   const allReceivers = ["John Smith", "Jane Doe"]
+  const allTaskStatuses = ["Completed", "Pending", "Overdue"]
+  const allPriorities = ["High", "Medium", "Low"]
 
   const [currentFilters, setCurrentFilters] = useState({
     taskReceivers: [] as string[],
     fromDate: new Date(2024, 0, 1),
     toDate: new Date(2024, 9, 10),
-    taskStatus: "all",
-    priority: "all",
+    taskStatus: [] as string[],
+    priority: [] as string[],
   })
   const [appliedFilters, setAppliedFilters] = useState(currentFilters)
 
@@ -57,8 +59,8 @@ export default function TaskReportDashboard() {
       taskReceivers: [],
       fromDate: new Date(2024, 0, 1),
       toDate: new Date(2024, 9, 10),
-      taskStatus: "all",
-      priority: "all",
+      taskStatus: [],
+      priority: [],
     })
   }
 
@@ -66,10 +68,8 @@ export default function TaskReportDashboard() {
     return taskData.tasks.filter((task) => {
       const matchesReceiver =
         currentFilters.taskReceivers.length === 0 || currentFilters.taskReceivers.includes(task.assignedTo)
-      const matchesStatus =
-        appliedFilters.taskStatus === "all" || task.status.toLowerCase() === appliedFilters.taskStatus.toLowerCase()
-      const matchesPriority =
-        appliedFilters.priority === "all" || task.priority.toLowerCase() === appliedFilters.priority.toLowerCase()
+      const matchesStatus = appliedFilters.taskStatus.length === 0 || appliedFilters.taskStatus.includes(task.status)
+      const matchesPriority = appliedFilters.priority.length === 0 || appliedFilters.priority.includes(task.priority)
       const taskDate = new Date(task.assignedDate)
       const isWithinDateRange =
         (!appliedFilters.fromDate || taskDate >= appliedFilters.fromDate) &&
@@ -353,165 +353,223 @@ export default function TaskReportDashboard() {
     <>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <div className="flex-1 overflow-x-auto">
-          <div className="min-w-[1024px] p-6">
-            <div>
-              <h1 className="text-5xl font-bold mb-6">Reports</h1>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-none p-6">
+            <h1 className="text-5xl font-bold mb-6">Reports</h1>
 
-              {/* Filter Controls */}
-              <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <div>
-                    <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
-                      Task Receiver
-                    </label>
-                    <Select
-                      onValueChange={(value) => {
-                        if (value === "all") {
-                          handleFilterChange("taskReceivers", allReceivers)
-                        } else {
-                          handleFilterChange(
-                            "taskReceivers",
-                            currentFilters.taskReceivers.includes(value)
-                              ? currentFilters.taskReceivers.filter((r) => r !== value)
-                              : [...currentFilters.taskReceivers, value],
-                          )
-                        }
-                      }}
-                      value={currentFilters.taskReceivers.join(",")}
-                    >
-                      <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
-                        <SelectValue placeholder="Receivers" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Receivers</SelectItem>
-                        {allReceivers.map((receiver) => (
-                          <SelectItem key={receiver} value={receiver}>
-                            <div className="flex items-center">
-                              <Checkbox
-                                checked={currentFilters.taskReceivers.includes(receiver)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver])
-                                  } else {
-                                    handleFilterChange(
-                                      "taskReceivers",
-                                      currentFilters.taskReceivers.filter((r) => r !== receiver),
-                                    )
-                                  }
-                                }}
-                              />
-                              <span className="ml-2">{receiver}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="from-date" className="block text-sm font-medium mb-1">
-                      From Date
-                    </label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          id="from-date"
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal bg-white text-black"
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {currentFilters.fromDate ? format(currentFilters.fromDate, "PPP") : <span>From</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CalendarComponent
-                          mode="single"
-                          selected={currentFilters.fromDate}
-                          onSelect={(date) => handleFilterChange("fromDate", date)}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div>
-                    <label htmlFor="to-date" className="block text-sm font-medium mb-1">
-                      To Date
-                    </label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          id="to-date"
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal bg-white text-black"
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {currentFilters.toDate ? format(currentFilters.toDate, "PPP") : <span>To</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CalendarComponent
-                          mode="single"
-                          selected={currentFilters.toDate}
-                          onSelect={(date) => handleFilterChange("toDate", date)}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div>
-                    <label htmlFor="task-status" className="block text-sm font-medium mb-1">
-                      Task Status
-                    </label>
-                    <Select
-                      onValueChange={(value) => handleFilterChange("taskStatus", value)}
-                      value={currentFilters.taskStatus}
-                    >
-                      <SelectTrigger id="task-status" className="bg-white text-black w-full">
-                        <SelectValue placeholder="Task Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Task Status</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="overdue">Overdue</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="priority" className="block text-sm font-medium mb-1">
-                      Priority
-                    </label>
-                    <Select
-                      onValueChange={(value) => handleFilterChange("priority", value)}
-                      value={currentFilters.priority}
-                    >
-                      <SelectTrigger id="priority" className="bg-white text-black w-full">
-                        <SelectValue placeholder="Priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Priorities</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+            {/* Filter Controls */}
+            <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
+                    Task Receiver
+                  </label>
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === "all") {
+                        handleFilterChange("taskReceivers", allReceivers)
+                      } else {
+                        handleFilterChange(
+                          "taskReceivers",
+                          currentFilters.taskReceivers.includes(value)
+                            ? currentFilters.taskReceivers.filter((r) => r !== value)
+                            : [...currentFilters.taskReceivers, value],
+                        )
+                      }
+                    }}
+                    value={currentFilters.taskReceivers.join(",")}
+                  >
+                    <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
+                      <SelectValue placeholder="Select Receivers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Receivers</SelectItem>
+                      {allReceivers.map((receiver) => (
+                        <SelectItem key={receiver} value={receiver}>
+                          <div className="flex items-center">
+                            <Checkbox
+                              checked={currentFilters.taskReceivers.includes(receiver)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver])
+                                } else {
+                                  handleFilterChange(
+                                    "taskReceivers",
+                                    currentFilters.taskReceivers.filter((r) => r !== receiver),
+                                  )
+                                }
+                              }}
+                            />
+                            <span className="ml-2">{receiver}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="mt-4 flex justify-end space-x-2">
-                  <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleResetFilters}>
-                    Reset Filters
-                  </Button>
-                  <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
-                    Generate Report
-                  </Button>
+                <div>
+                  <label htmlFor="from-date" className="block text-sm font-medium mb-1">
+                    From Date
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="from-date"
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal bg-white text-black"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {currentFilters.fromDate ? format(currentFilters.fromDate, "PPP") : <span>From</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarComponent
+                        mode="single"
+                        selected={currentFilters.fromDate}
+                        onSelect={(date) => handleFilterChange("fromDate", date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div>
+                  <label htmlFor="to-date" className="block text-sm font-medium mb-1">
+                    To Date
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="to-date"
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal bg-white text-black"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {currentFilters.toDate ? format(currentFilters.toDate, "PPP") : <span>To</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarComponent
+                        mode="single"
+                        selected={currentFilters.toDate}
+                        onSelect={(date) => handleFilterChange("toDate", date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div>
+                  <label htmlFor="task-status" className="block text-sm font-medium mb-1">
+                    Task Status
+                  </label>
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === "all") {
+                        handleFilterChange("taskStatus", allTaskStatuses)
+                      } else {
+                        handleFilterChange(
+                          "taskStatus",
+                          currentFilters.taskStatus.includes(value)
+                            ? currentFilters.taskStatus.filter((s) => s !== value)
+                            : [...currentFilters.taskStatus, value],
+                        )
+                      }
+                    }}
+                    value={currentFilters.taskStatus.join(",")}
+                  >
+                    <SelectTrigger id="task-status" className="bg-white text-black w-full">
+                      <SelectValue placeholder="Task Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Task Status</SelectItem>
+                      {allTaskStatuses.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          <div className="flex items-center">
+                            <Checkbox
+                              checked={currentFilters.taskStatus.includes(status)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  handleFilterChange("taskStatus", [...currentFilters.taskStatus, status])
+                                } else {
+                                  handleFilterChange(
+                                    "taskStatus",
+                                    currentFilters.taskStatus.filter((s) => s !== status),
+                                  )
+                                }
+                              }}
+                            />
+                            <span className="ml-2">{status}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label htmlFor="priority" className="block text-sm font-medium mb-1">
+                    Priority
+                  </label>
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === "all") {
+                        handleFilterChange("priority", allPriorities)
+                      } else {
+                        handleFilterChange(
+                          "priority",
+                          currentFilters.priority.includes(value)
+                            ? currentFilters.priority.filter((p) => p !== value)
+                            : [...currentFilters.priority, value],
+                        )
+                      }
+                    }}
+                    value={currentFilters.priority.join(",")}
+                  >
+                    <SelectTrigger id="priority" className="bg-white text-black w-full">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      {allPriorities.map((priority) => (
+                        <SelectItem key={priority} value={priority}>
+                          <div className="flex items-center">
+                            <Checkbox
+                              checked={currentFilters.priority.includes(priority)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  handleFilterChange("priority", [...currentFilters.priority, priority])
+                                } else {
+                                  handleFilterChange(
+                                    "priority",
+                                    currentFilters.priority.filter((p) => p !== priority),
+                                  )
+                                }
+                              }}
+                            />
+                            <span className="ml-2">{priority}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
+              <div className="mt-4 flex justify-end space-x-2">
+                <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleResetFilters}>
+                  Reset Filters
+                </Button>
+                <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
+                  Generate Report
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-x-auto">
+            <div className="min-w-[1024px] p-6">
               {showReport && (
                 <>
                   {/* User Profile and Stats */}
@@ -536,10 +594,14 @@ export default function TaskReportDashboard() {
                           </Button>
                           <Button className="bg-[#8B2332] text-white rounded-md">{`${format(appliedFilters.fromDate, "PPP")} - ${format(appliedFilters.toDate, "PPP")}`}</Button>
                           <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.taskStatus === "all" ? "All Task Status" : appliedFilters.taskStatus}
+                            {appliedFilters.taskStatus.length === 0
+                              ? "All Task Status"
+                              : appliedFilters.taskStatus.join(", ")}
                           </Button>
                           <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.priority === "all" ? "All Priorities" : appliedFilters.priority}
+                            {appliedFilters.priority.length === 0
+                              ? "All Priorities"
+                              : appliedFilters.priority.join(", ")}
                           </Button>
                         </div>
 
@@ -767,7 +829,9 @@ export default function TaskReportDashboard() {
                               <Tooltip
                                 formatter={(value, name) => [
                                   value,
-                                  name === "onTime" ? "Completed On/Before Time" : "Missed Deadline",
+                                  name === '                                  name === "onTime'
+                                    ? "Completed On/Before Time"
+                                    : "Missed Deadline",
                                 ]}
                                 labelFormatter={(label, payload) => {
                                   if (payload && payload[0] && payload[0].payload) {
