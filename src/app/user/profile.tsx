@@ -38,7 +38,7 @@ export default function Profile({users}:Test) {
                 src="https://placehold.co/200"
                 style={imageStyle}
                 sizes="(max-width: 200px) 100vw, (max-width: 200px) 50vw, 33vw"
-                placeholder="blur"
+                
                 />
               </div>
               <div className="pl-5">
@@ -55,22 +55,18 @@ export default function Profile({users}:Test) {
               {/*Buttons???*/}
               <div className="p-6">
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Link href="user_img.tsx">
+                  {/* <Link href="user_img.tsx"> */}
                   <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center">
                     Edit Profile Picture
                   </Button>
-                  </Link>
-
-                  <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center"
-                    onClick={() => handleClick("button3")}>
-                    Reset Password
-                  </Button>
+                  {/* </Link> */}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 pt-5">
-                
+                <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center">
+                    Reset Password
+                  </Button>
 
-                  <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center"
-                    onClick={() => handleClick("button4")}>
+                  <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center">
                     Log Out
                   </Button>
               </div>

@@ -16,10 +16,6 @@ export default function Profile({users}:Test) {
     border: '1px solid #fff',
   }
 
-  function handleClick(arg0: string): void {
-    throw new Error("Function not implemented.");
-  }
-
   return (
     <div className="flex min-h-screen">
       {/* Sidebar imported from sidebar.tsx */}
@@ -43,7 +39,7 @@ export default function Profile({users}:Test) {
                 src="https://placehold.co/200"
                 style={imageStyle}
                 sizes="(max-width: 200px) 100vw, (max-width: 200px) 50vw, 33vw"
-                placeholder="blur"
+                
                 />
               </div>
               <div className="pl-5">
@@ -66,19 +62,16 @@ export default function Profile({users}:Test) {
                   </Button>
                   {/* </Link> */}
 
-                  <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center" 
-                    onClick={() => handleClick("button2")}>
+                  <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center">
                     Switch to Task Reciever Menu
                   </Button>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 pt-5">
-                <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center"
-                    onClick={() => handleClick("button3")}>
+                <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center">
                     Reset Password
                   </Button>
 
-                  <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center"
-                    onClick={() => handleClick("button4")}>
+                  <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center">
                     Log Out
                   </Button>
               </div>

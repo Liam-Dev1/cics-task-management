@@ -6,8 +6,8 @@ import { auth, db } from "@/app/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
 
-import AdminProfile from "./user_admin"
-import UserProfile from "./user"
+import AdminProfile from "./profile_admin"
+import UserProfile from "./profile"
 
 export default function DashboardPage() {
   const [user, loading] = useAuthState(auth)
@@ -59,9 +59,9 @@ export default function DashboardPage() {
   return (
     <div>
       {userRole === "admin" || userRole === "super admin" ? (
-        <AdminProfile />
+        <AdminProfile users={[]} />
       ) : (
-        <UserProfile />
+        <UserProfile users={[]} />
       )}
     </div>
   )
