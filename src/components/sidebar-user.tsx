@@ -1,6 +1,6 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { LayoutDashboard, ClipboardList, BarChart3, Users, HelpCircle, User, LogOut, ChevronLeft } from "lucide-react"
@@ -17,6 +17,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [manuallyToggled, setManuallyToggled] = useState(false)
@@ -25,66 +26,71 @@ export function Sidebar() {
   // Next.js safe window dimension check
   useEffect(() => {
     setMounted(true)
-    
+
     const checkOrientation = () => {
-      if (typeof window !== 'undefined') {
-        const isPortrait = window.matchMedia("(orientation: portrait)").matches;
-        
+      if (typeof window !== "undefined") {
+        const isPortrait = window.matchMedia("(orientation: portrait)").matches
+
         // Only log when orientation actually changes
         if (lastOrientationRef.current !== isPortrait) {
-          console.log("Orientation check:", isPortrait ? "portrait" : "landscape");
-          lastOrientationRef.current = isPortrait;
-          
+          console.log("Orientation check:", isPortrait ? "portrait" : "landscape")
+          lastOrientationRef.current = isPortrait
+
           // If orientation changes, we should reset the manual toggle after a delay
           // This allows automatic adjustments to work again after manual changes
           if (!manuallyToggled) {
-            setIsMinimized(isPortrait);
+            setIsMinimized(isPortrait)
           } else {
             // After 3 seconds of an orientation change, re-enable auto adjustment
             setTimeout(() => {
-              setManuallyToggled(false);
-              setIsMinimized(isPortrait);
-              console.log("Re-enabling automatic sidebar adjustment");
-            }, 3000);
+              setManuallyToggled(false)
+              setIsMinimized(isPortrait)
+              console.log("Re-enabling automatic sidebar adjustment")
+            }, 3000)
           }
         }
       }
     }
-    
+
     // Initial check
-    setTimeout(checkOrientation, 100);
-    
+    setTimeout(checkOrientation, 100)
+
     // Use matchMedia for better detection
-    const mediaQuery = window.matchMedia("(orientation: portrait)");
+    const mediaQuery = window.matchMedia("(orientation: portrait)")
     const handleOrientationChange = (e) => {
-      console.log("Orientation changed to:", e.matches ? "portrait" : "landscape");
-      checkOrientation();
-    };
-    
+      console.log("Orientation changed to:", e.matches ? "portrait" : "landscape")
+      checkOrientation()
+    }
+
     // Modern approach with addEventListener
     if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener("change", handleOrientationChange);
+      mediaQuery.addEventListener("change", handleOrientationChange)
     } else {
       // Fallback for older browsers
-      window.addEventListener('resize', checkOrientation);
+      window.addEventListener("resize", checkOrientation)
     }
-    
+
     // Cleanup
     return () => {
       if (mediaQuery.removeEventListener) {
-        mediaQuery.removeEventListener("change", handleOrientationChange);
+        mediaQuery.removeEventListener("change", handleOrientationChange)
       } else {
-        window.removeEventListener('resize', checkOrientation);
+        window.removeEventListener("resize", checkOrientation)
       }
-    };
-  }, [manuallyToggled]);
+    }
+  }, [manuallyToggled])
 
   // Toggle sidebar manually
   const toggleSidebar = () => {
-    setIsMinimized(!isMinimized);
-    setManuallyToggled(true);
-    console.log("Sidebar manually toggled, auto-adjustment temporarily disabled");
-  };
+    setIsMinimized(!isMinimized)
+    setManuallyToggled(true)
+    console.log("Sidebar manually toggled, auto-adjustment temporarily disabled")
+  }
+
+  // Handle logout button click
+  const handleLogout = () => {
+    router.push("/logout")
+  }
 
   // Consistent initial render for hydration
   if (!mounted) {
@@ -108,20 +114,21 @@ export function Sidebar() {
           <>
             {/* Logo centered at the top when minimized */}
             <div className="flex justify-center items-center mb-4">
-              <Image 
-                src="/images/cics_logo.png" 
-                alt="CICS Logo" 
-                width={32} 
-                height={32} 
-                style={{ width: '32px', height: '32px', objectFit: 'contain' }}
-                className="transition-none"
-              />
+              <div className="w-full aspect-square relative">
+                <Image
+                  src="/images/cics_logo.png"
+                  alt="CICS Logo"
+                  fill
+                  className="object-contain transition-none"
+                  priority
+                />
+              </div>
             </div>
-            
+
             {/* Toggle button below the logo when minimized */}
             <div className="flex justify-center mb-6">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={toggleSidebar}
                 className="p-1 h-8 w-8 text-white hover:bg-zinc-700"
@@ -134,16 +141,17 @@ export function Sidebar() {
           <>
             {/* Logo and toggle button in a row when maximized */}
             <div className="flex items-center justify-between mb-6">
-              <Image 
-                src="/images/CICSTASKMGMT_LOGO.png" 
-                alt="CICS Logo" 
-                width={180} 
-                height={100} 
-                style={{ maxWidth: '100%', height: '100%' }}
-                className="transition-none"
-              />
-              <Button 
-                variant="ghost" 
+              <div className="flex-1 relative h-[50px]">
+                <Image
+                  src="/images/CICSTASKMGMT_LOGO.png"
+                  alt="CICS Logo"
+                  fill
+                  className="object-contain transition-none"
+                  priority
+                />
+              </div>
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={toggleSidebar}
                 className="p-1 h-8 w-8 text-white hover:bg-zinc-700 ml-4 flex-shrink-0"
@@ -180,6 +188,7 @@ export function Sidebar() {
             "w-full text-white hover:bg-zinc-700 text-lg py-3",
             isMinimized ? "px-0 justify-center" : "justify-start",
           )}
+          onClick={handleLogout}
         >
           <LogOut className={cn("h-6 w-6", !isMinimized && "mr-3")} />
           {!isMinimized && <span>Log Out</span>}
