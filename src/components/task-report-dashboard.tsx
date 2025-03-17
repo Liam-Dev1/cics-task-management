@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import {
   format,
   startOfWeek,
@@ -359,7 +360,7 @@ export default function TaskReportDashboard() {
             <div className="flex-1 p-6 ">
             {/* Filter Controls */}
             <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4 sticky top-0 z-10">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
                 <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
                 Task Receiver
@@ -415,55 +416,33 @@ export default function TaskReportDashboard() {
               </div>
 
               <div>
-                <label htmlFor="from-date" className="block text-sm font-medium mb-1">
-                From Date
+                  <label htmlFor="from-date" className="block text-sm font-medium mb-1">
+                  From Date
                 </label>
-                <Popover>
-                <PopoverTrigger asChild>
-                  <Button
+                <Input
+                  type="date"
                   id="from-date"
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal bg-white text-black"
-                  >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {currentFilters.fromDate ? format(currentFilters.fromDate, "PPP") : <span>From</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent
-                  mode="single"
-                  selected={currentFilters.fromDate}
-                  onSelect={(date) => handleFilterChange("fromDate", date)}
-                  initialFocus
-                  />
-                </PopoverContent>
-                </Popover>
+                  name="fromDate"
+                  value={format(currentFilters.fromDate, "yyyy-MM-dd")}
+                  onChange={(e) => handleFilterChange("fromDate", new Date(e.target.value))}
+                  className="bg-white text-black w-full"
+                  required
+                 />
               </div>
 
               <div>
                 <label htmlFor="to-date" className="block text-sm font-medium mb-1">
-                To Date
+                  To Date
                 </label>
-                <Popover>
-                <PopoverTrigger asChild>
-                  <Button
+                <Input
+                  type="date"
                   id="to-date"
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal bg-white text-black"
-                  >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {currentFilters.toDate ? format(currentFilters.toDate, "PPP") : <span>To</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent
-                  mode="single"
-                  selected={currentFilters.toDate}
-                  onSelect={(date) => handleFilterChange("toDate", date)}
-                  initialFocus
-                  />
-                </PopoverContent>
-                </Popover>
+                  name="toDate"
+                  value={format(currentFilters.toDate, "yyyy-MM-dd")}
+                  onChange={(e) => handleFilterChange("toDate", new Date(e.target.value))}
+                  className="bg-white text-black w-full"
+                  required
+                />
               </div>
 
               <div>
