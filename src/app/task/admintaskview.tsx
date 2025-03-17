@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { db, storage } from "@/app/firebase/firebase.config"
-import { collection, addDoc, getDocs, updateDoc, doc, query, orderBy } from "firebase/firestore"
+import { auth, db, storage } from "@/app/firebase/firebase.config"
+import { useAuthState } from "react-firebase-hooks/auth"
+import { collection, addDoc, getDocs, updateDoc, doc, query, orderBy, where } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Sidebar } from "@/components/sidebar-admin"
 
@@ -53,27 +54,51 @@ export default function TaskManagement() {
   const [searchQuery, setSearchQuery] = useState("")
   const [file, setFile] = useState<FileObject | null>(null)
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const newTaskFileInputRef = useRef<HTMLInputElement>(null)
+  const [user] = useAuthState(auth)
+  const [userName, setUserName] = useState<string>("Admin User")
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | null }>({
+    message: "",
+    type: null,
+  })
 
   type SortValue = string | null
   const [activeSort, setActiveSort] = useState<SortValue>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
 
-  // Create a state to store form values from Select components
-  const [formValues, setFormValues] = useState({
-    assignedTo: " ",
-    status: " ",
-    priority: " ",
-  })
-
-  // Update form values when select changes
-  const handleFormSelectChange = (field: string, value: string) => {
-    setFormValues((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+  // Show notification
+  const showNotification = (message: string, type: "success" | "error") => {
+    setNotification({ message, type })
+    // Auto-hide notification after 3 seconds
+    setTimeout(() => {
+      setNotification({ message: "", type: null })
+    }, 3000)
   }
+
+  // Fetch user's name from Firestore
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (user?.email) {
+        try {
+          const usersRef = collection(db, "users")
+          const q = query(usersRef, where("email", "==", user.email))
+          const querySnapshot = await getDocs(q)
+
+          if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data()
+            setUserName(userData.name || userData.displayName || user.displayName || "Admin User")
+          }
+        } catch (error) {
+          console.error("Error fetching user name:", error)
+        }
+      }
+    }
+
+    fetchUserName()
+  }, [user])
 
   // Fetch tasks from Firestore
   useEffect(() => {
@@ -102,7 +127,7 @@ export default function TaskManagement() {
         setExpandedTasks(initialExpandedState)
       } catch (error) {
         console.error("Error fetching tasks:", error)
-        console.log("Error: Failed to load tasks. Please try again.")
+        showNotification("Failed to load tasks. Please try again.", "error")
       } finally {
         setLoading(false)
       }
@@ -135,7 +160,7 @@ export default function TaskManagement() {
       case "assignedAsc":
         return new Date(a.assignedOn).getTime() - new Date(b.assignedOn).getTime()
       case "assignedDesc":
-        return new Date(b.assignedOn).getTime() - new Date(b.assignedOn).getTime()
+        return new Date(b.assignedOn).getTime() - new Date(a.assignedOn).getTime()
       case "deadlineAsc":
         return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
       case "deadlineDesc":
@@ -167,11 +192,63 @@ export default function TaskManagement() {
     setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, [name]: value } : task)))
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleNewTaskFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0]
       if ("name" in selectedFile) {
         setFile(selectedFile as FileObject)
+      }
+    }
+  }
+
+  // Handle file change for existing tasks
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !uploadingTaskId) {
+      return
+    }
+
+    try {
+      setUploadingFile(true)
+      const selectedFile = e.target.files[0]
+
+      // Upload file to Firebase Storage
+      const fileUrl = await uploadFileToStorage(selectedFile, uploadingTaskId)
+
+      // Get the current task
+      const taskToUpdate = tasks.find((task) => task.id === uploadingTaskId)
+      if (!taskToUpdate) return
+
+      // Prepare the updated files array
+      const updatedFiles = [...(taskToUpdate.files || []), { name: selectedFile.name, url: fileUrl }]
+
+      // Update the task in Firestore
+      const taskRef = doc(db, "tasks", uploadingTaskId)
+      await updateDoc(taskRef, {
+        files: updatedFiles,
+      })
+
+      // Update local state
+      setTasks(
+        tasks.map((task) =>
+          task.id === uploadingTaskId
+            ? {
+                ...task,
+                files: updatedFiles,
+              }
+            : task,
+        ),
+      )
+
+      showNotification("File attached successfully", "success")
+    } catch (error) {
+      console.error("Error attaching file:", error)
+      showNotification("Failed to attach file. Please try again.", "error")
+    } finally {
+      setUploadingFile(false)
+      setUploadingTaskId(null)
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
       }
     }
   }
@@ -187,47 +264,30 @@ export default function TaskManagement() {
   // Task management functions
   const handleAddTask = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    console.log("Form submission started")
 
     try {
       setUploadingFile(true)
       const form = e.currentTarget
       const formData = new FormData(form)
 
-      // Log form data for debugging
-      console.log("Form data:", {
-        name: formData.get("name"),
-        assignedTo: formData.get("assignedTo"),
-        deadline: formData.get("deadline"),
-        status: formData.get("status"),
-        priority: formData.get("priority"),
-        description: formData.get("description"),
-      })
-
       // Create new task document in Firestore
       const newTaskData = {
-        name: formData.get("name") as string,
-        assignedBy: "J Jonah Jameson",
-        assignedTo: formValues.assignedTo,
+        name: (formData.get("name") as string) || "",
+        assignedBy: userName,
+        assignedTo: (formData.get("assignedTo") as string) || "",
         assignedOn: new Date().toISOString().split("T")[0],
-        deadline: formData.get("deadline") as string,
-        status: formValues.status,
-        priority: formValues.priority,
-        description: formData.get("description") as string,
+        deadline: (formData.get("deadline") as string) || "",
+        status: (formData.get("status") as string) || "Pending",
+        priority: (formData.get("priority") as string) || "Medium",
+        description: (formData.get("description") as string) || "",
         files: [],
       }
 
-      console.log("Preparing to add task to Firestore:", newTaskData)
-
-      // Add document to Firestore
       const docRef = await addDoc(collection(db, "tasks"), newTaskData)
-      console.log("Task added to Firestore with ID:", docRef.id)
 
       // If there's a file, upload it to Firebase Storage
       if (file) {
-        console.log("Uploading file:", file.name)
         const fileUrl = await uploadFileToStorage(file, docRef.id)
-        console.log("File uploaded, URL:", fileUrl)
 
         // Update the task document with the file information
         await updateDoc(doc(db, "tasks", docRef.id), {
@@ -238,7 +298,6 @@ export default function TaskManagement() {
             },
           ],
         })
-        console.log("Task document updated with file information")
 
         // Update local state
         const newTask: Task = {
@@ -268,25 +327,10 @@ export default function TaskManagement() {
       setShowNewTask(false)
       form.reset()
 
-      console.log("Success: Task created successfully")
-
-      // Force a refresh of the tasks list
-      const tasksCollection = collection(db, "tasks")
-      const tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
-      const querySnapshot = await getDocs(tasksQuery)
-
-      const fetchedTasks: Task[] = []
-      querySnapshot.forEach((doc) => {
-        fetchedTasks.push({
-          id: doc.id,
-          ...(doc.data() as Omit<Task, "id">),
-        })
-      })
-
-      setTasks(fetchedTasks)
+      showNotification("Task created successfully", "success")
     } catch (error) {
       console.error("Error adding task:", error)
-      alert("Failed to create task. Please check console for details.")
+      showNotification("Failed to create task. Please try again.", "error")
     } finally {
       setUploadingFile(false)
     }
@@ -316,10 +360,10 @@ export default function TaskManagement() {
         description: taskToUpdate.description,
       })
 
-      console.log("Success: Task updated successfully")
+      showNotification("Task updated successfully", "success")
     } catch (error) {
       console.error("Error updating task:", error)
-      console.log("Error: Failed to update task. Please try again.")
+      showNotification("Failed to update task. Please try again.", "error")
 
       // Revert to original if there's an error
       if (editingTaskOriginal) {
@@ -355,10 +399,10 @@ export default function TaskManagement() {
         prev.map((task) => (task.id === taskId ? { ...task, status: "Completed", completed: completedDate } : task)),
       )
 
-      console.log("Success: Task marked as completed")
+      showNotification("Task marked as completed", "success")
     } catch (error) {
       console.error("Error verifying task completion:", error)
-      console.log("Error: Failed to update task status. Please try again.")
+      showNotification("Failed to update task status. Please try again.", "error")
     }
   }
 
@@ -377,62 +421,18 @@ export default function TaskManagement() {
         prev.map((task) => (task.id === taskId ? { ...task, status: "Reopened", completed: null } : task)),
       )
 
-      console.log("Success: Task reopened")
+      showNotification("Task reopened", "success")
     } catch (error) {
       console.error("Error reopening task:", error)
-      console.log("Error: Failed to reopen task. Please try again.")
+      showNotification("Failed to reopen task. Please try again.", "error")
     }
   }
 
-  const handleAttachFile = async (taskId: string) => {
-    if (!fileInputRef.current) return
-
-    fileInputRef.current.onchange = async (e) => {
-      const target = e.target as HTMLInputElement
-      if (target.files && target.files.length > 0) {
-        try {
-          setUploadingFile(true)
-          const selectedFile = target.files[0]
-
-          // Upload file to Firebase Storage
-          const fileUrl = await uploadFileToStorage(selectedFile, taskId)
-
-          // Get the current task
-          const taskToUpdate = tasks.find((task) => task.id === taskId)
-          if (!taskToUpdate) return
-
-          // Prepare the updated files array
-          const updatedFiles = [...(taskToUpdate.files || []), { name: selectedFile.name, url: fileUrl }]
-
-          // Update the task in Firestore
-          const taskRef = doc(db, "tasks", taskId)
-          await updateDoc(taskRef, {
-            files: updatedFiles,
-          })
-
-          // Update local state
-          setTasks(
-            tasks.map((task) =>
-              task.id === taskId
-                ? {
-                    ...task,
-                    files: updatedFiles,
-                  }
-                : task,
-            ),
-          )
-
-          console.log("Success: File attached successfully")
-        } catch (error) {
-          console.error("Error attaching file:", error)
-          console.log("Error: Failed to attach file. Please try again.")
-        } finally {
-          setUploadingFile(false)
-        }
-      }
+  const handleAttachFile = (taskId: string) => {
+    setUploadingTaskId(taskId)
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
     }
-
-    fileInputRef.current.click()
   }
 
   return (
@@ -442,10 +442,24 @@ export default function TaskManagement() {
       {/* Main Content */}
       <div className="flex-1 bg-white">
         <div className="p-6">
+          {/* Notification */}
+          {notification.type && (
+            <div
+              className={`fixed top-4 right-4 z-50 p-4 rounded shadow-md ${
+                notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+              }`}
+            >
+              {notification.message}
+            </div>
+          )}
+
           <h1 className="mb-6">
             <span className="text-5xl font-bold">Tasks</span>{" "}
             <span className="text-3xl text-red-800 font-bold">Admin</span>
           </h1>
+
+          {/* Hidden file input for existing tasks */}
+          <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
 
           {/* Action Bar */}
           <div className="flex flex-wrap gap-2 mb-6">
@@ -584,18 +598,13 @@ export default function TaskManagement() {
                       </div>
                       <div className="md:col-span-1">
                         <label className="block text-sm font-medium mb-1">Assigned By</label>
-                        <div className="h-10 px-3 py-2 border rounded-md bg-gray-50">J Jonah Jameson</div>
+                        <div className="h-10 px-3 py-2 border rounded-md bg-gray-50">{userName}</div>
                       </div>
                       <div className="md:col-span-1">
                         <label htmlFor="assigned-to" className="block text-sm font-medium mb-1">
                           Assigned To
                         </label>
-                        <Select
-                          name="assignedTo"
-                          required
-                          value={formValues.assignedTo}
-                          onValueChange={(value) => handleFormSelectChange("assignedTo", value)}
-                        >
+                        <Select name="assignedTo" required>
                           <SelectTrigger id="assigned-to">
                             <SelectValue placeholder="Select assignee" />
                           </SelectTrigger>
@@ -622,12 +631,7 @@ export default function TaskManagement() {
                         <label htmlFor="status" className="block text-sm font-medium mb-1">
                           Status
                         </label>
-                        <Select
-                          name="status"
-                          required
-                          value={formValues.status}
-                          onValueChange={(value) => handleFormSelectChange("status", value)}
-                        >
+                        <Select name="status" required>
                           <SelectTrigger id="status">
                             <SelectValue placeholder="Status" />
                           </SelectTrigger>
@@ -641,12 +645,7 @@ export default function TaskManagement() {
                         <label htmlFor="priority" className="block text-sm font-medium mb-1">
                           Priority
                         </label>
-                        <Select
-                          name="priority"
-                          required
-                          value={formValues.priority}
-                          onValueChange={(value) => handleFormSelectChange("priority", value)}
-                        >
+                        <Select name="priority" required>
                           <SelectTrigger id="priority">
                             <SelectValue placeholder="Priority" />
                           </SelectTrigger>
@@ -675,7 +674,7 @@ export default function TaskManagement() {
                         type="button"
                         variant="outline"
                         className="flex gap-2"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => newTaskFileInputRef.current?.click()}
                         disabled={uploadingFile}
                       >
                         {uploadingFile ? (
@@ -685,7 +684,12 @@ export default function TaskManagement() {
                         )}
                         Attach Files
                       </Button>
-                      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                      <input
+                        type="file"
+                        ref={newTaskFileInputRef}
+                        onChange={handleNewTaskFileChange}
+                        className="hidden"
+                      />
                       <div>
                         <Button type="button" variant="outline" className="mr-2" onClick={() => setShowNewTask(false)}>
                           Cancel
@@ -887,9 +891,23 @@ export default function TaskManagement() {
                                 </Button>
                               ))}
                           </div>
-                          <div className="space-x-2">
+                          <div className="flex flex-row space-x-2">
                             {editingTask === task.id ? (
                               <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleAttachFile(task.id)}
+                                  className="flex items-center gap-1"
+                                  disabled={uploadingFile}
+                                >
+                                  {uploadingFile && uploadingTaskId === task.id ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-800"></div>
+                                  ) : (
+                                    <Upload className="h-4 w-4" />
+                                  )}
+                                  Attach Files
+                                </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -911,20 +929,6 @@ export default function TaskManagement() {
                               </>
                             ) : (
                               <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleAttachFile(task.id)}
-                                  className="flex items-center gap-1"
-                                  disabled={uploadingFile}
-                                >
-                                  {uploadingFile ? (
-                                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-800"></div>
-                                  ) : (
-                                    <Upload className="h-4 w-4" />
-                                  )}
-                                  Attach Files
-                                </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
