@@ -1,189 +1,146 @@
-"use client";
+"use client"
 
-import { useEffect, useState, useRef } from "react";
-import { ChevronDown, Search, Upload } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
-import { Sidebar } from "@/components/sidebar-admin";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, db } from "@/app/firebase/firebase.config";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { useEffect, useState, useRef } from "react"
+import { ChevronDown, Search, Upload } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, 
+  DropdownMenuRadioGroup, DropdownMenuRadioItem} from "@/components/ui/dropdown-menu"
+import { Sidebar } from "@/components/ui/sidebar"
 
 // Mock storage for demo purposes
 const mockStorage = {
   uploadFile: async (file) => {
     // Simulate upload delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return `https://example.com/files/${file.name}`;
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    return `<url id="cvbt9paque5gmun7bm50" type="url" status="failed" title="" wc="0">https://example.com/files/</url> ${file.name}`
   },
-};
-
-// Key for local storage
-const LOCAL_STORAGE_KEY = "tasks";
+}
 
 export default function TaskManagement() {
-  const [user] = useAuthState(auth);
-  const [userName, setUserName] = useState("Unknown User");
-  const [showNewTask, setShowNewTask] = useState(false);
-  const [tasks, setTasks] = useState([]);
-  const [editingTask, setEditingTask] = useState(null);
-  const [editingTaskOriginal, setEditingTaskOriginal] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [file, setFile] = useState(null);
-  const fileInputRef = useRef(null);
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
-  const [activeSort, setActiveSort] = useState<string | null>(null);
-
-  // Fetch user's name from Firestore
-  useEffect(() => {
-    const fetchUserName = async () => {
-      if (user?.email) {
-        try {
-          const usersRef = collection(db, "users");
-          const q = query(usersRef, where("email", "==", user.email));
-          const querySnapshot = await getDocs(q);
-          
-          if (!querySnapshot.empty) {
-            const userData = querySnapshot.docs[0].data();
-            setUserName(userData.name || "Unknown User");
-          }
-        } catch (error) {
-          console.error("Error fetching user name:", error);
-          setUserName("Unknown User");
-        }
-      }
-    };
-
-    fetchUserName();
-  }, [user]);
-
-  // Load tasks from local storage when the component mounts
-  useEffect(() => {
-    const savedTasks = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
-    }
-  }, []);
-
-  // Save tasks to local storage whenever tasks change
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tasks));
-  }, [tasks]);
+  const [showNewTask, setShowNewTask] = useState(false)
+  const [tasks, setTasks] = useState([])
+  const [editingTask, setEditingTask] = useState(null)
+  const [editingTaskOriginal, setEditingTaskOriginal] = useState(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [file, setFile] = useState(null)
+  const fileInputRef = useRef(null)
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [activeSort, setActiveSort] = useState<string | null>(null)
 
   // Filter tasks based on search query and active filter
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFilter =
       !activeFilter ||
       (["Pending", "Verifying", "Completed", "Reopened"].includes(activeFilter) && task.status === activeFilter) ||
-      (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter);
-    return matchesSearch && matchesFilter;
-  });
+      (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter)
+    return matchesSearch && matchesFilter
+  })
 
   // Sort tasks based on active sort option
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     switch (activeSort) {
       case "nameAsc":
-        return a.name.localeCompare(b.name);
+        return a.name.localeCompare(b.name)
       case "nameDesc":
-        return b.name.localeCompare(a.name);
+        return b.name.localeCompare(a.name)
       case "receiverAsc":
-        return a.assignedTo.localeCompare(b.assignedTo);
+        return a.assignedTo.localeCompare(b.assignedTo)
       case "receiverDesc":
-        return b.assignedTo.localeCompare(a.assignedTo);
+        return b.assignedTo.localeCompare(a.assignedTo)
       case "assignedAsc":
-        return new Date(a.assignedOn).getTime() - new Date(b.assignedOn).getTime();
+        return new Date(a.assignedOn).getTime() - new Date(b.assignedOn).getTime()
       case "assignedDesc":
-        return new Date(b.assignedOn).getTime() - new Date(a.assignedOn).getTime();
+        return new Date(b.assignedOn).getTime() - new Date(a.assignedOn).getTime()
       case "deadlineAsc":
-        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
       case "deadlineDesc":
-        return new Date(b.deadline).getTime() - new Date(a.deadline).getTime();
+        return new Date(b.deadline).getTime() - new Date(a.deadline).getTime()
       default:
-        return 0;
+        return 0
     }
-  });
+  })
 
   const handleInputChange = (e, taskId = null) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
     if (taskId !== null) {
-      setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, [name]: value } : task)));
+      setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, [name]: value } : task)))
     }
-  };
+  }
 
   const handleFileChange = (e) => {
     if (e.target.files) {
-      setFile(e.target.files[0]);
+      setFile(e.target.files[0])
     }
-  };
+  }
 
   const handleAddTask = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
 
-    let fileUrl = "";
+    let fileUrl = ""
     if (file) {
       try {
         // Using our mock storage instead of Firebase
-        fileUrl = await mockStorage.uploadFile(file);
+        fileUrl = await mockStorage.uploadFile(file)
       } catch (error) {
-        console.error("Error uploading file:", error);
+        console.error("Error uploading file:", error)
       }
     }
 
     const newTask = {
       id: tasks.length + 1,
       name: e.target.name.value,
-      assignedBy: userName,
+      assignedBy: "J Jonah Jameson",
       assignedTo: e.target.assignedTo.value,
-      assignedOn: new Date().toLocaleDateString(),
+      assignedOn: new Date().toLocaleString(), // Changed to include time
       deadline: e.target.deadline.value,
       status: e.target.status.value,
       priority: e.target.priority.value,
       description: e.target.description.value,
       files: fileUrl ? [{ name: file.name, url: fileUrl }] : [],
-    };
+    }
 
-    setTasks((prev) => [...prev, newTask]);
-    setFile(null);
-    setShowNewTask(false);
-    e.target.reset();
-  };
+    setTasks((prev) => [...prev, newTask])
+    setFile(null)
+    setShowNewTask(false)
+    e.target.reset()
+  }
 
   const handleEditTask = (taskId) => {
-    const taskToEdit = tasks.find((task) => task.id === taskId);
-    setEditingTask(taskId);
-    setEditingTaskOriginal({ ...taskToEdit }); // Store a copy of the original task
-  };
+    const taskToEdit = tasks.find((task) => task.id === taskId)
+    setEditingTask(taskId)
+    setEditingTaskOriginal({ ...taskToEdit }) // Store a copy of the original task
+  }
 
   const handleSaveEdit = (taskId) => {
-    setEditingTask(null);
-    setEditingTaskOriginal(null);
-  };
+    setEditingTask(null)
+    setEditingTaskOriginal(null)
+  }
 
   const handleCancelEdit = () => {
     if (editingTaskOriginal) {
-      setTasks((prev) => prev.map((task) => (task.id === editingTaskOriginal.id ? editingTaskOriginal : task)));
+      setTasks((prev) => prev.map((task) => (task.id === editingTaskOriginal.id ? editingTaskOriginal : task)))
     }
-    setEditingTask(null);
-    setEditingTaskOriginal(null);
-  };
+    setEditingTask(null)
+    setEditingTaskOriginal(null)
+  }
 
   const handleVerifyCompletion = (taskId) => {
     setTasks((prev) =>
       prev.map((task) =>
         task.id === taskId ? { ...task, status: "Completed", completed: new Date().toLocaleDateString() } : task,
       ),
-    );
-  };
+    )
+  }
 
   const handleReopenTask = (taskId) => {
     setTasks((prev) =>
       prev.map((task) => (task.id === taskId ? { ...task, status: "Reopened", completed: null } : task)),
-    );
-  };
+    )
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -299,15 +256,15 @@ export default function TaskManagement() {
           {/* Tasks List */}
           <div className="space-y-4">
             <div className="grid grid-cols-7 gap-4 font-semibold mb-2">
-              <div>Task Name</div>
-              <div>Assigned by</div>
-              <div>Assigned to</div>
-              <div>Assigned on</div>
-              <div>Deadline</div>
-              <div>Status</div>
-              <div>Priority</div>
+              <div className="col-span-1">Task Name</div>
+              <div className="col-span-1">Assigned by</div>
+              <div className="col-span-1">Assigned to</div>
+              <div className="col-span-1">Assigned on</div>
+              <div className="col-span-1">Deadline</div>
+              <div className="col-span-1">Status</div>
+              <div className="col-span-1">Priority</div>
             </div>
-
+            
             {/* Add New Task Button */}
             <Button onClick={() => setShowNewTask(true)} className="bg-red-800 hover:bg-red-900 text-white">
               + Add New Task
@@ -318,7 +275,7 @@ export default function TaskManagement() {
               <form onSubmit={handleAddTask} className="border rounded-lg p-4 bg-gray-50">
                 <div className="grid grid-cols-7 gap-4">
                   <Input placeholder="Insert Task Name Here" name="name" required />
-                  <div>{userName}</div>
+                  <div>J Jonah Jameson</div>
                   <Select name="assignedTo" required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select assignee" />
@@ -327,8 +284,8 @@ export default function TaskManagement() {
                       <SelectItem value="Peter Parker">Peter Parker</SelectItem>
                     </SelectContent>
                   </Select>
-                  <div>{new Date().toLocaleDateString()}</div>
-                  <Input type="date" name="deadline" required />
+                  <div>{new Date().toLocaleString()}</div>
+                  <Input type="datetime-local" name="deadline" required /> {/* Changed to datetime-local */}
                   <Select name="status" required>
                     <SelectTrigger>
                       <SelectValue placeholder="Status" />
@@ -371,14 +328,20 @@ export default function TaskManagement() {
             {sortedTasks.map((task) => (
               <div key={task.id} className="grid grid-cols-7 gap-4 bg-red-800 text-white p-4 rounded">
                 {editingTask === task.id ? (
-                  <>
+                  <div className="col-span-1">
                     <Input
                       name="name"
                       value={task.name}
                       onChange={(e) => handleInputChange(e, task.id)}
-                      className="bg-white text-black"
+                      className="bg-white text-black w-full"
                     />
-                    <div>{task.assignedBy}</div>
+                  </div>
+                ) : (
+                  <div className="col-span-1">{task.name}</div>
+                )}
+                <div className="col-span-1">{task.assignedBy}</div>
+                {editingTask === task.id ? (
+                  <div className="col-span-1">
                     <Select
                       name="assignedTo"
                       value={task.assignedTo}
@@ -391,14 +354,26 @@ export default function TaskManagement() {
                         <SelectItem value="Peter Parker">Peter Parker</SelectItem>
                       </SelectContent>
                     </Select>
-                    <div>{task.assignedOn}</div>
+                  </div>
+                ) : (
+                  <div className="col-span-1">{task.assignedTo}</div>
+                )}
+                <div className="col-span-1">{task.assignedOn}</div>
+                {editingTask === task.id ? (
+                  <div className="col-span-1">
                     <Input
-                      type="date"
+                      type="datetime-local"
                       name="deadline"
                       value={task.deadline}
                       onChange={(e) => handleInputChange(e, task.id)}
-                      className="bg-white text-black"
+                      className="bg-white text-black w-full"
                     />
+                  </div>
+                ) : (
+                  <div className="col-span-1">{new Date(task.deadline).toLocaleString()}</div>
+                )}
+                {editingTask === task.id ? (
+                  <div className="col-span-1">
                     <Select
                       name="status"
                       value={task.status}
@@ -414,6 +389,12 @@ export default function TaskManagement() {
                         <SelectItem value="Reopened">Reopened</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                ) : (
+                  <div className="col-span-1">{task.status}</div>
+                )}
+                {editingTask === task.id ? (
+                  <div className="col-span-1">
                     <Select
                       name="priority"
                       value={task.priority}
@@ -428,17 +409,9 @@ export default function TaskManagement() {
                         <SelectItem value="Low">Low</SelectItem>
                       </SelectContent>
                     </Select>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <div>{task.name}</div>
-                    <div>{task.assignedBy}</div>
-                    <div>{task.assignedTo}</div>
-                    <div>{task.assignedOn}</div>
-                    <div>{task.deadline}</div>
-                    <div>{task.status}</div>
-                    <div>{task.priority}</div>
-                  </>
+                  <div className="col-span-1">{task.priority}</div>
                 )}
                 <div className="col-span-7 bg-white text-black p-4 rounded mt-2">
                   {editingTask === task.id ? (
@@ -468,14 +441,14 @@ export default function TaskManagement() {
                     </div>
                     <div className="space-x-2">
                       {editingTask === task.id ? (
-                        <>
+                        <div>
                           <Button variant="secondary" size="sm" onClick={() => handleSaveEdit(task.id)}>
                             Save Changes
                           </Button>
                           <Button variant="secondary" size="sm" onClick={handleCancelEdit}>
                             Cancel
                           </Button>
-                        </>
+                        </div>
                       ) : (
                         <Button variant="secondary" size="sm" onClick={() => handleEditTask(task.id)}>
                           Edit Task
@@ -506,5 +479,5 @@ export default function TaskManagement() {
         </div>
       </div>
     </div>
-  );
+  )
 }
