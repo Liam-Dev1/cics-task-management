@@ -12,6 +12,7 @@ import UserProfile from "./profile"
 export default function DashboardPage() {
   const [user, loading] = useAuthState(auth)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [isAdminMode, setIsAdminMode] = useState(true)
   const router = useRouter()
 
   // Fetch the user's role from Firestore
@@ -25,6 +26,7 @@ export default function DashboardPage() {
         if (!querySnapshot.empty) {
           const userData = querySnapshot.docs[0].data()
           setUserRole(userData.role)
+          setIsAdminMode(userData.role === "admin" || userData.role === "super admin")
         }
       }
     }
