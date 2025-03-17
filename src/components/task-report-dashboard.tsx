@@ -356,10 +356,10 @@ export default function TaskReportDashboard() {
         <div className="flex-1 flex flex-col overflow-hidden">
         <h1 className="text-5xl font-bold mb-6 p-6">Reports</h1>
           <div className="flex-1 overflow-x-auto">
-            <div className="flex-1 p-6">
+            <div className="flex-1 p-6 ">
             {/* Filter Controls */}
             <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4 sticky top-0 z-10">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
                 Task Receiver
@@ -380,7 +380,13 @@ export default function TaskReportDashboard() {
                 value={currentFilters.taskReceivers.join(",")}
                 >
                 <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
-                  <SelectValue placeholder="Select Receivers" />
+                  <SelectValue placeholder="Select Receivers">
+                    {currentFilters.taskReceivers.length > 0
+                      ? currentFilters.taskReceivers.length === allReceivers.length
+                        ? "All Receivers"
+                        : currentFilters.taskReceivers.join(", ")
+                      : "Select Receivers"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Receivers</SelectItem>
@@ -480,7 +486,13 @@ export default function TaskReportDashboard() {
                 value={currentFilters.taskStatus.join(",")}
                 >
                 <SelectTrigger id="task-status" className="bg-white text-black w-full">
-                  <SelectValue placeholder="Task Status" />
+                  <SelectValue placeholder="Task Status">
+                    {currentFilters.taskStatus.length > 0
+                      ? currentFilters.taskStatus.length === allTaskStatuses.length
+                        ? "All Task Statuses"
+                        : currentFilters.taskStatus.join(", ")
+                      : "Task Status"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Task Status</SelectItem>
@@ -528,7 +540,13 @@ export default function TaskReportDashboard() {
                 value={currentFilters.priority.join(",")}
                 >
                 <SelectTrigger id="priority" className="bg-white text-black w-full">
-                  <SelectValue placeholder="Priority" />
+                  <SelectValue placeholder="Priority">
+                    {currentFilters.priority.length > 0
+                      ? currentFilters.priority.length === allPriorities.length
+                        ? "All Priorities"
+                        : currentFilters.priority.join(", ")
+                      : "Priority"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Priorities</SelectItem>
@@ -557,7 +575,7 @@ export default function TaskReportDashboard() {
               </div>
               </div>
 
-              <div className="mt-4 flex justify-end space-x-2">
+              <div className="mt-4 flex justify-start space-x-2">
               <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleResetFilters}>
                 Reset Filters
               </Button>
