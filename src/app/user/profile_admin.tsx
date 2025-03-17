@@ -16,6 +16,10 @@ export default function Profile({users}:Test) {
     border: '1px solid #fff',
   }
 
+  function handleClick(arg0: string): void {
+    throw new Error("Function not implemented.");
+  }
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar imported from sidebar.tsx */}
