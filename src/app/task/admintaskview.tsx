@@ -15,7 +15,7 @@ const mockStorage = {
   uploadFile: async (file) => {
     // Simulate upload delay
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    return `https://example.com/files/${file.name}`
+    return `<url id="cvbt9paque5gmun7bm50" type="url" status="failed" title="" wc="0">https://example.com/files/</url> ${file.name}`
   },
 }
 
@@ -95,7 +95,7 @@ export default function TaskManagement() {
       name: e.target.name.value,
       assignedBy: "J Jonah Jameson",
       assignedTo: e.target.assignedTo.value,
-      assignedOn: new Date().toLocaleDateString(),
+      assignedOn: new Date().toLocaleString(), // Changed to include time
       deadline: e.target.deadline.value,
       status: e.target.status.value,
       priority: e.target.priority.value,
@@ -256,15 +256,15 @@ export default function TaskManagement() {
           {/* Tasks List */}
           <div className="space-y-4">
             <div className="grid grid-cols-7 gap-4 font-semibold mb-2">
-              <div>Task Name</div>
-              <div>Assigned by</div>
-              <div>Assigned to</div>
-              <div>Assigned on</div>
-              <div>Deadline</div>
-              <div>Status</div>
-              <div>Priority</div>
+              <div className="col-span-1">Task Name</div>
+              <div className="col-span-1">Assigned by</div>
+              <div className="col-span-1">Assigned to</div>
+              <div className="col-span-1">Assigned on</div>
+              <div className="col-span-1">Deadline</div>
+              <div className="col-span-1">Status</div>
+              <div className="col-span-1">Priority</div>
             </div>
-
+            
             {/* Add New Task Button */}
             <Button onClick={() => setShowNewTask(true)} className="bg-red-800 hover:bg-red-900 text-white">
               + Add New Task
@@ -284,8 +284,8 @@ export default function TaskManagement() {
                       <SelectItem value="Peter Parker">Peter Parker</SelectItem>
                     </SelectContent>
                   </Select>
-                  <div>{new Date().toLocaleDateString()}</div>
-                  <Input type="date" name="deadline" required />
+                  <div>{new Date().toLocaleString()}</div>
+                  <Input type="datetime-local" name="deadline" required /> {/* Changed to datetime-local */}
                   <Select name="status" required>
                     <SelectTrigger>
                       <SelectValue placeholder="Status" />
@@ -328,14 +328,20 @@ export default function TaskManagement() {
             {sortedTasks.map((task) => (
               <div key={task.id} className="grid grid-cols-7 gap-4 bg-red-800 text-white p-4 rounded">
                 {editingTask === task.id ? (
-                  <>
+                  <div className="col-span-1">
                     <Input
                       name="name"
                       value={task.name}
                       onChange={(e) => handleInputChange(e, task.id)}
-                      className="bg-white text-black"
+                      className="bg-white text-black w-full"
                     />
-                    <div>{task.assignedBy}</div>
+                  </div>
+                ) : (
+                  <div className="col-span-1">{task.name}</div>
+                )}
+                <div className="col-span-1">{task.assignedBy}</div>
+                {editingTask === task.id ? (
+                  <div className="col-span-1">
                     <Select
                       name="assignedTo"
                       value={task.assignedTo}
@@ -348,14 +354,26 @@ export default function TaskManagement() {
                         <SelectItem value="Peter Parker">Peter Parker</SelectItem>
                       </SelectContent>
                     </Select>
-                    <div>{task.assignedOn}</div>
+                  </div>
+                ) : (
+                  <div className="col-span-1">{task.assignedTo}</div>
+                )}
+                <div className="col-span-1">{task.assignedOn}</div>
+                {editingTask === task.id ? (
+                  <div className="col-span-1">
                     <Input
-                      type="date"
+                      type="datetime-local"
                       name="deadline"
                       value={task.deadline}
                       onChange={(e) => handleInputChange(e, task.id)}
-                      className="bg-white text-black"
+                      className="bg-white text-black w-full"
                     />
+                  </div>
+                ) : (
+                  <div className="col-span-1">{new Date(task.deadline).toLocaleString()}</div>
+                )}
+                {editingTask === task.id ? (
+                  <div className="col-span-1">
                     <Select
                       name="status"
                       value={task.status}
@@ -371,6 +389,12 @@ export default function TaskManagement() {
                         <SelectItem value="Reopened">Reopened</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                ) : (
+                  <div className="col-span-1">{task.status}</div>
+                )}
+                {editingTask === task.id ? (
+                  <div className="col-span-1">
                     <Select
                       name="priority"
                       value={task.priority}
@@ -385,17 +409,9 @@ export default function TaskManagement() {
                         <SelectItem value="Low">Low</SelectItem>
                       </SelectContent>
                     </Select>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <div>{task.name}</div>
-                    <div>{task.assignedBy}</div>
-                    <div>{task.assignedTo}</div>
-                    <div>{task.assignedOn}</div>
-                    <div>{task.deadline}</div>
-                    <div>{task.status}</div>
-                    <div>{task.priority}</div>
-                  </>
+                  <div className="col-span-1">{task.priority}</div>
                 )}
                 <div className="col-span-7 bg-white text-black p-4 rounded mt-2">
                   {editingTask === task.id ? (
@@ -425,14 +441,14 @@ export default function TaskManagement() {
                     </div>
                     <div className="space-x-2">
                       {editingTask === task.id ? (
-                        <>
+                        <div>
                           <Button variant="secondary" size="sm" onClick={() => handleSaveEdit(task.id)}>
                             Save Changes
                           </Button>
                           <Button variant="secondary" size="sm" onClick={handleCancelEdit}>
                             Cancel
                           </Button>
-                        </>
+                        </div>
                       ) : (
                         <Button variant="secondary" size="sm" onClick={() => handleEditTask(task.id)}>
                           Edit Task
