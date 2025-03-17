@@ -354,221 +354,219 @@ export default function TaskReportDashboard() {
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-none p-6">
-            <h1 className="text-5xl font-bold mb-6">Reports</h1>
-
+        <h1 className="text-5xl font-bold mb-6 p-6">Reports</h1>
+          <div className="flex-1 overflow-x-auto">
+            <div className="flex-1 p-6">
             {/* Filter Controls */}
-            <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4">
+            <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4 sticky top-0 z-10">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
-                    Task Receiver
-                  </label>
-                  <Select
-                    onValueChange={(value) => {
-                      if (value === "all") {
-                        handleFilterChange("taskReceivers", allReceivers)
+              <div>
+                <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
+                Task Receiver
+                </label>
+                <Select
+                onValueChange={(value) => {
+                  if (value === "all") {
+                  handleFilterChange("taskReceivers", allReceivers)
+                  } else {
+                  handleFilterChange(
+                    "taskReceivers",
+                    currentFilters.taskReceivers.includes(value)
+                    ? currentFilters.taskReceivers.filter((r) => r !== value)
+                    : [...currentFilters.taskReceivers, value],
+                  )
+                  }
+                }}
+                value={currentFilters.taskReceivers.join(",")}
+                >
+                <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
+                  <SelectValue placeholder="Select Receivers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Receivers</SelectItem>
+                  {allReceivers.map((receiver) => (
+                  <SelectItem key={receiver} value={receiver}>
+                    <div className="flex items-center">
+                    <Checkbox
+                      checked={currentFilters.taskReceivers.includes(receiver)}
+                      onCheckedChange={(checked) => {
+                      if (checked) {
+                        handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver])
                       } else {
                         handleFilterChange(
-                          "taskReceivers",
-                          currentFilters.taskReceivers.includes(value)
-                            ? currentFilters.taskReceivers.filter((r) => r !== value)
-                            : [...currentFilters.taskReceivers, value],
+                        "taskReceivers",
+                        currentFilters.taskReceivers.filter((r) => r !== receiver),
                         )
                       }
-                    }}
-                    value={currentFilters.taskReceivers.join(",")}
+                      }}
+                    />
+                    <span className="ml-2">{receiver}</span>
+                    </div>
+                  </SelectItem>
+                  ))}
+                </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label htmlFor="from-date" className="block text-sm font-medium mb-1">
+                From Date
+                </label>
+                <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                  id="from-date"
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal bg-white text-black"
                   >
-                    <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
-                      <SelectValue placeholder="Select Receivers" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Receivers</SelectItem>
-                      {allReceivers.map((receiver) => (
-                        <SelectItem key={receiver} value={receiver}>
-                          <div className="flex items-center">
-                            <Checkbox
-                              checked={currentFilters.taskReceivers.includes(receiver)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver])
-                                } else {
-                                  handleFilterChange(
-                                    "taskReceivers",
-                                    currentFilters.taskReceivers.filter((r) => r !== receiver),
-                                  )
-                                }
-                              }}
-                            />
-                            <span className="ml-2">{receiver}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {currentFilters.fromDate ? format(currentFilters.fromDate, "PPP") : <span>From</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent
+                  mode="single"
+                  selected={currentFilters.fromDate}
+                  onSelect={(date) => handleFilterChange("fromDate", date)}
+                  initialFocus
+                  />
+                </PopoverContent>
+                </Popover>
+              </div>
 
-                <div>
-                  <label htmlFor="from-date" className="block text-sm font-medium mb-1">
-                    From Date
-                  </label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="from-date"
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal bg-white text-black"
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {currentFilters.fromDate ? format(currentFilters.fromDate, "PPP") : <span>From</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <CalendarComponent
-                        mode="single"
-                        selected={currentFilters.fromDate}
-                        onSelect={(date) => handleFilterChange("fromDate", date)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+              <div>
+                <label htmlFor="to-date" className="block text-sm font-medium mb-1">
+                To Date
+                </label>
+                <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                  id="to-date"
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal bg-white text-black"
+                  >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {currentFilters.toDate ? format(currentFilters.toDate, "PPP") : <span>To</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent
+                  mode="single"
+                  selected={currentFilters.toDate}
+                  onSelect={(date) => handleFilterChange("toDate", date)}
+                  initialFocus
+                  />
+                </PopoverContent>
+                </Popover>
+              </div>
 
-                <div>
-                  <label htmlFor="to-date" className="block text-sm font-medium mb-1">
-                    To Date
-                  </label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="to-date"
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal bg-white text-black"
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {currentFilters.toDate ? format(currentFilters.toDate, "PPP") : <span>To</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <CalendarComponent
-                        mode="single"
-                        selected={currentFilters.toDate}
-                        onSelect={(date) => handleFilterChange("toDate", date)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div>
-                  <label htmlFor="task-status" className="block text-sm font-medium mb-1">
-                    Task Status
-                  </label>
-                  <Select
-                    onValueChange={(value) => {
-                      if (value === "all") {
-                        handleFilterChange("taskStatus", allTaskStatuses)
+              <div>
+                <label htmlFor="task-status" className="block text-sm font-medium mb-1">
+                Task Status
+                </label>
+                <Select
+                onValueChange={(value) => {
+                  if (value === "all") {
+                  handleFilterChange("taskStatus", allTaskStatuses)
+                  } else {
+                  handleFilterChange(
+                    "taskStatus",
+                    currentFilters.taskStatus.includes(value)
+                    ? currentFilters.taskStatus.filter((s) => s !== value)
+                    : [...currentFilters.taskStatus, value],
+                  )
+                  }
+                }}
+                value={currentFilters.taskStatus.join(",")}
+                >
+                <SelectTrigger id="task-status" className="bg-white text-black w-full">
+                  <SelectValue placeholder="Task Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Task Status</SelectItem>
+                  {allTaskStatuses.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    <div className="flex items-center">
+                    <Checkbox
+                      checked={currentFilters.taskStatus.includes(status)}
+                      onCheckedChange={(checked) => {
+                      if (checked) {
+                        handleFilterChange("taskStatus", [...currentFilters.taskStatus, status])
                       } else {
                         handleFilterChange(
-                          "taskStatus",
-                          currentFilters.taskStatus.includes(value)
-                            ? currentFilters.taskStatus.filter((s) => s !== value)
-                            : [...currentFilters.taskStatus, value],
+                        "taskStatus",
+                        currentFilters.taskStatus.filter((s) => s !== status),
                         )
                       }
-                    }}
-                    value={currentFilters.taskStatus.join(",")}
-                  >
-                    <SelectTrigger id="task-status" className="bg-white text-black w-full">
-                      <SelectValue placeholder="Task Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Task Status</SelectItem>
-                      {allTaskStatuses.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          <div className="flex items-center">
-                            <Checkbox
-                              checked={currentFilters.taskStatus.includes(status)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  handleFilterChange("taskStatus", [...currentFilters.taskStatus, status])
-                                } else {
-                                  handleFilterChange(
-                                    "taskStatus",
-                                    currentFilters.taskStatus.filter((s) => s !== status),
-                                  )
-                                }
-                              }}
-                            />
-                            <span className="ml-2">{status}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                      }}
+                    />
+                    <span className="ml-2">{status}</span>
+                    </div>
+                  </SelectItem>
+                  ))}
+                </SelectContent>
+                </Select>
+              </div>
 
-                <div>
-                  <label htmlFor="priority" className="block text-sm font-medium mb-1">
-                    Priority
-                  </label>
-                  <Select
-                    onValueChange={(value) => {
-                      if (value === "all") {
-                        handleFilterChange("priority", allPriorities)
+              <div>
+                <label htmlFor="priority" className="block text-sm font-medium mb-1">
+                Priority
+                </label>
+                <Select
+                onValueChange={(value) => {
+                  if (value === "all") {
+                  handleFilterChange("priority", allPriorities)
+                  } else {
+                  handleFilterChange(
+                    "priority",
+                    currentFilters.priority.includes(value)
+                    ? currentFilters.priority.filter((p) => p !== value)
+                    : [...currentFilters.priority, value],
+                  )
+                  }
+                }}
+                value={currentFilters.priority.join(",")}
+                >
+                <SelectTrigger id="priority" className="bg-white text-black w-full">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  {allPriorities.map((priority) => (
+                  <SelectItem key={priority} value={priority}>
+                    <div className="flex items-center">
+                    <Checkbox
+                      checked={currentFilters.priority.includes(priority)}
+                      onCheckedChange={(checked) => {
+                      if (checked) {
+                        handleFilterChange("priority", [...currentFilters.priority, priority])
                       } else {
                         handleFilterChange(
-                          "priority",
-                          currentFilters.priority.includes(value)
-                            ? currentFilters.priority.filter((p) => p !== value)
-                            : [...currentFilters.priority, value],
+                        "priority",
+                        currentFilters.priority.filter((p) => p !== priority),
                         )
                       }
-                    }}
-                    value={currentFilters.priority.join(",")}
-                  >
-                    <SelectTrigger id="priority" className="bg-white text-black w-full">
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
-                      {allPriorities.map((priority) => (
-                        <SelectItem key={priority} value={priority}>
-                          <div className="flex items-center">
-                            <Checkbox
-                              checked={currentFilters.priority.includes(priority)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  handleFilterChange("priority", [...currentFilters.priority, priority])
-                                } else {
-                                  handleFilterChange(
-                                    "priority",
-                                    currentFilters.priority.filter((p) => p !== priority),
-                                  )
-                                }
-                              }}
-                            />
-                            <span className="ml-2">{priority}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                      }}
+                    />
+                    <span className="ml-2">{priority}</span>
+                    </div>
+                  </SelectItem>
+                  ))}
+                </SelectContent>
+                </Select>
+              </div>
               </div>
 
               <div className="mt-4 flex justify-end space-x-2">
-                <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleResetFilters}>
-                  Reset Filters
-                </Button>
-                <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
-                  Generate Report
-                </Button>
+              <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleResetFilters}>
+                Reset Filters
+              </Button>
+              <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
+                Generate Report
+              </Button>
               </div>
             </div>
-          </div>
-
-          <div className="flex-1 overflow-x-auto">
+            </div>
             <div className="min-w-[1024px] p-6">
               {showReport && (
                 <>
