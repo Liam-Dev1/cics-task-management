@@ -2,7 +2,7 @@
 
 import { Clock, AlertCircle, Bell } from "lucide-react"
 import { calculateStats, getTasksNearDeadline, getOverdueTasks, formatDate, generateNotifications } from "@/lib/utils"
-import { Sidebar } from "@/components/ui/sidebar"
+import { Sidebar } from "@/components/sidebar-admin"
 import type { Task, Notification } from "@/lib/utils"
 
 export default function Dashboard() {

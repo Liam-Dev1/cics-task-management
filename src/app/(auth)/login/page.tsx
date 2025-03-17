@@ -62,7 +62,7 @@ export default function LoginPage() {
           {/* Logo and Title */}
           <div className="flex items-center gap-4 w-full">
             <div className="w-16 h-16 relative">
-              <Image src="/placeholder.svg" alt="CICS Logo" width={64} height={64} className="object-contain" />
+              <Image src="/images/cics_logo.png" alt="CICS Logo" width={80} height={64} className="object-contain" />
             </div>
             <div>
               <h1 className="text-4xl font-bold tracking-tight">CICS</h1>

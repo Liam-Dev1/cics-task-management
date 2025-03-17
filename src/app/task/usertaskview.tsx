@@ -11,7 +11,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
-import { Sidebar } from "@/components/ui/sidebar"
+import { Sidebar } from "@/components/sidebar-user"
 import { Button } from "@/components/ui/button"
 
 // Task interface definition
