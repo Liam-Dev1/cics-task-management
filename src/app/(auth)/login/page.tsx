@@ -1,3 +1,4 @@
+
 "use client"
 
 import Image from "next/image"
@@ -96,8 +97,9 @@ export default function LoginPage() {
       </div>
     </div>
   )
-}
 
-function setCookie(arg0: string, userId: any, arg2: { maxAge: number }) {
-  throw new Error("Function not implemented.")
+import LoginPage from "@/components/forms/login/login-form";
+
+export default function SingInRoute() {
+  return <LoginPage />;
 }

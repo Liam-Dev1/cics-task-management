@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import { auth, db } from "@/app/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
-import AdminProfile from "./profile_admin"
-import UserProfile from "./profile"
+
+import AdminProfile from "./user_admin"
+import UserProfile from "./user"
 
 export default function DashboardPage() {
   const [user, loading] = useAuthState(auth)
