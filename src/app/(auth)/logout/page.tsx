@@ -39,7 +39,7 @@ export default function LogoutPage() {
         <Card className="w-full shadow-lg">
           <CardHeader className="space-y-1 flex flex-col items-center">
             <div className="w-full h-20 mb-4 relative">
-              <Image src="/images/CICSTASKMGMT_LOGO.png" alt="CICS Logo" fill className="object-cover w-full" priority />
+              <Image src="/images/CICSTASKMGMT_LOGO_NG.png" alt="CICS Logo" fill className="object-cover w-full" priority />
             </div>
             <CardTitle className="text-2xl font-bold text-center">Sign Out</CardTitle>
             <CardDescription className="text-center">

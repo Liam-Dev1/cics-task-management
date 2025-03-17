@@ -10,7 +10,7 @@ import { useState, useEffect, useRef } from "react"
 
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { name: "Tasks", icon: ClipboardList, href: "/tasks" },
+  { name: "Tasks", icon: ClipboardList, href: "/task" },
   { name: "Help", icon: HelpCircle, href: "/help" },
   { name: "User", icon: User, href: "/user" },
 ]
