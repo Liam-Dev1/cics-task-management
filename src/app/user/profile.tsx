@@ -1,19 +1,21 @@
 "use client"
 
 import { Sidebar } from "@/components/ui/sidebar"
-import { User } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { storage } from "@/app/firebase/firebase.config"
 
-interface Test {
-  users: User[]
+interface ProfileProps {
+  users: any[]
+  userName: string | null
+  userEmail: string | null
+  userRole: string | null
+  profilePhoto: string | null
 }
 
-export default function Profile({ users }: Test) {
-  const [isAdmin, setIsAdmin] = useState(true)
-  const [profilePhoto, setProfilePhoto] = useState("https://placehold.co/200")
+export default function Profile({ users, userName, userEmail, userRole, profilePhoto }: ProfileProps) {
+  const [isAdmin, setIsAdmin] = useState(userRole === "Admin" || userRole === "Super Admin")
   const [isUploading, setIsUploading] = useState(false)
 
   const handleRoleSwitch = () => {
@@ -31,7 +33,7 @@ export default function Profile({ users }: Test) {
       await uploadBytes(fileRef, file)
 
       const downloadURL = await getDownloadURL(fileRef)
-      setProfilePhoto(downloadURL) // ✅ Correctly update profile photo URL
+      setProfilePhoto(downloadURL) // Update profile photo URL
 
       alert("Profile photo updated successfully!")
     } catch (error) {
@@ -55,15 +57,15 @@ export default function Profile({ users }: Test) {
           <div className="flex items-center">
             <div className="pr-1">
               <img
-                src={profilePhoto}
+                src={profilePhoto || "https://placehold.co/200"}
                 className="rounded-full border border-white w-40 h-40 object-cover"
                 alt="Profile"
               />
             </div>
             <div className="pl-5">
-              <span className="text-4xl font-bold text-[#8B2332]">John Doe</span>
-              <h1 className="text-5xl font-bold text-[#333333]">Accountant</h1>
-              <h5 className="text-xl font-bold">JohnDoe@gmail.com</h5>
+              <span className="text-4xl font-bold text-[#8B2332]">{userName}</span>
+              <h1 className="text-5xl font-bold text-[#333333]">{userRole}</h1>
+              <h5 className="text-xl font-bold">{userEmail}</h5>
             </div>
           </div>
 
