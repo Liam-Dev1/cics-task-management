@@ -1,32 +1,208 @@
 "use client"
 
 import { useState } from "react"
-import {
-  Search,
-  Plus,
-  Edit,
-  Trash2,
-  LayoutDashboard,
-  ClipboardList,
-  BarChart2,
-  Users,
-  HelpCircle,
-  User,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-} from "lucide-react"
+import { Search, Plus, Edit, Trash2, ChevronRight, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import Image from "next/image"
 import Link from "next/link"
 
-type TabType = "manual" | "faq" | "contact"
+type TabType = "manual" | "faq" | "contact" | "manage"
 
 export default function AdminView() {
-  const [activeTab, setActiveTab] = useState<TabType>("manual")
+  const [activeTab, setActiveTab] = useState<TabType>("faq")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [editMode, setEditMode] = useState(false)
+  const [openDialog, setOpenDialog] = useState<{ type: string; id?: string } | undefined>(undefined)
+
+  // Sample data for manual sections
+  const [manualSections, setManualSections] = useState([
+    {
+      id: "1",
+      title: "Getting Started",
+      items: ["Overview", "System Requirements", "Setting Up Your Account"],
+    },
+    {
+      id: "2",
+      title: "Using the System",
+      items: ["Dashboard Basics", "Managing Your Tasks", "Notifications and Reminders"],
+    },
+    {
+      id: "3",
+      title: "Reports",
+      items: ["Viewing Your Task History", "Generating Performance Reports"],
+    },
+    {
+      id: "4",
+      title: "Account Settings",
+      items: ["Updating Profile Information", "Password Reset"],
+    },
+  ])
+
+  // Sample data for FAQ entries
+  const [faqEntries, setFaqEntries] = useState([
+    {
+      id: "1",
+      question: "Lorem ipsum dolor sit amet?",
+      answer:
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus efficitur mauris vel nulla volutpat, ac ullamcorper sapien ultricies.",
+    },
+    {
+      id: "2",
+      question: "Sed ut perspiciatis unde omnis iste natus error?",
+      answer:
+        "Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur.",
+    },
+    {
+      id: "3",
+      question: "Qui officia deserunt mollit anim id est laborum?",
+      answer:
+        "Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae.",
+    },
+    {
+      id: "4",
+      question: "Nisi ut aliquid ex ea commodi consequatur?",
+      answer:
+        "Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.",
+    },
+  ])
+
+  // Form state for editing
+  const [editForm, setEditForm] = useState({
+    title: "",
+    content: "",
+    question: "",
+    answer: "",
+  })
+
+  // Handle deleting a FAQ entry
+  const handleDeleteFaq = (id: string) => {
+    // Show confirmation dialog
+    if (window.confirm("Are you sure you want to delete this FAQ?")) {
+      setFaqEntries((prev) => prev.filter((faq) => faq.id !== id))
+    }
+  }
+
+  // Handle deleting a manual section
+  const handleDeleteSection = (id: string) => {
+    // Show confirmation dialog
+    if (window.confirm("Are you sure you want to delete this section?")) {
+      setManualSections((prev) => prev.filter((section) => section.id !== id))
+    }
+  }
+
+  // Handle deleting a manual item
+  const handleDeleteItem = (sectionId: string, itemIndex: number) => {
+    // Show confirmation dialog
+    if (window.confirm("Are you sure you want to delete this item?")) {
+      setManualSections((prev) =>
+        prev.map((section) => {
+          if (section.id === sectionId) {
+            const newItems = [...section.items]
+            newItems.splice(itemIndex, 1)
+            return { ...section, items: newItems }
+          }
+          return section
+        }),
+      )
+    }
+  }
+
+  // Handle opening edit dialog
+  const handleOpenDialog = (type: string, id?: string) => {
+    setOpenDialog({ type, id })
+
+    if (type === "editSection" && id) {
+      const section = manualSections.find((s) => s.id === id)
+      if (section) {
+        setEditForm({
+          ...editForm,
+          title: section.title,
+          content: "",
+        })
+      }
+    } else if (type === "editItem" && id) {
+      // Find the section and item
+      for (const section of manualSections) {
+        const itemIndex = section.items.findIndex((_, index) => `${section.id}-${index}` === id)
+        if (itemIndex !== -1) {
+          setEditForm({
+            ...editForm,
+            content: section.items[itemIndex],
+          })
+          break
+        }
+      }
+    } else if (type === "editFaq" && id) {
+      const faq = faqEntries.find((f) => f.id === id)
+      if (faq) {
+        setEditForm({
+          ...editForm,
+          question: faq.question,
+          answer: faq.answer,
+        })
+      }
+    } else if (type === "addSection") {
+      setEditForm({
+        ...editForm,
+        title: "",
+        content: "",
+      })
+    } else if (type === "addFaq") {
+      setEditForm({
+        ...editForm,
+        question: "",
+        answer: "",
+      })
+    }
+  }
+
+  // Handle closing dialog
+  const handleCloseDialog = () => {
+    setOpenDialog(undefined)
+  }
+
+  // Handle saving edits
+  const handleSave = () => {
+    if (!openDialog) return
+
+    if (openDialog.type === "editSection" && openDialog.id) {
+      setManualSections((prev) =>
+        prev.map((section) => (section.id === openDialog.id ? { ...section, title: editForm.title } : section)),
+      )
+    } else if (openDialog.type === "editItem" && openDialog.id) {
+      // Parse the ID to get section ID and item index
+      const [sectionId, itemIndexStr] = openDialog.id.split("-")
+      const itemIndex = Number.parseInt(itemIndexStr)
+
+      setManualSections((prev) =>
+        prev.map((section) => {
+          if (section.id === sectionId) {
+            const newItems = [...section.items]
+            newItems[itemIndex] = editForm.content
+            return { ...section, items: newItems }
+          }
+          return section
+        }),
+      )
+    } else if (openDialog.type === "editFaq" && openDialog.id) {
+      setFaqEntries((prev) =>
+        prev.map((faq) =>
+          faq.id === openDialog.id ? { ...faq, question: editForm.question, answer: editForm.answer } : faq,
+        ),
+      )
+    } else if (openDialog.type === "addSection") {
+      const newId = (Math.max(...manualSections.map((s) => Number.parseInt(s.id))) + 1).toString()
+      setManualSections((prev) => [...prev, { id: newId, title: editForm.title, items: [] }])
+    } else if (openDialog.type === "addFaq") {
+      const newId = (Math.max(...faqEntries.map((f) => Number.parseInt(f.id))) + 1).toString()
+      setFaqEntries((prev) => [...prev, { id: newId, question: editForm.question, answer: editForm.answer }])
+    }
+
+    handleCloseDialog()
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -75,27 +251,119 @@ export default function AdminView() {
         {/* Navigation */}
         <nav className="flex-1 flex flex-col py-4">
           <Link href="/dashboard" className="flex items-center px-4 py-3 hover:bg-gray-700 rounded-md mx-2">
-            <LayoutDashboard size={20} />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-layout-dashboard"
+            >
+              <rect width="7" height="9" x="3" y="3" rx="1" />
+              <rect width="7" height="9" x="14" y="3" rx="1" />
+              <rect width="7" height="9" x="3" y="12" rx="1" />
+              <rect width="7" height="9" x="14" y="12" rx="1" />
+            </svg>
             {!sidebarCollapsed && <span className="ml-3">Dashboard</span>}
           </Link>
           <Link href="/tasks" className="flex items-center px-4 py-3 hover:bg-gray-700 rounded-md mx-2">
-            <ClipboardList size={20} />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-clipboard-list"
+            >
+              <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+              <path d="M7 23h10" />
+              <rect width="4" height="10" x="5" y="11" rx="1" />
+              <rect width="4" height="10" x="15" y="11" rx="1" />
+            </svg>
             {!sidebarCollapsed && <span className="ml-3">Tasks</span>}
           </Link>
           <Link href="/reports" className="flex items-center px-4 py-3 hover:bg-gray-700 rounded-md mx-2">
-            <BarChart2 size={20} />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-bar-chart-2"
+            >
+              <path d="M3 3v18h18" />
+              <path d="M9 17v-6" />
+              <path d="M15 17v-4" />
+            </svg>
             {!sidebarCollapsed && <span className="ml-3">Reports</span>}
           </Link>
           <Link href="/receivers" className="flex items-center px-4 py-3 hover:bg-gray-700 rounded-md mx-2">
-            <Users size={20} />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-users"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
             {!sidebarCollapsed && <span className="ml-3">Receivers</span>}
           </Link>
-          <Link href="/help-and-support" className="flex items-center px-4 py-3 bg-gray-700 rounded-md mx-2">
-            <HelpCircle size={20} />
+          <Link href="/help-and-support" className="flex items-center px-4 py-3 bg-white text-black rounded-md mx-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-help-circle"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" x2="12.01" y1="17" y2="17" />
+            </svg>
             {!sidebarCollapsed && <span className="ml-3">Help</span>}
           </Link>
-          <Link href="/user" className="flex items-center px-4 py-3 hover:bg-gray-700 rounded-md mx-2">
-            <User size={20} />
+          <Link href="/admin" className="flex items-center px-4 py-3 hover:bg-gray-700 rounded-md mx-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-user"
+            >
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
             {!sidebarCollapsed && <span className="ml-3">User</span>}
           </Link>
 
@@ -106,10 +374,29 @@ export default function AdminView() {
             <div className="flex items-center">
               {!sidebarCollapsed && (
                 <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center mr-3">
-                  <span className="text-white font-medium">N</span>
+                  <span className="text-white font-medium">A</span>
                 </div>
               )}
-              {sidebarCollapsed ? <LogOut size={20} /> : <span>Log Out</span>}
+              {sidebarCollapsed ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-log-out"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" x2="9" y1="12" y2="12" />
+                </svg>
+              ) : (
+                <span>Log Out</span>
+              )}
             </div>
           </Link>
         </nav>
@@ -118,61 +405,66 @@ export default function AdminView() {
       {/* Main Content */}
       <div className="flex-1 p-8 bg-white">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-5xl font-bold text-gray-800">
-            Help and Support <span className="text-red-800 text-3xl ml-2">Admin</span>
+          <h1 className="text-5xl font-bold text-gray-800 flex items-center">
+            Help and Support
+            <span className="ml-4 text-[#8B0000] text-3xl font-bold">Admin</span>
           </h1>
-          {editMode && (
-            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-md flex items-center">
-              <Edit className="h-4 w-4 mr-2" />
-              <span className="font-medium">Edit Mode Active</span>
-            </div>
-          )}
         </div>
 
         {/* Search and Navigation */}
         <div className="flex flex-wrap gap-2 mb-8">
-          <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+          <div className="relative w-full sm:w-auto sm:min-w-[300px] mb-4">
             <Input type="search" placeholder="Search" className="pr-10 bg-gray-100 border-gray-300 rounded" />
             <Button variant="ghost" size="icon" className="absolute right-0 top-0 h-full">
               <Search className="h-4 w-4" />
             </Button>
           </div>
 
-          <Button
-            variant={activeTab === "faq" ? "default" : "outline"}
-            className={activeTab === "faq" ? "bg-red-800 hover:bg-red-900" : "bg-gray-700 text-white hover:bg-gray-800"}
-            onClick={() => setActiveTab("faq")}
-          >
-            FAQ
-          </Button>
+          <div className="flex gap-2 w-full">
+            <Button
+              variant={activeTab === "faq" ? "default" : "outline"}
+              className={
+                activeTab === "faq"
+                  ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
+                  : "bg-[#333333] text-white hover:bg-[#444444]"
+              }
+              onClick={() => setActiveTab("faq")}
+            >
+              FAQ
+            </Button>
 
-          <Button
-            variant={activeTab === "manual" ? "default" : "outline"}
-            className={
-              activeTab === "manual" ? "bg-red-800 hover:bg-red-900" : "bg-gray-700 text-white hover:bg-gray-800"
-            }
-            onClick={() => setActiveTab("manual")}
-          >
-            Manual
-          </Button>
+            <Button
+              variant={activeTab === "manual" ? "default" : "outline"}
+              className={
+                activeTab === "manual"
+                  ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
+                  : "bg-[#333333] text-white hover:bg-[#444444]"
+              }
+              onClick={() => setActiveTab("manual")}
+            >
+              Manual
+            </Button>
 
-          <Button
-            variant={activeTab === "contact" ? "default" : "outline"}
-            className={
-              activeTab === "contact" ? "bg-red-800 hover:bg-red-900" : "bg-gray-700 text-white hover:bg-gray-800"
-            }
-            onClick={() => setActiveTab("contact")}
-          >
-            Contact Support
-          </Button>
+            <Button
+              variant={activeTab === "contact" ? "default" : "outline"}
+              className={
+                activeTab === "contact"
+                  ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
+                  : "bg-[#333333] text-white hover:bg-[#444444]"
+              }
+              onClick={() => setActiveTab("contact")}
+            >
+              Contact Support
+            </Button>
 
-          <Button
-            variant={editMode ? "default" : "outline"}
-            className={editMode ? "bg-blue-700 hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}
-            onClick={() => setEditMode(!editMode)}
-          >
-            {editMode ? "Exit Edit Mode" : "Edit Mode"}
-          </Button>
+            <Button
+              variant="default"
+              className="bg-[#8B0000] hover:bg-[#6B0000] text-white ml-auto"
+              onClick={() => setEditMode(!editMode)}
+            >
+              {editMode ? "Exit Edit Mode" : "Edit Mode"}
+            </Button>
+          </div>
         </div>
 
         {/* Content Area */}
@@ -181,248 +473,74 @@ export default function AdminView() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold">Manual</h2>
               {editMode && (
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={() => handleOpenDialog("addSection")}>
                   <Plus className="h-4 w-4 mr-2" /> Add Section
                 </Button>
               )}
             </div>
 
             <div className="space-y-6">
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold">Getting Started</h3>
-                  {editMode && (
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <ul className="list-disc pl-8 space-y-1">
-                  <li className="group flex items-center">
-                    Overview
+              {manualSections.map((section) => (
+                <section key={section.id}>
+                  <div className="flex items-center mb-2">
+                    <h3 className="text-xl font-bold">{section.title}</h3>
                     {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
+                      <div className="ml-2 flex space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600 hover:text-blue-800"
+                          onClick={() => handleOpenDialog("editSection", section.id)}
+                        >
+                          <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-800"
+                          onClick={() => handleDeleteSection(section.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     )}
-                  </li>
-                  <li className="group flex items-center">
-                    System Requirements
+                  </div>
+                  <ul className="list-disc pl-8 space-y-1">
+                    {section.items.map((item, index) => (
+                      <li key={`${section.id}-${index}`} className="flex items-center">
+                        <span>{item}</span>
+                        {editMode && (
+                          <div className="ml-2 flex space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-800 h-6 w-6 p-0"
+                              onClick={() => handleOpenDialog("editItem", `${section.id}-${index}`)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-800 h-6 w-6 p-0"
+                              onClick={() => handleDeleteItem(section.id, index)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </li>
+                    ))}
                     {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
+                      <li>
+                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 p-0">
+                          <Plus className="h-3 w-3 mr-1" /> Add Item
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      </li>
                     )}
-                  </li>
-                  <li className="group flex items-center">
-                    Setting Up Your Account
-                    {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                  {editMode && (
-                    <li>
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 p-0">
-                        <Plus className="h-3 w-3 mr-1" /> Add Item
-                      </Button>
-                    </li>
-                  )}
-                </ul>
-              </section>
-
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold">Using the System</h3>
-                  {editMode && (
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <ul className="list-disc pl-8 space-y-1">
-                  <li className="group flex items-center">
-                    Dashboard Basics
-                    {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                  <li className="group flex items-center">
-                    Managing Your Tasks
-                    {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                  <li className="group flex items-center">
-                    Notifications and Reminders
-                    {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                  {editMode && (
-                    <li>
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 p-0">
-                        <Plus className="h-3 w-3 mr-1" /> Add Item
-                      </Button>
-                    </li>
-                  )}
-                </ul>
-              </section>
-
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold">Reports</h3>
-                  {editMode && (
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <ul className="list-disc pl-8 space-y-1">
-                  <li className="group flex items-center">
-                    Viewing Your Task History
-                    {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                  <li className="group flex items-center">
-                    Generating Performance Reports
-                    {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                  {editMode && (
-                    <li>
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 p-0">
-                        <Plus className="h-3 w-3 mr-1" /> Add Item
-                      </Button>
-                    </li>
-                  )}
-                </ul>
-              </section>
-
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold">Account Settings</h3>
-                  {editMode && (
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <ul className="list-disc pl-8 space-y-1">
-                  <li className="group flex items-center">
-                    Updating Profile Information
-                    {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                  <li className="group flex items-center">
-                    Password Reset
-                    {editMode && (
-                      <div className="hidden group-hover:flex ml-2 space-x-1">
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-800">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-800">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                  {editMode && (
-                    <li>
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 p-0">
-                        <Plus className="h-3 w-3 mr-1" /> Add Item
-                      </Button>
-                    </li>
-                  )}
-                </ul>
-              </section>
-
-              {editMode && (
-                <Button className="bg-blue-600 hover:bg-blue-700 mt-4">
-                  <Plus className="h-4 w-4 mr-2" /> Add New Section
-                </Button>
-              )}
+                  </ul>
+                </section>
+              ))}
             </div>
           </div>
         )}
@@ -432,92 +550,51 @@ export default function AdminView() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold">FAQ</h2>
               {editMode && (
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={() => handleOpenDialog("addFaq")}>
                   <Plus className="h-4 w-4 mr-2" /> Add FAQ
                 </Button>
               )}
             </div>
 
+            {editMode && (
+              <div className="mb-8 bg-gray-200 rounded-md p-4">
+                <div className="flex items-center mb-2">
+                  <Edit className="h-4 w-4 mr-2" />
+                  <div className="text-lg font-medium">Insert new question here</div>
+                </div>
+                <div className="bg-gray-300 p-3 rounded">Insert answer here</div>
+              </div>
+            )}
+
             <div className="space-y-6">
-              <div className="group">
-                <div className="flex items-start justify-between">
-                  <h3 className="text-xl font-bold">Q: Lorem ipsum dolor sit amet?</h3>
-                  {editMode && (
-                    <div className="flex space-x-2 mt-1">
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+              {faqEntries.map((faq) => (
+                <div key={faq.id}>
+                  <div className="flex items-center">
+                    <h3 className="text-xl font-bold">Q: {faq.question}</h3>
+                    {editMode && (
+                      <div className="ml-2 flex space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600 hover:text-blue-800"
+                          onClick={() => handleOpenDialog("editFaq", faq.id)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-800"
+                          onClick={() => handleDeleteFaq(faq.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-2">A: {faq.answer}</p>
                 </div>
-                <p className="mt-2">
-                  A: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus efficitur mauris vel nulla
-                  volutpat, ac ullamcorper sapien ultricies.
-                </p>
-              </div>
-
-              <div className="group">
-                <div className="flex items-start justify-between">
-                  <h3 className="text-xl font-bold">Q: Sed ut perspiciatis unde omnis iste natus error?</h3>
-                  {editMode && (
-                    <div className="flex space-x-2 mt-1">
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <p className="mt-2">
-                  A: Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut
-                  aliquid ex ea commodi consequatur.
-                </p>
-              </div>
-
-              <div className="group">
-                <div className="flex items-start justify-between">
-                  <h3 className="text-xl font-bold">Q: Qui officia deserunt mollit anim id est laborum?</h3>
-                  {editMode && (
-                    <div className="flex space-x-2 mt-1">
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <p className="mt-2">
-                  A: Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et
-                  voluptates repudiandae sint et molestiae non recusandae.
-                </p>
-              </div>
-
-              <div className="group">
-                <div className="flex items-start justify-between">
-                  <h3 className="text-xl font-bold">Q: Nisi ut aliquid ex ea commodi consequatur?</h3>
-                  {editMode && (
-                    <div className="flex space-x-2 mt-1">
-                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <p className="mt-2">
-                  A: Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur
-                  magni dolores eos qui ratione voluptatem sequi nesciunt.
-                </p>
-              </div>
+              ))}
             </div>
           </div>
         )}
@@ -587,6 +664,86 @@ export default function AdminView() {
             </div>
           </div>
         )}
+
+        {/* Edit Dialogs */}
+        <Dialog open={!!openDialog} onOpenChange={(open) => !open && handleCloseDialog()}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {openDialog?.type === "editSection" && "Edit Section"}
+                {openDialog?.type === "editItem" && "Edit Item"}
+                {openDialog?.type === "editFaq" && "Edit FAQ"}
+                {openDialog?.type === "addSection" && "Add New Section"}
+                {openDialog?.type === "addFaq" && "Add New FAQ"}
+              </DialogTitle>
+            </DialogHeader>
+
+            {(openDialog?.type === "editSection" || openDialog?.type === "addSection") && (
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label htmlFor="title" className="text-sm font-medium">
+                    Section Title
+                  </label>
+                  <Input
+                    id="title"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {openDialog?.type === "editItem" && (
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label htmlFor="content" className="text-sm font-medium">
+                    Item Content
+                  </label>
+                  <Input
+                    id="content"
+                    value={editForm.content}
+                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {(openDialog?.type === "editFaq" || openDialog?.type === "addFaq") && (
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label htmlFor="question" className="text-sm font-medium">
+                    Question
+                  </label>
+                  <Input
+                    id="question"
+                    value={editForm.question}
+                    onChange={(e) => setEditForm({ ...editForm, question: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="answer" className="text-sm font-medium">
+                    Answer
+                  </label>
+                  <Textarea
+                    id="answer"
+                    rows={4}
+                    value={editForm.answer}
+                    onChange={(e) => setEditForm({ ...editForm, answer: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={handleCloseDialog}>
+                Cancel
+              </Button>
+              <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={handleSave}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
