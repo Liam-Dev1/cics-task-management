@@ -62,9 +62,9 @@ export default function TaskManagement() {
 
   // Create a state to store form values from Select components
   const [formValues, setFormValues] = useState({
-    assignedTo: "Peter Parker",
-    status: "Pending",
-    priority: "Medium",
+    assignedTo: " ",
+    status: " ",
+    priority: " ",
   })
 
   // Update form values when select changes
