@@ -83,13 +83,10 @@ export default function Profile({users}:Test) {
                   </Button>
               </div>
             </div>
-
           </div>
         </div>
       </div>
-    </div>
-
-    
+    </div>    
   )
 }
 
