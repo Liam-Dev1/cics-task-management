@@ -7,6 +7,7 @@ import { useAuthState } from "react-firebase-hooks/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import TaskManagement from "./admintaskview"
 import TasksPage from "./usertaskview"
+import { Sidebar } from "@/components/sidebar-admin"
 
 export default function TaskPage() {
   const [user, loading] = useAuthState(auth)
