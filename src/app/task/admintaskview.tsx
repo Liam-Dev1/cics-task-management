@@ -45,6 +45,14 @@ interface Task {
   files?: Array<{ name: string; url: string }>
 }
 
+// User interface
+interface User {
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
 export default function TaskManagement() {
   const [showNewTask, setShowNewTask] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([])
@@ -63,6 +71,7 @@ export default function TaskManagement() {
     message: "",
     type: null,
   })
+  const [users, setUsers] = useState<User[]>([])
 
   type SortValue = string | null
   const [activeSort, setActiveSort] = useState<SortValue>(null)
@@ -99,6 +108,31 @@ export default function TaskManagement() {
 
     fetchUserName()
   }, [user])
+
+  // Fetch users with role "user" from Firestore
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const usersRef = collection(db, "users")
+        const q = query(usersRef, where("role", "==", "user"))
+        const querySnapshot = await getDocs(q)
+
+        const fetchedUsers: User[] = []
+        querySnapshot.forEach((doc) => {
+          fetchedUsers.push({
+            id: doc.id,
+            ...(doc.data() as Omit<User, "id">),
+          })
+        })
+
+        setUsers(fetchedUsers)
+      } catch (error) {
+        console.error("Error fetching users:", error)
+      }
+    }
+
+    fetchUsers()
+  }, [])
 
   // Fetch tasks from Firestore
   useEffect(() => {
@@ -479,9 +513,11 @@ export default function TaskManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Receivers</SelectItem>
-                <SelectItem value="Peter Parker">Peter Parker</SelectItem>
-                <SelectItem value="Mary Jane">Mary Jane</SelectItem>
-                <SelectItem value="Harry Osborn">Harry Osborn</SelectItem>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.name}>
+                    {user.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <DropdownMenu>
@@ -609,9 +645,11 @@ export default function TaskManagement() {
                             <SelectValue placeholder="Select assignee" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Peter Parker">Peter Parker</SelectItem>
-                            <SelectItem value="Mary Jane">Mary Jane</SelectItem>
-                            <SelectItem value="Harry Osborn">Harry Osborn</SelectItem>
+                            {users.map((user) => (
+                              <SelectItem key={user.id} value={user.name}>
+                                {user.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -743,9 +781,11 @@ export default function TaskManagement() {
                                 <SelectValue placeholder="Select assignee" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Peter Parker">Peter Parker</SelectItem>
-                                <SelectItem value="Mary Jane">Mary Jane</SelectItem>
-                                <SelectItem value="Harry Osborn">Harry Osborn</SelectItem>
+                                {users.map((user) => (
+                                  <SelectItem key={user.id} value={user.name}>
+                                    {user.name}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -976,4 +1016,3 @@ export default function TaskManagement() {
     </div>
   )
 }
-
