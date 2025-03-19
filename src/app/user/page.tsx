@@ -12,10 +12,12 @@ import UserProfile from "./profile"
 export default function DashboardPage() {
   const [user, loading] = useAuthState(auth)
   const [userRole, setUserRole] = useState<string | null>(null)
-  const [isAdminMode, setIsAdminMode] = useState(true)
+  const [userName, setUserName] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
   const router = useRouter()
 
-  // Fetch the user's role from Firestore
+  // Fetch the user's role, name, email, and profile photo from Firestore
   useEffect(() => {
     const fetchUserRole = async () => {
       if (user?.email) {
@@ -25,8 +27,10 @@ export default function DashboardPage() {
 
         if (!querySnapshot.empty) {
           const userData = querySnapshot.docs[0].data()
-          setUserRole(userData.role)
-          setIsAdminMode(userData.role === "admin" || userData.role === "super admin")
+          setUserRole(capitalizeRole(userData.role))
+          setUserName(userData.name)
+          setUserEmail(userData.email)
+          setProfilePhoto(userData.profilePhoto)
         }
       }
     }
@@ -60,11 +64,16 @@ export default function DashboardPage() {
   // Render the appropriate dashboard based on the user's role
   return (
     <div>
-      {userRole === "admin" || userRole === "super admin" ? (
-        <AdminProfile users={[]} />
+      {userRole === "Admin" || userRole === "Super Admin" ? (
+        <AdminProfile users={[]} userName={userName} userEmail={userEmail} userRole={userRole} profilePhoto={profilePhoto} />
       ) : (
-        <UserProfile users={[]} />
+        <UserProfile users={[]} userName={userName} userEmail={userEmail} userRole={userRole} profilePhoto={profilePhoto} />
       )}
     </div>
   )
+}
+
+// Helper function to capitalize the first letter of each word in the role
+function capitalizeRole(role: string) {
+  return role.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }
