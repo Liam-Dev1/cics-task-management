@@ -26,6 +26,8 @@ interface Task {
   name: string
   assignedBy: string
   assignedTo: string
+  assignedToEmail: string
+  assignedToId: string // Added field for user's ID
   assignedOn: string
   deadline: string
   status: string
@@ -67,29 +69,16 @@ export default function TasksPage() {
       try {
         setLoading(true)
 
-        // Get current user email from auth
-        const userEmail = auth.currentUser?.email
-        if (!userEmail) {
-          console.error("No user email found")
+        // Get current user ID from auth
+        const userId = auth.currentUser?.uid
+        if (!userId) {
+          console.error("No user ID found")
           return
         }
 
-        // Get user's name from Firestore
-        const usersRef = collection(db, "users")
-        const userQuery = query(usersRef, where("email", "==", userEmail))
-        const userSnapshot = await getDocs(userQuery)
-
-        if (userSnapshot.empty) {
-          console.error("No user found with this email")
-          return
-        }
-
-        const userData = userSnapshot.docs[0].data()
-        const userName = userData.name || userData.displayName || "Unknown User"
-
-        // Query tasks assigned to this user
+        // Query tasks assigned to this user by ID
         const tasksCollection = collection(db, "tasks")
-        const tasksQuery = query(tasksCollection, where("assignedTo", "==", userName), orderBy("assignedOn", "desc"))
+        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"))
 
         const querySnapshot = await getDocs(tasksQuery)
 
@@ -503,4 +492,3 @@ export default function TasksPage() {
     </div>
   )
 }
-

@@ -35,7 +35,9 @@ interface Task {
   id: string
   name: string
   assignedBy: string
-  assignedTo: string
+  assignedTo: string // User's name for display
+  assignedToEmail: string // User's email
+  assignedToId: string // User's ID
   assignedOn: string
   deadline: string
   status: string
@@ -304,11 +306,22 @@ export default function TaskManagement() {
       const form = e.currentTarget
       const formData = new FormData(form)
 
+      // Get the selected user from the form
+      const assignedToName = formData.get("assignedTo") as string
+      const assignedToUser = users.find((user) => user.name === assignedToName)
+
+      if (!assignedToUser) {
+        showNotification("Selected user not found.", "error")
+        return
+      }
+
       // Create new task document in Firestore
       const newTaskData = {
         name: (formData.get("name") as string) || "",
         assignedBy: userName,
-        assignedTo: (formData.get("assignedTo") as string) || "",
+        assignedTo: assignedToUser.name, // User's name for display
+        assignedToEmail: assignedToUser.email, // User's email
+        assignedToId: assignedToUser.id, // User's ID
         assignedOn: new Date().toISOString().split("T")[0],
         deadline: (formData.get("deadline") as string) || "",
         status: (formData.get("status") as string) || "Pending",
@@ -388,6 +401,8 @@ export default function TaskManagement() {
       await updateDoc(taskRef, {
         name: taskToUpdate.name,
         assignedTo: taskToUpdate.assignedTo,
+        assignedToEmail: taskToUpdate.assignedToEmail,
+        assignedToId: taskToUpdate.assignedToId,
         deadline: taskToUpdate.deadline,
         status: taskToUpdate.status,
         priority: taskToUpdate.priority,
@@ -775,7 +790,14 @@ export default function TaskManagement() {
                             <Select
                               name="assignedTo"
                               value={task.assignedTo}
-                              onValueChange={(value) => handleSelectChange("assignedTo", value, task.id)}
+                              onValueChange={(value) => {
+                                const selectedUser = users.find((user) => user.name === value)
+                                if (selectedUser) {
+                                  handleSelectChange("assignedTo", selectedUser.name, task.id)
+                                  handleSelectChange("assignedToEmail", selectedUser.email, task.id)
+                                  handleSelectChange("assignedToId", selectedUser.id, task.id)
+                                }
+                              }}
                             >
                               <SelectTrigger className="bg-white text-black">
                                 <SelectValue placeholder="Select assignee" />
@@ -851,7 +873,7 @@ export default function TaskManagement() {
                           </div>
                           <div className="md:col-span-1">
                             <span className="md:hidden font-semibold">Assigned To: </span>
-                            {task.assignedTo}
+                            {task.assignedTo} 
                           </div>
                           <div className="md:col-span-1">
                             <span className="md:hidden font-semibold">Assigned On: </span>

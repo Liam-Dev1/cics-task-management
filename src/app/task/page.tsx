@@ -1,53 +1,57 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { auth, db } from "@/app/firebase/firebase.config"
-import { useAuthState } from "react-firebase-hooks/auth"
-import { collection, query, where, getDocs } from "firebase/firestore"
-import TaskManagement from "./admintaskview"
-import TasksPage from "./usertaskview"
-import { Sidebar } from "@/components/sidebar-admin"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { auth, db } from "@/app/firebase/firebase.config";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import TaskManagement from "./admintaskview";
+import TasksPage from "./usertaskview";
+import { Sidebar } from "@/components/sidebar-admin";
 
 export default function TaskPage() {
-  const [user, loading] = useAuthState(auth)
-  const [userRole, setUserRole] = useState<string | null>(null)
-  const router = useRouter()
+  const [user, loading, error] = useAuthState(auth);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const router = useRouter();
 
-  // Fetch the user's role from Firestore
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (user?.email) {
-        const usersRef = collection(db, "users")
-        const q = query(usersRef, where("email", "==", user.email))
-        const querySnapshot = await getDocs(q)
-
-        if (!querySnapshot.empty) {
-          const userData = querySnapshot.docs[0].data()
-          setUserRole(userData.role)
-        }
-      }
-    }
-
-    fetchUserRole()
-  }, [user])
-
-  // Redirect if not logged in
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/login")
+      router.push("/login");
+      return;
     }
-  }, [user, loading, router])
+
+    const fetchUserRole = async () => {
+      if (user?.email) {
+        try {
+          const usersRef = collection(db, "users");
+          const q = query(usersRef, where("email", "==", user.email));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data();
+            setUserRole(userData.role);
+          }
+        } catch (err) {
+          console.error("Error fetching user role:", err);
+        }
+      }
+    };
+
+    fetchUserRole();
+  }, [user, loading, router]);
 
   if (loading) {
-    return <div>Loading...</div>
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error.message}</div>;
   }
 
   if (!user) {
-    return <div>You must be logged in to access this page.</div>
+    return <div>You must be logged in to access this page.</div>;
   }
 
-  // Render the appropriate view based on the user's role
   return (
     <div>
       {userRole === "admin" || userRole === "super admin" ? (
@@ -56,5 +60,5 @@ export default function TaskPage() {
         <TasksPage />
       )}
     </div>
-  )
+  );
 }
