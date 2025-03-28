@@ -1,17 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { auth, db } from "@/app/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
-import TaskManagement from "./admintaskview"
-import TasksPage from "./usertaskview"
+import { onAuthStateChanged } from "firebase/auth"
+import AdminTaskView from "./admintaskview"
+import UserTaskView from "./usertaskview"
+import { Sidebar as AdminSidebar } from "@/components/sidebar-admin"
+import { Sidebar as UserSidebar } from "@/components/sidebar-user"
 
 export default function TaskPage() {
-  const [user, loading, error] = useAuthState(auth)
+  const [user, loading] = useAuthState(auth)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [isRoleLoading, setIsRoleLoading] = useState(true)
+  const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
   const router = useRouter()
 
   // Fetch the user's role from Firestore
@@ -42,30 +46,46 @@ export default function TaskPage() {
   }, [user, loading])
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-    }
-  }, [user, loading, router])
+    // Set up the onAuthStateChanged observer
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push("/login")
+      }
+    })
 
-  // Show loading state while authentication or role is being determined
-  if (loading || isRoleLoading) {
+    // Clean up the observer when the component unmounts
+    return () => unsubscribe()
+  }, [router])
+
+  // If not logged in, redirect to login
+  if (!loading && !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
-        <div className="text-xl ml-3">Loading...</div>
+        <div className="text-xl">You must be logged in to access this page.</div>
       </div>
     )
   }
 
-  if (error) {
-    return <div>Error: {error.message}</div>
-  }
+  // Determine which sidebar to show based on user role
+  const SidebarComponent = userRole === "admin" || userRole === "super admin" ? AdminSidebar : UserSidebar
 
-  if (!user) {
-    return <div>You must be logged in to access this page.</div>
-  }
+  return (
+    <div className="flex min-h-screen">
+      {/* Sidebar is always visible */}
+      <SidebarComponent onMinimize={setIsSidebarMinimized} />
 
-  // Only render the appropriate view when we know the user's role
-  return <div>{userRole === "admin" || userRole === "super admin" ? <TaskManagement /> : <TasksPage />}</div>
+      {/* Main content area with proper margin to account for fixed sidebar */}
+      <div className="flex-1 transition-all duration-300" style={{ marginLeft: isSidebarMinimized ? "4rem" : "16rem" }}>
+        {loading || isRoleLoading ? (
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
+            <div className="text-xl ml-3">Loading tasks...</div>
+          </div>
+        ) : (
+          <>{userRole === "admin" || userRole === "super admin" ? <AdminTaskView /> : <UserTaskView />}</>
+        )}
+      </div>
+    </div>
+  )
 }
 

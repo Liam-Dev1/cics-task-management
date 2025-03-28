@@ -1,11 +1,8 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
@@ -85,10 +82,10 @@ export default function TaskReportDashboard() {
     const pendingTasks = filteredTasks.filter((task) => task.status === "Pending").length
     const overdueTasks = filteredTasks.filter((task) => task.status === "Overdue").length
     const completedOnTime = filteredTasks.filter(
-      (task) => task.status === "Completed" && task.completionTime <= 100,
+      (task) => task.status === "Completed" && task.completionTime !== null && task.completionTime <= 100,
     ).length
     const completedLate = filteredTasks.filter(
-      (task) => task.status === "Completed" && task.completionTime > 100,
+      (task) => task.status === "Completed" && task.completionTime !== null && task.completionTime > 100,
     ).length
     const notCompleted = tasksAssigned - completedTasks
     const reopenedTasks = filteredTasks.filter((task) => task.reopened).length
@@ -175,7 +172,7 @@ export default function TaskReportDashboard() {
           tasksInPeriod.reduce((sum, task) => sum + (task.completionTime || 0), 0) / tasksInPeriod.length || 0
 
         const monthName = date.toLocaleString("default", { month: "short" })
-        const weekNumber = Math.floor((date - startDate) / (7 * 24 * 60 * 60 * 1000)) + 1
+        const weekNumber = Math.floor((date.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
         data.push({
           name: `Week ${weekNumber} (${monthName})`,
           value: Math.round(avgCompletionTime),
@@ -187,7 +184,7 @@ export default function TaskReportDashboard() {
       return data
     }
 
-    const getAverageCompletionTimeData = (timeFrame) => {
+    const getAverageCompletionTimeData = (timeFrame: "weekly" | "monthly" | "quarterly" | "yearly") => {
       if (timeFrame === "weekly") {
         return getWeeklyData(appliedFilters.fromDate, appliedFilters.toDate)
       }
@@ -202,19 +199,19 @@ export default function TaskReportDashboard() {
           startDate = startOfMonth(fromDate)
           endDate = endOfMonth(toDate)
           increment = 1
-          format = (date) => date.toLocaleString("default", { month: "short", year: "numeric" })
+          format = (date: Date) => date.toLocaleString("default", { month: "short", year: "numeric" })
           break
         case "quarterly":
           startDate = startOfQuarter(fromDate)
           endDate = endOfQuarter(toDate)
           increment = 3
-          format = (date) => `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`
+          format = (date: Date) => `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`
           break
         case "yearly":
           startDate = startOfYear(fromDate)
           endDate = endOfYear(toDate)
           increment = 12
-          format = (date) => date.getFullYear().toString()
+          format = (date: Date) => date.getFullYear().toString()
           break
       }
 
@@ -255,13 +252,17 @@ export default function TaskReportDashboard() {
           return taskDate >= date && taskDate < periodEnd
         })
 
-        const onTime = tasksInPeriod.filter((task) => task.status === "Completed" && task.completionTime <= 100).length
+        const onTime = tasksInPeriod.filter(
+          (task) => task.status === "Completed" && task.completionTime !== null && task.completionTime <= 100,
+        ).length
         const missedDeadline = tasksInPeriod.filter(
-          (task) => (task.status === "Completed" && task.completionTime > 100) || task.status === "Overdue",
+          (task) =>
+            (task.status === "Completed" && task.completionTime !== null && task.completionTime > 100) ||
+            task.status === "Overdue",
         ).length
 
         const monthName = date.toLocaleString("default", { month: "short" })
-        const weekNumber = Math.floor((date - startDate) / (7 * 24 * 60 * 60 * 1000)) + 1
+        const weekNumber = Math.floor((date.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
         data.push({
           name: `Week ${weekNumber} (${monthName})`,
           onTime,
@@ -274,7 +275,7 @@ export default function TaskReportDashboard() {
       return data
     }
 
-    const getTaskCompletionStatusData = (timeFrame) => {
+    const getTaskCompletionStatusData = (timeFrame: "weekly" | "monthly" | "quarterly" | "yearly") => {
       if (timeFrame === "weekly") {
         return getWeeklyStatusData(appliedFilters.fromDate, appliedFilters.toDate)
       }
@@ -289,19 +290,19 @@ export default function TaskReportDashboard() {
           startDate = startOfMonth(fromDate)
           endDate = endOfMonth(toDate)
           increment = 1
-          format = (date) => date.toLocaleString("default", { month: "short", year: "numeric" })
+          format = (date: Date) => date.toLocaleString("default", { month: "short", year: "numeric" })
           break
         case "quarterly":
           startDate = startOfQuarter(fromDate)
           endDate = endOfQuarter(toDate)
           increment = 3
-          format = (date) => `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`
+          format = (date: Date) => `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`
           break
         case "yearly":
           startDate = startOfYear(fromDate)
           endDate = endOfYear(toDate)
           increment = 12
-          format = (date) => date.getFullYear().toString()
+          format = (date: Date) => date.getFullYear().toString()
           break
       }
 
@@ -315,9 +316,13 @@ export default function TaskReportDashboard() {
           return taskDate >= date && taskDate < periodEnd
         })
 
-        const onTime = tasksInPeriod.filter((task) => task.status === "Completed" && task.completionTime <= 100).length
+        const onTime = tasksInPeriod.filter(
+          (task) => task.status === "Completed" && task.completionTime !== null && task.completionTime <= 100,
+        ).length
         const missedDeadline = tasksInPeriod.filter(
-          (task) => (task.status === "Completed" && task.completionTime > 100) || task.status === "Overdue",
+          (task) =>
+            (task.status === "Completed" && task.completionTime !== null && task.completionTime > 100) ||
+            task.status === "Overdue",
         ).length
 
         data.push({
@@ -354,215 +359,217 @@ export default function TaskReportDashboard() {
     <>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
-        <h1 className="text-5xl font-bold mb-6 p-6">Reports</h1>
+        <div className="flex-1 flex flex-col overflow-hidden ml-64">
+          {" "}
+          {/* Add margin-left to account for sidebar width */}
+          <h1 className="text-5xl font-bold mb-6 p-6">Reports</h1>
           <div className="flex-1 overflow-x-auto">
             <div className="flex-1 p-6 ">
-            {/* Filter Controls */}
-            <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4 sticky top-0 z-10">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
-                Task Receiver
-                </label>
-                <Select
-                onValueChange={(value) => {
-                  if (value === "all") {
-                  handleFilterChange("taskReceivers", allReceivers)
-                  } else {
-                  handleFilterChange(
-                    "taskReceivers",
-                    currentFilters.taskReceivers.includes(value)
-                    ? currentFilters.taskReceivers.filter((r) => r !== value)
-                    : [...currentFilters.taskReceivers, value],
-                  )
-                  }
-                }}
-                value={currentFilters.taskReceivers.join(",")}
-                >
-                <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
-                  <SelectValue placeholder="Select Receivers">
-                    {currentFilters.taskReceivers.length > 0
-                      ? currentFilters.taskReceivers.length === allReceivers.length
-                        ? "All Receivers"
-                        : currentFilters.taskReceivers.join(", ")
-                      : "Select Receivers"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Receivers</SelectItem>
-                  {allReceivers.map((receiver) => (
-                  <SelectItem key={receiver} value={receiver}>
-                    <div className="flex items-center">
-                    <Checkbox
-                      checked={currentFilters.taskReceivers.includes(receiver)}
-                      onCheckedChange={(checked) => {
-                      if (checked) {
-                        handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver])
-                      } else {
-                        handleFilterChange(
-                        "taskReceivers",
-                        currentFilters.taskReceivers.filter((r) => r !== receiver),
-                        )
-                      }
+              {/* Filter Controls */}
+              <div className="bg-[#8B2332] text-white p-4 rounded-md mb-4 sticky top-0 z-10">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
+                      Task Receiver
+                    </label>
+                    <Select
+                      onValueChange={(value) => {
+                        if (value === "all") {
+                          handleFilterChange("taskReceivers", allReceivers)
+                        } else {
+                          handleFilterChange(
+                            "taskReceivers",
+                            currentFilters.taskReceivers.includes(value)
+                              ? currentFilters.taskReceivers.filter((r) => r !== value)
+                              : [...currentFilters.taskReceivers, value],
+                          )
+                        }
                       }}
+                      value={currentFilters.taskReceivers.join(",")}
+                    >
+                      <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
+                        <SelectValue placeholder="Select Receivers">
+                          {currentFilters.taskReceivers.length > 0
+                            ? currentFilters.taskReceivers.length === allReceivers.length
+                              ? "All Receivers"
+                              : currentFilters.taskReceivers.join(", ")
+                            : "Select Receivers"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Receivers</SelectItem>
+                        {allReceivers.map((receiver) => (
+                          <SelectItem key={receiver} value={receiver}>
+                            <div className="flex items-center">
+                              <Checkbox
+                                checked={currentFilters.taskReceivers.includes(receiver)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver])
+                                  } else {
+                                    handleFilterChange(
+                                      "taskReceivers",
+                                      currentFilters.taskReceivers.filter((r) => r !== receiver),
+                                    )
+                                  }
+                                }}
+                              />
+                              <span className="ml-2">{receiver}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="from-date" className="block text-sm font-medium mb-1">
+                      From Date
+                    </label>
+                    <Input
+                      type="date"
+                      id="from-date"
+                      name="fromDate"
+                      value={format(currentFilters.fromDate, "yyyy-MM-dd")}
+                      onChange={(e) => handleFilterChange("fromDate", new Date(e.target.value))}
+                      className="bg-white text-black w-full"
+                      required
                     />
-                    <span className="ml-2">{receiver}</span>
-                    </div>
-                  </SelectItem>
-                  ))}
-                </SelectContent>
-                </Select>
-              </div>
+                  </div>
 
-              <div>
-                  <label htmlFor="from-date" className="block text-sm font-medium mb-1">
-                  From Date
-                </label>
-                <Input
-                  type="date"
-                  id="from-date"
-                  name="fromDate"
-                  value={format(currentFilters.fromDate, "yyyy-MM-dd")}
-                  onChange={(e) => handleFilterChange("fromDate", new Date(e.target.value))}
-                  className="bg-white text-black w-full"
-                  required
-                 />
-              </div>
+                  <div>
+                    <label htmlFor="to-date" className="block text-sm font-medium mb-1">
+                      To Date
+                    </label>
+                    <Input
+                      type="date"
+                      id="to-date"
+                      name="toDate"
+                      value={format(currentFilters.toDate, "yyyy-MM-dd")}
+                      onChange={(e) => handleFilterChange("toDate", new Date(e.target.value))}
+                      className="bg-white text-black w-full"
+                      required
+                    />
+                  </div>
 
-              <div>
-                <label htmlFor="to-date" className="block text-sm font-medium mb-1">
-                  To Date
-                </label>
-                <Input
-                  type="date"
-                  id="to-date"
-                  name="toDate"
-                  value={format(currentFilters.toDate, "yyyy-MM-dd")}
-                  onChange={(e) => handleFilterChange("toDate", new Date(e.target.value))}
-                  className="bg-white text-black w-full"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="task-status" className="block text-sm font-medium mb-1">
-                Task Status
-                </label>
-                <Select
-                onValueChange={(value) => {
-                  if (value === "all") {
-                  handleFilterChange("taskStatus", allTaskStatuses)
-                  } else {
-                  handleFilterChange(
-                    "taskStatus",
-                    currentFilters.taskStatus.includes(value)
-                    ? currentFilters.taskStatus.filter((s) => s !== value)
-                    : [...currentFilters.taskStatus, value],
-                  )
-                  }
-                }}
-                value={currentFilters.taskStatus.join(",")}
-                >
-                <SelectTrigger id="task-status" className="bg-white text-black w-full">
-                  <SelectValue placeholder="Task Status">
-                    {currentFilters.taskStatus.length > 0
-                      ? currentFilters.taskStatus.length === allTaskStatuses.length
-                        ? "All Task Statuses"
-                        : currentFilters.taskStatus.join(", ")
-                      : "Task Status"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Task Status</SelectItem>
-                  {allTaskStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    <div className="flex items-center">
-                    <Checkbox
-                      checked={currentFilters.taskStatus.includes(status)}
-                      onCheckedChange={(checked) => {
-                      if (checked) {
-                        handleFilterChange("taskStatus", [...currentFilters.taskStatus, status])
-                      } else {
-                        handleFilterChange(
-                        "taskStatus",
-                        currentFilters.taskStatus.filter((s) => s !== status),
-                        )
-                      }
+                  <div>
+                    <label htmlFor="task-status" className="block text-sm font-medium mb-1">
+                      Task Status
+                    </label>
+                    <Select
+                      onValueChange={(value) => {
+                        if (value === "all") {
+                          handleFilterChange("taskStatus", allTaskStatuses)
+                        } else {
+                          handleFilterChange(
+                            "taskStatus",
+                            currentFilters.taskStatus.includes(value)
+                              ? currentFilters.taskStatus.filter((s) => s !== value)
+                              : [...currentFilters.taskStatus, value],
+                          )
+                        }
                       }}
-                    />
-                    <span className="ml-2">{status}</span>
-                    </div>
-                  </SelectItem>
-                  ))}
-                </SelectContent>
-                </Select>
-              </div>
+                      value={currentFilters.taskStatus.join(",")}
+                    >
+                      <SelectTrigger id="task-status" className="bg-white text-black w-full">
+                        <SelectValue placeholder="Task Status">
+                          {currentFilters.taskStatus.length > 0
+                            ? currentFilters.taskStatus.length === allTaskStatuses.length
+                              ? "All Task Statuses"
+                              : currentFilters.taskStatus.join(", ")
+                            : "Task Status"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Task Status</SelectItem>
+                        {allTaskStatuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            <div className="flex items-center">
+                              <Checkbox
+                                checked={currentFilters.taskStatus.includes(status)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    handleFilterChange("taskStatus", [...currentFilters.taskStatus, status])
+                                  } else {
+                                    handleFilterChange(
+                                      "taskStatus",
+                                      currentFilters.taskStatus.filter((s) => s !== status),
+                                    )
+                                  }
+                                }}
+                              />
+                              <span className="ml-2">{status}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div>
-                <label htmlFor="priority" className="block text-sm font-medium mb-1">
-                Priority
-                </label>
-                <Select
-                onValueChange={(value) => {
-                  if (value === "all") {
-                  handleFilterChange("priority", allPriorities)
-                  } else {
-                  handleFilterChange(
-                    "priority",
-                    currentFilters.priority.includes(value)
-                    ? currentFilters.priority.filter((p) => p !== value)
-                    : [...currentFilters.priority, value],
-                  )
-                  }
-                }}
-                value={currentFilters.priority.join(",")}
-                >
-                <SelectTrigger id="priority" className="bg-white text-black w-full">
-                  <SelectValue placeholder="Priority">
-                    {currentFilters.priority.length > 0
-                      ? currentFilters.priority.length === allPriorities.length
-                        ? "All Priorities"
-                        : currentFilters.priority.join(", ")
-                      : "Priority"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  {allPriorities.map((priority) => (
-                  <SelectItem key={priority} value={priority}>
-                    <div className="flex items-center">
-                    <Checkbox
-                      checked={currentFilters.priority.includes(priority)}
-                      onCheckedChange={(checked) => {
-                      if (checked) {
-                        handleFilterChange("priority", [...currentFilters.priority, priority])
-                      } else {
-                        handleFilterChange(
-                        "priority",
-                        currentFilters.priority.filter((p) => p !== priority),
-                        )
-                      }
+                  <div>
+                    <label htmlFor="priority" className="block text-sm font-medium mb-1">
+                      Priority
+                    </label>
+                    <Select
+                      onValueChange={(value) => {
+                        if (value === "all") {
+                          handleFilterChange("priority", allPriorities)
+                        } else {
+                          handleFilterChange(
+                            "priority",
+                            currentFilters.priority.includes(value)
+                              ? currentFilters.priority.filter((p) => p !== value)
+                              : [...currentFilters.priority, value],
+                          )
+                        }
                       }}
-                    />
-                    <span className="ml-2">{priority}</span>
-                    </div>
-                  </SelectItem>
-                  ))}
-                </SelectContent>
-                </Select>
-              </div>
-              </div>
+                      value={currentFilters.priority.join(",")}
+                    >
+                      <SelectTrigger id="priority" className="bg-white text-black w-full">
+                        <SelectValue placeholder="Priority">
+                          {currentFilters.priority.length > 0
+                            ? currentFilters.priority.length === allPriorities.length
+                              ? "All Priorities"
+                              : currentFilters.priority.join(", ")
+                            : "Priority"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Priorities</SelectItem>
+                        {allPriorities.map((priority) => (
+                          <SelectItem key={priority} value={priority}>
+                            <div className="flex items-center">
+                              <Checkbox
+                                checked={currentFilters.priority.includes(priority)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    handleFilterChange("priority", [...currentFilters.priority, priority])
+                                  } else {
+                                    handleFilterChange(
+                                      "priority",
+                                      currentFilters.priority.filter((p) => p !== priority),
+                                    )
+                                  }
+                                }}
+                              />
+                              <span className="ml-2">{priority}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-              <div className="mt-4 flex justify-start space-x-2">
-              <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleResetFilters}>
-                Reset Filters
-              </Button>
-              <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
-                Generate Report
-              </Button>
+                <div className="mt-4 flex justify-start space-x-2">
+                  <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleResetFilters}>
+                    Reset Filters
+                  </Button>
+                  <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
+                    Generate Report
+                  </Button>
+                </div>
               </div>
-            </div>
             </div>
             <div className="min-w-[1024px] p-6">
               {showReport && (
@@ -807,7 +814,9 @@ export default function TaskReportDashboard() {
                                 labelFormatter={(label, payload) => {
                                   if (payload && payload[0] && payload[0].payload) {
                                     const { startDate, endDate } = payload[0].payload
-                                    return `${format(new Date(startDate), "MMM d, yyyy")} - ${format(new Date(endDate), "MMM d, yyyy")}`
+                                    if (startDate && endDate) {
+                                      return `${format(new Date(startDate), "MMM d, yyyy")} - ${format(new Date(endDate), "MMM d, yyyy")}`
+                                    }
                                   }
                                   return label
                                 }}
@@ -822,16 +831,18 @@ export default function TaskReportDashboard() {
                             <h3 className="text-xl font-semibold mb-4">Task Completion Status ({timeFrame})</h3>
                             <TaskCompletionStatusChart data={chartData.taskCompletionStatusData[timeFrame]}>
                               <Tooltip
-                                formatter={(value, name) => [
-                                  value,
-                                  name === '                                  name === "onTime'
-                                    ? "Completed On/Before Time"
-                                    : "Missed Deadline",
-                                ]}
+                                formatter={(value, name) => {
+                                  // Properly handle the name parameter with a simple string comparison
+                                  return [value, name === "onTime" ? "Completed On/Before Time" : "Missed Deadline"]
+                                }}
                                 labelFormatter={(label, payload) => {
-                                  if (payload && payload[0] && payload[0].payload) {
+                                  // Add null checks for payload and its properties
+                                  if (payload && payload.length > 0 && payload[0].payload) {
                                     const { startDate, endDate } = payload[0].payload
-                                    return `${format(new Date(startDate), "MMM d, yyyy")} - ${format(new Date(endDate), "MMM d, yyyy")}`
+                                    // Add null checks for startDate and endDate
+                                    if (startDate && endDate) {
+                                      return `${format(new Date(startDate), "MMM d, yyyy")} - ${format(new Date(endDate), "MMM d, yyyy")}`
+                                    }
                                   }
                                   return label
                                 }}

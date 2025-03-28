@@ -134,7 +134,9 @@ export default function AdminRecieverPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <div className="flex-1 p-4 bg-white">
+      <div className="flex-1 p-4 ml-64">
+        {" "}
+        {/* Add margin-left to account for sidebar width */}
         <h1 className="text-2xl font-bold mb-4">User Management</h1>
         <UserList
           users={users}
@@ -159,3 +161,4 @@ export default function AdminRecieverPage() {
     </div>
   )
 }
+

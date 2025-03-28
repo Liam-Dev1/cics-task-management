@@ -1,41 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Clock, AlertCircle, Bell } from "lucide-react"
-import type { Task, Notification } from "@/lib/utils"
-import { auth, db, storage } from "@/app/firebase/firebase.config"
-import {
-  calculateStats,
-  getTasksNearDeadline,
-  getOverdueTasks,
-  formatDate,
-  generateNotifications,
-} from "@/lib/user_util"
+import { calculateStats, getTasksNearDeadline, getOverdueTasks, formatDate, generateNotifications } from "@/lib/user_util"
 import { Sidebar } from "@/components/sidebar-user"
+import type { Task, Notification } from "@/lib/utils"
 
 export default function Dashboard() {
-  const [userId, setUserId] = useState<string | null>(null)
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [stats, setStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-    verifyingTasks: 0,
-  })
-
-  // Fetch the current user's ID
-  useEffect(() => {
-    if (auth.currentUser) {
-      setUserId(auth.currentUser.uid)
-    }
-  }, [])
-
-  // Use the user-specific stats calculation
-  const calculatedStats = calculateStats()
+  const stats = calculateStats()
   const tasksNearDeadline: Task[] = getTasksNearDeadline()
   const tasksOverdue: Task[] = getOverdueTasks()
-  const generatedNotifications: Notification[] = generateNotifications(5)
+  const notifications: Notification[] = generateNotifications(5)
 
   return (
     <div className="flex min-h-screen">
@@ -45,21 +19,21 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 bg-gray-100">
         <div className="p-8">
-          {/* Updated header for user view */}
+          {/* Updated header with Admin text */}
           <div className="flex items-baseline gap-4 mb-4">
             <h1 className="text-5xl font-bold text-[#333333]">Dashboard</h1>
-            <span className="text-4xl font-bold text-[#8B2332]">My Tasks</span>
           </div>
 
           {/* Tasks Assigned to You */}
           <h2 className="text-xl font-semibold mb-4">Tasks Assigned to You</h2>
 
+
           <div className="flex gap-4 mb-8">
             {/* On Time Stats */}
             <div className="flex-1 bg-[#8B2332] text-white p-6 rounded-md">
-              <div className="text-7xl font-bold">{calculatedStats.tasksPerformedOnTime}%</div>
+              <div className="text-7xl font-bold">{stats.tasksPerformedOnTime}%</div>
               <div className="text-lg">
-                My Tasks Completed
+                Tasks Performed
                 <br />
                 on Time
               </div>
@@ -67,11 +41,11 @@ export default function Dashboard() {
 
             {/* Overdue Stats */}
             <div className="flex-1 bg-[#8B2332] text-white p-6 rounded-md">
-              <div className="text-7xl font-bold">{calculatedStats.tasksPerformedOverdue}%</div>
+              <div className="text-7xl font-bold">{stats.tasksPerformedOverdue}%</div>
               <div className="text-lg">
-                My Tasks Completed
+                Tasks Performed
                 <br />
-                Late
+                Overdue
               </div>
             </div>
           </div>
@@ -141,8 +115,8 @@ export default function Dashboard() {
           Notifications
         </h2>
         <div className="space-y-4">
-          {generatedNotifications.length > 0 ? (
-            generatedNotifications.map((notification) => (
+          {notifications.length > 0 ? (
+            notifications.map((notification) => (
               <div key={notification.id} className="border p-4 rounded-md hover:bg-gray-50 transition-colors">
                 <div className="flex items-start gap-2">
                   <div
@@ -166,7 +140,7 @@ export default function Dashboard() {
             <div className="text-center text-gray-500 py-4">No notifications</div>
           )}
 
-          {generatedNotifications.length > 0 && (
+          {notifications.length > 0 && (
             <button className="w-full text-center text-sm text-[#8B2332] hover:underline mt-2">
               View all notifications
             </button>
@@ -176,4 +150,3 @@ export default function Dashboard() {
     </div>
   )
 }
-

@@ -1,8 +1,9 @@
 import TaskReportDashboard from "@/components/task-report-dashboard"
 
-export default function Home() {
+export default function ReportsPage() {
   return (
-    <div className="w-full min-h-screen overflow-x-auto bg-gray-100">
+    <div className="flex min-h-screen">
+
       <TaskReportDashboard />
     </div>
   )
