@@ -24,6 +24,7 @@ import { Tooltip, TooltipProvider } from "@/components/ui/tooltip"
 import { taskData } from "@/lib/sample-data"
 import { Sidebar } from "@/components/sidebar-admin"
 import { ExportToPdfButton } from "@/components/export-to-pdf-button"
+import { LoadingOverlay } from "@/components/loading-overlay"
 
 export default function TaskReportDashboard() {
   const [timeFrame, setTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly")
@@ -31,7 +32,9 @@ export default function TaskReportDashboard() {
   const [showGraphs, setShowGraphs] = useState(false)
   const [showReport, setShowReport] = useState(false)
 
-  const allReceivers = ["John Smith", "Jane Doe"]
+  const allReceivers = Array.from(
+    new Set(taskData.tasks.map((task) => task.assignedTo))
+  );
   const allTaskStatuses = ["Completed", "Pending", "Overdue"]
   const allPriorities = ["High", "Medium", "Low"]
 
@@ -379,305 +382,243 @@ export default function TaskReportDashboard() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <h1 className="text-5xl font-bold mb-6 p-6">Reports</h1>
           <div className="flex-1 overflow-x-auto">
-            <div className="flex-1 p-6 ">
+            <div className="flex-1 p-6 transition-all duration-500 ease-in-out">
               {/* Filter Controls */}
               <div
-                className={`bg-[#8B2332] text-white p-4 rounded-md mb-4 sticky top-0 z-10 ${isExporting ? "hidden" : ""}`}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <div>
-                    <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
-                      Task Receiver
-                    </label>
-                    <Select
-                      onValueChange={(value) => {
-                        if (value === "all") {
-                          handleFilterChange("taskReceivers", allReceivers)
-                        } else {
-                          handleFilterChange(
-                            "taskReceivers",
-                            currentFilters.taskReceivers.includes(value)
-                              ? currentFilters.taskReceivers.filter((r) => r !== value)
-                              : [...currentFilters.taskReceivers, value],
-                          )
-                        }
-                      }}
-                      value={currentFilters.taskReceivers.join(",")}
-                    >
-                      <SelectTrigger id="task-receiver" className="bg-white text-black w-full">
-                        <SelectValue placeholder="Select Receivers">
-                          {currentFilters.taskReceivers.length > 0
-                            ? currentFilters.taskReceivers.length === allReceivers.length
-                              ? "All Receivers"
-                              : currentFilters.taskReceivers.join(", ")
-                            : "Select Receivers"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Receivers</SelectItem>
-                        {allReceivers.map((receiver) => (
-                          <SelectItem key={receiver} value={receiver}>
-                            <div className="flex items-center">
-                              <Checkbox
-                                checked={currentFilters.taskReceivers.includes(receiver)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver])
-                                  } else {
-                                    handleFilterChange(
-                                      "taskReceivers",
-                                      currentFilters.taskReceivers.filter((r) => r !== receiver),
-                                    )
-                                  }
-                                }}
-                              />
-                              <span className="ml-2">{receiver}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="from-date" className="block text-sm font-medium mb-1">
-                      From Date
-                    </label>
-                    <Input
-                      type="date"
-                      id="from-date"
-                      name="fromDate"
-                      value={format(currentFilters.fromDate, "yyyy-MM-dd")}
-                      onChange={(e) => handleFilterChange("fromDate", new Date(e.target.value))}
-                      className="bg-white text-black w-full"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="to-date" className="block text-sm font-medium mb-1">
-                      To Date
-                    </label>
-                    <Input
-                      type="date"
-                      id="to-date"
-                      name="toDate"
-                      value={format(currentFilters.toDate, "yyyy-MM-dd")}
-                      onChange={(e) => handleFilterChange("toDate", new Date(e.target.value))}
-                      className="bg-white text-black w-full"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="task-status" className="block text-sm font-medium mb-1">
-                      Task Status
-                    </label>
-                    <Select
-                      onValueChange={(value) => {
-                        if (value === "all") {
-                          handleFilterChange("taskStatus", allTaskStatuses)
-                        } else {
-                          handleFilterChange(
-                            "taskStatus",
-                            currentFilters.taskStatus.includes(value)
-                              ? currentFilters.taskStatus.filter((s) => s !== value)
-                              : [...currentFilters.taskStatus, value],
-                          )
-                        }
-                      }}
-                      value={currentFilters.taskStatus.join(",")}
-                    >
-                      <SelectTrigger id="task-status" className="bg-white text-black w-full">
-                        <SelectValue placeholder="Task Status">
-                          {currentFilters.taskStatus.length > 0
-                            ? currentFilters.taskStatus.length === allTaskStatuses.length
-                              ? "All Task Statuses"
-                              : currentFilters.taskStatus.join(", ")
-                            : "Task Status"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Task Status</SelectItem>
-                        {allTaskStatuses.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            <div className="flex items-center">
-                              <Checkbox
-                                checked={currentFilters.taskStatus.includes(status)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    handleFilterChange("taskStatus", [...currentFilters.taskStatus, status])
-                                  } else {
-                                    handleFilterChange(
-                                      "taskStatus",
-                                      currentFilters.taskStatus.filter((s) => s !== status),
-                                    )
-                                  }
-                                }}
-                              />
-                              <span className="ml-2">{status}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="priority" className="block text-sm font-medium mb-1">
-                      Priority
-                    </label>
-                    <Select
-                      onValueChange={(value) => {
-                        if (value === "all") {
-                          handleFilterChange("priority", allPriorities)
-                        } else {
-                          handleFilterChange(
-                            "priority",
-                            currentFilters.priority.includes(value)
-                              ? currentFilters.priority.filter((p) => p !== value)
-                              : [...currentFilters.priority, value],
-                          )
-                        }
-                      }}
-                      value={currentFilters.priority.join(",")}
-                    >
-                      <SelectTrigger id="priority" className="bg-white text-black w-full">
-                        <SelectValue placeholder="Priority">
-                          {currentFilters.priority.length > 0
-                            ? currentFilters.priority.length === allPriorities.length
-                              ? "All Priorities"
-                              : currentFilters.priority.join(", ")
-                            : "Priority"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Priorities</SelectItem>
-                        {allPriorities.map((priority) => (
-                          <SelectItem key={priority} value={priority}>
-                            <div className="flex items-center">
-                              <Checkbox
-                                checked={currentFilters.priority.includes(priority)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    handleFilterChange("priority", [...currentFilters.priority, priority])
-                                  } else {
-                                    handleFilterChange(
-                                      "priority",
-                                      currentFilters.priority.filter((p) => p !== priority),
-                                    )
-                                  }
-                                }}
-                              />
-                              <span className="ml-2">{priority}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              className={`bg-[#8B2332] text-white p-4 rounded-md mb-4 sticky top-0 z-10 transition-all duration-300 ease-in-out ${
+                isExporting ? "hidden" : ""
+              }`}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 transition-all duration-300 ease-in-out">
+                <div>
+                  <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
+                    Task Receiver
+                  </label>
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === "all") {
+                        handleFilterChange("taskReceivers", allReceivers);
+                      } else {
+                        handleFilterChange(
+                          "taskReceivers",
+                          currentFilters.taskReceivers.includes(value)
+                            ? currentFilters.taskReceivers.filter((r) => r !== value)
+                            : [...currentFilters.taskReceivers, value]
+                        );
+                      }
+                    }}
+                    value={currentFilters.taskReceivers.join(",")}
+                  >
+                    <SelectTrigger id="task-receiver" className="bg-white text-black w-full transition-all duration-300">
+                      <SelectValue placeholder="Select Receivers">
+                        {currentFilters.taskReceivers.length > 0
+                          ? currentFilters.taskReceivers.length === allReceivers.length
+                            ? "All Receivers"
+                            : currentFilters.taskReceivers.join(", ")
+                          : "Select Receivers"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Receivers</SelectItem>
+                      {allReceivers.map((receiver) => (
+                        <SelectItem key={receiver} value={receiver}>
+                          <div className="flex items-center">
+                            <Checkbox
+                              checked={currentFilters.taskReceivers.includes(receiver)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver]);
+                                } else {
+                                  handleFilterChange(
+                                    "taskReceivers",
+                                    currentFilters.taskReceivers.filter((r) => r !== receiver)
+                                  );
+                                }
+                              }}
+                            />
+                            <span className="ml-2">{receiver}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="mt-4 flex justify-start space-x-2">
-                  <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleResetFilters}>
-                    Reset Filters
-                  </Button>
-                  <Button className="bg-gray-700 hover:bg-gray-600 text-white" onClick={handleGenerateReport}>
-                    Generate Report
-                  </Button>
+                <div>
+                  <label htmlFor="from-date" className="block text-sm font-medium mb-1">
+                    From Date
+                  </label>
+                  <Input
+                    type="date"
+                    id="from-date"
+                    name="fromDate"
+                    value={format(currentFilters.fromDate, "yyyy-MM-dd")}
+                    onChange={(e) => handleFilterChange("fromDate", new Date(e.target.value))}
+                    className="bg-white text-black w-full transition-all duration-300"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="to-date" className="block text-sm font-medium mb-1">
+                    To Date
+                  </label>
+                  <Input
+                    type="date"
+                    id="to-date"
+                    name="toDate"
+                    value={format(currentFilters.toDate, "yyyy-MM-dd")}
+                    onChange={(e) => handleFilterChange("toDate", new Date(e.target.value))}
+                    className="bg-white text-black w-full transition-all duration-300"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="task-status" className="block text-sm font-medium mb-1">
+                    Task Status
+                  </label>
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === "all") {
+                        handleFilterChange("taskStatus", allTaskStatuses);
+                      } else {
+                        handleFilterChange(
+                          "taskStatus",
+                          currentFilters.taskStatus.includes(value)
+                            ? currentFilters.taskStatus.filter((s) => s !== value)
+                            : [...currentFilters.taskStatus, value]
+                        );
+                      }
+                    }}
+                    value={currentFilters.taskStatus.join(",")}
+                  >
+                    <SelectTrigger id="task-status" className="bg-white text-black w-full transition-all duration-300">
+                      <SelectValue placeholder="Task Status">
+                        {currentFilters.taskStatus.length > 0
+                          ? currentFilters.taskStatus.length === allTaskStatuses.length
+                            ? "All Task Statuses"
+                            : currentFilters.taskStatus.join(", ")
+                          : "Task Status"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Task Status</SelectItem>
+                      {allTaskStatuses.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          <div className="flex items-center">
+                            <Checkbox
+                              checked={currentFilters.taskStatus.includes(status)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  handleFilterChange("taskStatus", [...currentFilters.taskStatus, status]);
+                                } else {
+                                  handleFilterChange(
+                                    "taskStatus",
+                                    currentFilters.taskStatus.filter((s) => s !== status)
+                                  );
+                                }
+                              }}
+                            />
+                            <span className="ml-2">{status}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label htmlFor="priority" className="block text-sm font-medium mb-1">
+                    Priority
+                  </label>
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === "all") {
+                        handleFilterChange("priority", allPriorities);
+                      } else {
+                        handleFilterChange(
+                          "priority",
+                          currentFilters.priority.includes(value)
+                            ? currentFilters.priority.filter((p) => p !== value)
+                            : [...currentFilters.priority, value]
+                        );
+                      }
+                    }}
+                    value={currentFilters.priority.join(",")}
+                  >
+                    <SelectTrigger id="priority" className="bg-white text-black w-full transition-all duration-300">
+                      <SelectValue placeholder="Priority">
+                        {currentFilters.priority.length > 0
+                          ? currentFilters.priority.length === allPriorities.length
+                            ? "All Priorities"
+                            : currentFilters.priority.join(", ")
+                          : "Priority"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      {allPriorities.map((priority) => (
+                        <SelectItem key={priority} value={priority}>
+                          <div className="flex items-center">
+                            <Checkbox
+                              checked={currentFilters.priority.includes(priority)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  handleFilterChange("priority", [...currentFilters.priority, priority]);
+                                } else {
+                                  handleFilterChange(
+                                    "priority",
+                                    currentFilters.priority.filter((p) => p !== priority)
+                                  );
+                                }
+                              }}
+                            />
+                            <span className="ml-2">{priority}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
+
+              <div className="mt-4 flex justify-start space-x-2 transition-all duration-300">
+                <Button className="bg-gray-700 hover:bg-gray-600 text-white transition-all duration-300" onClick={handleResetFilters}>
+                  Reset Filters
+                </Button>
+                <Button className="bg-gray-700 hover:bg-gray-600 text-white transition-all duration-300" onClick={handleGenerateReport}>
+                  Generate Report
+                </Button>
+              </div>
             </div>
-            <div className="min-w-[1024px] p-6" ref={reportRef}>
+            </div>
+            <div className=" p-6" ref={reportRef}>
               {showReport && (
                 <>
                   {/* User Profile and Stats */}
-                  <div className="bg-gray-300 rounded-md p-4 mb-6">
-                    <div className="flex">
-                      {/* User Avatar */}
-                      <div className="mr-4">
-                        <div className="w-32 h-32 bg-gray-500 rounded-full overflow-hidden">
-                          <div className="w-full h-full bg-[#4A5568] flex items-center justify-center">
-                            {/* Silhouette placeholder */}
-                          </div>
-                        </div>
-                      </div>
-
+                    <div className="bg-gray-300 rounded-md p-4 mb-6 transition-all duration-500 ease-in-out">
+                    <div className="flex flex-wrap">
                       {/* User Info and Filters */}
                       <div className="flex-1">
-                        <div className="flex gap-2 mb-4">
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.taskReceivers.length === 0
-                              ? "All Receivers"
-                              : appliedFilters.taskReceivers.join(", ")}
-                          </Button>
-                          <Button className="bg-[#8B2332] text-white rounded-md">{`${format(appliedFilters.fromDate, "PPP")} - ${format(appliedFilters.toDate, "PPP")}`}</Button>
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.taskStatus.length === 0
-                              ? "All Task Status"
-                              : appliedFilters.taskStatus.join(", ")}
-                          </Button>
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.priority.length === 0
-                              ? "All Priorities"
-                              : appliedFilters.priority.join(", ")}
-                          </Button>
-                        </div>
-
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-1">
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Number of tasks Assigned:</span>
-                            <span>{stats.tasksAssigned}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Tasks Completed Late:</span>
-                            <span>{stats.completedLate.toString().padStart(2, "0")}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Completed Tasks:</span>
-                            <span>{stats.completedTasks}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Tasks Not Completed:</span>
-                            <span>{stats.notCompleted.toString().padStart(2, "0")}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Pending Tasks:</span>
-                            <span>{stats.pendingTasks.toString().padStart(2, "0")}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Average Completion Time:</span>
-                            <span>{stats.avgCompletionTime}%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Overdue Tasks:</span>
-                            <span>{stats.overdueTasks.toString().padStart(2, "0")}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Average Completion Rate:</span>
-                            <span>{stats.avgCompletionRate}%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Tasks Completed on time:</span>
-                            <span>{stats.completedOnTime}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Reopened Tasks:</span>
-                            <span>{stats.reopenedTasks}</span>
+                      <div className="grid grid-cols-[auto,1fr] items-center">
+                        {/* Avatar */}
+                        <div className="mr-4 p-4">
+                        <div className="w-32 h-32 md:w-36 md:h-36 bg-gray-500 rounded-md overflow-hidden flex items-center justify-center 2xl:w-48 2xl:h-48 transition-all duration-500 ease-in-out">
+                          <div className="w-full h-full bg-[#4A5568] flex items-center justify-center">
+                          {/* Silhouette placeholder */}
                           </div>
                         </div>
-                      </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex flex-col gap-2">
-                        <Button
+                        {/* Action Buttons for small screens */}
+                        <div className="mt-4 flex flex-col gap-2 lg:hidden">
+                          <Button
                           className="bg-gray-500 hover:bg-gray-600 text-white"
                           onClick={() => setShowGraphs(!showGraphs)}
-                        >
+                          >
                           {showGraphs ? "Hide Graphs" : "View Graphs"}
-                        </Button>
-                        <ExportToPdfButton
+                          </Button>
+                          <ExportToPdfButton
                           reportRef={reportRef}
                           fromDate={appliedFilters.fromDate}
                           toDate={appliedFilters.toDate}
@@ -686,20 +627,151 @@ export default function TaskReportDashboard() {
                           timeFrames={["weekly", "monthly", "quarterly", "yearly"]}
                           onTimeFrameChange={handleExportTimeFrameChange}
                           onTabChange={handleExportTabChange}
-                          stats={stats}
-                          chartData={chartData}
-                        />
+                          />
+                        </div>
+                        </div>
+
+                        {/* Filters and Buttons */}
+                        <div className="">
+                        <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-5 gap-x-4 gap-y-6 lg:gap-y-3 p-4 transition-all duration-500 ease-in-out">
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                          {appliedFilters.taskReceivers.length === 0
+                            ? "All Receivers"
+                            : appliedFilters.taskReceivers.join(", ")}
+                          </Button>
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                          {`${format(appliedFilters.fromDate, "MM/dd/yyyy")} - ${format(appliedFilters.toDate, "MM/dd/yyyy")}`}
+                          </Button>
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                          {appliedFilters.taskStatus.length === 0
+                            ? "All Task Status"
+                            : appliedFilters.taskStatus.join(", ")}
+                          </Button>
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                          {appliedFilters.priority.length === 0
+                            ? "All Priorities"
+                            : appliedFilters.priority.join(", ")}
+                          </Button>
+
+                          {/* Action Buttons for medium and larger screens */}
+                          <div className="hidden lg:grid grid-cols-2 gap-x-4 gap-y-4">
+                          <Button
+                            className="bg-gray-500 hover:bg-gray-600 text-white"
+                            onClick={() => setShowGraphs(!showGraphs)}
+                          >
+                            {showGraphs ? "Hide Graphs" : "View Graphs"}
+                          </Button>
+                          <ExportToPdfButton
+                            reportRef={reportRef}
+                            fromDate={appliedFilters.fromDate}
+                            toDate={appliedFilters.toDate}
+                            onExportStart={handleExportStart}
+                            onExportEnd={handleExportEnd}
+                            timeFrames={["weekly", "monthly", "quarterly", "yearly"]}
+                            onTimeFrameChange={handleExportTimeFrameChange}
+                            onTabChange={handleExportTabChange}
+                          />
+                          </div>
+                        </div>
+                        <div className="hidden 2xl:grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-x-16 gap-y-1 p-4 transition-all duration-500 ease-in-out">
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Number of tasks Assigned:</span>
+                          <span>{stats.tasksAssigned}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Tasks Completed Late:</span>
+                          <span>{stats.completedLate.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Completed Tasks:</span>
+                          <span>{stats.completedTasks}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Tasks Not Completed:</span>
+                          <span>{stats.notCompleted.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Pending Tasks:</span>
+                          <span>{stats.pendingTasks.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Average Completion Time:</span>
+                          <span>{stats.avgCompletionTime}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Overdue Tasks:</span>
+                          <span>{stats.overdueTasks.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Average Completion Rate:</span>
+                          <span>{stats.avgCompletionRate}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Tasks Completed on time:</span>
+                          <span>{stats.completedOnTime}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Reopened Tasks:</span>
+                          <span>{stats.reopenedTasks}</span>
+                          </div>
+                        </div>
+                        </div>
+                      </div>
+
+                      {/* Stats Grid for large screen */}
+                      <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-x-16 gap-y-1 p-4 2xl:hidden transition-all duration-500 ease-in-out">
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Number of tasks Assigned:</span>
+                        <span>{stats.tasksAssigned}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Tasks Completed Late:</span>
+                        <span>{stats.completedLate.toString().padStart(2, "0")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Completed Tasks:</span>
+                        <span>{stats.completedTasks}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Tasks Not Completed:</span>
+                        <span>{stats.notCompleted.toString().padStart(2, "0")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Pending Tasks:</span>
+                        <span>{stats.pendingTasks.toString().padStart(2, "0")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Average Completion Time:</span>
+                        <span>{stats.avgCompletionTime}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Overdue Tasks:</span>
+                        <span>{stats.overdueTasks.toString().padStart(2, "0")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Average Completion Rate:</span>
+                        <span>{stats.avgCompletionRate}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Tasks Completed on time:</span>
+                        <span>{stats.completedOnTime}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Reopened Tasks:</span>
+                        <span>{stats.reopenedTasks}</span>
+                        </div>
+                      </div>
                       </div>
                     </div>
-                  </div>
+                    </div>
 
                   {/* Charts Section */}
                   {showGraphs && (
                     <TooltipProvider>
-                      <div className="max-w-[1600px] mx-auto">
+                      <div className=" mx-auto">
                         {/* Chart Navigation */}
                         <div className="flex justify-between items-center mb-6">
-                          <div className="flex space-x-2">
+                          <div className="flex space-x-2 grid grid-cols-2 md:grid-cols-4 gap-2">
                             <Button
                               variant={activeTab === "pieCharts" ? "default" : "outline"}
                               onClick={() => setActiveTab("pieCharts")}
@@ -723,43 +795,43 @@ export default function TaskReportDashboard() {
                             </Button>
                           </div>
 
-                          {(activeTab === "lineCharts" || activeTab === "barCharts") && (
-                            <div className="flex space-x-2">
+                            {(activeTab === "lineCharts" || activeTab === "barCharts") && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                               <Button
-                                variant={timeFrame === "weekly" ? "default" : "outline"}
-                                onClick={() => setTimeFrame("weekly")}
-                                className={timeFrame === "weekly" ? "bg-[#8B2332]" : ""}
-                                size="sm"
+                              variant={timeFrame === "weekly" ? "default" : "outline"}
+                              onClick={() => setTimeFrame("weekly")}
+                              className={timeFrame === "weekly" ? "bg-[#8B2332]" : ""}
+                              size="sm"
                               >
-                                Weekly
+                              Weekly
                               </Button>
                               <Button
-                                variant={timeFrame === "monthly" ? "default" : "outline"}
-                                onClick={() => setTimeFrame("monthly")}
-                                className={timeFrame === "monthly" ? "bg-[#8B2332]" : ""}
-                                size="sm"
+                              variant={timeFrame === "monthly" ? "default" : "outline"}
+                              onClick={() => setTimeFrame("monthly")}
+                              className={timeFrame === "monthly" ? "bg-[#8B2332]" : ""}
+                              size="sm"
                               >
-                                Monthly
+                              Monthly
                               </Button>
                               <Button
-                                variant={timeFrame === "quarterly" ? "default" : "outline"}
-                                onClick={() => setTimeFrame("quarterly")}
-                                className={timeFrame === "quarterly" ? "bg-[#8B2332]" : ""}
-                                size="sm"
+                              variant={timeFrame === "quarterly" ? "default" : "outline"}
+                              onClick={() => setTimeFrame("quarterly")}
+                              className={timeFrame === "quarterly" ? "bg-[#8B2332]" : ""}
+                              size="sm"
                               >
-                                Quarterly
+                              Quarterly
                               </Button>
                               <Button
-                                variant={timeFrame === "yearly" ? "default" : "outline"}
-                                onClick={() => setTimeFrame("yearly")}
-                                className={timeFrame === "yearly" ? "bg-[#8B2332]" : ""}
-                                size="sm"
+                              variant={timeFrame === "yearly" ? "default" : "outline"}
+                              onClick={() => setTimeFrame("yearly")}
+                              className={timeFrame === "yearly" ? "bg-[#8B2332]" : ""}
+                              size="sm"
                               >
-                                Yearly
+                              Yearly
                               </Button>
                             </div>
-                          )}
-                        </div>
+                            )}
+                          </div>
 
                         {/* Pie Charts */}
                         {activeTab === "pieCharts" && (
@@ -884,6 +956,7 @@ export default function TaskReportDashboard() {
           </div>
         </div>
       </div>
+      <LoadingOverlay isVisible={isExporting} />
     </>
   )
 }

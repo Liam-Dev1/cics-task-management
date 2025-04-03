@@ -186,7 +186,7 @@ export function ExportToPdfButton({
   return (
     <Button onClick={exportToPdf} disabled={isExporting} className="bg-gray-700 hover:bg-gray-600 text-white">
       <Download className="mr-2 h-4 w-4" />
-      {isExporting ? "Exporting..." : "Export to PDF"}
+      {isExporting ? "Exporting..." : "Export PDF"}
     </Button>
   )
 }
