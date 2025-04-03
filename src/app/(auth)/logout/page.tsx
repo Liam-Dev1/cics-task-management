@@ -1,45 +1,47 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { LogOut, X } from "lucide-react"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { LogOut, X } from "lucide-react";
+import { deleteCookie } from "cookies-next";
+import Image from "next/image";
+
 
 export default function LogoutPage() {
-  const router = useRouter()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    setIsLoggingOut(true)
+    setIsLoggingOut(true);
 
-    // Simulate logout process
     try {
-      // Here you would typically call your auth service to sign out
-      // For example: await signOut(auth)
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
+      // Clear user role cookie
+      deleteCookie("userRole");
+
+      // Simulate logout process
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
 
       // Redirect to login page after successful logout
-      router.push("/login")
+      router.push("/login");
     } catch (error) {
-      console.error("Logout failed:", error)
-      setIsLoggingOut(false)
+      console.error("Logout failed:", error);
+      setIsLoggingOut(false);
     }
-  }
+  };
 
   const handleCancel = () => {
-    // Go back to the previous page
-    router.back()
-  }
+    router.back();
+  };
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-zinc-100">
       <div className="w-full max-w-md px-4">
         <Card className="w-full shadow-lg">
           <CardHeader className="space-y-1 flex flex-col items-center">
-            <div className="w-full h-20 mb-4 relative">
-              <Image src="/images/CICSTASKMGMT_LOGO_NG.png" alt="CICS Logo" fill className="object-cover w-full" priority />
+            <div className="relative w-32 h-32">
+              <Image src="/images/CICSTASKMGMT_LOGO_NG.png" alt="CICS Logo" layout="fill" className="object-cover" priority />
             </div>
             <CardTitle className="text-2xl font-bold text-center">Sign Out</CardTitle>
             <CardDescription className="text-center">
@@ -67,6 +69,5 @@ export default function LogoutPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
-
