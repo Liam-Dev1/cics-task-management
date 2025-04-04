@@ -22,6 +22,7 @@ import { useAuthState } from "react-firebase-hooks/auth"
 import { collection, addDoc, getDocs, updateDoc, doc, query, orderBy, where } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Sidebar } from "@/components/sidebar-admin"
+import { useSearchParams } from "next/navigation"
 
 // File object interface
 interface FileObject extends File {
@@ -79,6 +80,9 @@ export default function TaskManagement() {
   const [activeSort, setActiveSort] = useState<SortValue>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
+
+  const searchParams = useSearchParams()
+  const taskIdFromUrl = searchParams.get("taskId")
 
   // Show notification
   const showNotification = (message: string, type: "success" | "error") => {
@@ -171,6 +175,31 @@ export default function TaskManagement() {
 
     fetchTasks()
   }, [])
+
+  // Scroll to specific task if ID is provided in URL
+  useEffect(() => {
+    if (taskIdFromUrl && tasks.length > 0) {
+      // Make sure the task exists
+      const taskExists = tasks.some((task) => task.id === taskIdFromUrl)
+
+      if (taskExists) {
+        // Scroll to the task with a slight delay to ensure rendering is complete
+        setTimeout(() => {
+          const taskElement = document.getElementById(`task-${taskIdFromUrl}`)
+          if (taskElement) {
+            // Scroll to the task
+            taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
+
+            // Highlight the task briefly to make it more noticeable
+            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            setTimeout(() => {
+              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            }, 2000)
+          }
+        }, 300)
+      }
+    }
+  }, [taskIdFromUrl, tasks])
 
   // Filter tasks based on search query and active filter
   const filteredTasks = tasks.filter((task) => {
@@ -768,7 +797,7 @@ export default function TaskManagement() {
             {/* Existing Tasks */}
             {!loading && sortedTasks.length > 0
               ? sortedTasks.map((task) => (
-                  <div key={task.id} className="bg-red-800 text-white p-4 rounded">
+                  <div key={task.id} id={`task-${task.id}`} className="bg-red-800 text-white p-4 rounded">
                     <div className="grid md:grid-cols-7 gap-4">
                       {editingTask === task.id ? (
                         <>
@@ -873,7 +902,7 @@ export default function TaskManagement() {
                           </div>
                           <div className="md:col-span-1">
                             <span className="md:hidden font-semibold">Assigned To: </span>
-                            {task.assignedTo} 
+                            {task.assignedTo}
                           </div>
                           <div className="md:col-span-1">
                             <span className="md:hidden font-semibold">Assigned On: </span>
