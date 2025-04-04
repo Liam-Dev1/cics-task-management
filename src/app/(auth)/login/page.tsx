@@ -27,7 +27,12 @@ export default function LoginPage() {
           const userData = querySnapshot.docs[0].data();
 
           // Set user role in cookie
-          setCookie("userRole", userData.role, { maxAge: 60 * 60 * 24 * 7 }); // 7 days
+          setCookie("userRole", userData.role, { 
+            maxAge: 60 * 60 * 24 * 7, // 7 days
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: true,
+            sameSite: 'strict'
+          });
 
           // Redirect based on user role
           if (userData.role === "admin" || userData.role === "super admin") {
