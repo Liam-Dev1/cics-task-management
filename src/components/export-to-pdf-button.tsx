@@ -38,7 +38,17 @@ export function ExportToPdfButton({
     setIsExporting(true)
     onExportStart()
 
+    // Store original styles and classes
+    const originalWidth = reportRef.current.style.width
+    const originalOverflow = document.body.style.overflow
+
+    // Store elements that will be modified to restore later
+    const elementsToModify = []
+
     try {
+      // We'll set the width dynamically based on the section we're capturing
+      document.body.style.overflow = "hidden"
+
       const pdf = new jsPDF("p", "mm", "a4")
       const dateRange = `${format(fromDate, "MMM d, yyyy")} - ${format(toDate, "MMM d, yyyy")}`
       const fileName = `Task_Report_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`
@@ -58,12 +68,87 @@ export function ExportToPdfButton({
 
       let currentY = 30
 
-      // First capture the stats section
+      // First capture the stats section with MD styling
       onTabChange("pieCharts")
-      // Wait 3 seconds for the charts to fully render
+
+      // Set MD width for user info and stats section
+      reportRef.current.style.width = "768px" // md breakpoint
+
+      // Force medium screen layout for the stats section
+      const statsSection = reportRef.current.querySelector(".bg-gray-300")
+
+      if (statsSection) {
+        // Find all grid elements in the stats section
+        const gridElements = statsSection.querySelectorAll(".grid")
+
+        // Process each grid to apply medium screen layout
+        gridElements.forEach((grid) => {
+          const originalClass = grid.className
+
+          // Check if this is a stats grid by looking for common patterns
+          if (
+            grid.className.includes("grid-cols-1") &&
+            (grid.className.includes("md:grid-cols-1") ||
+              grid.className.includes("lg:grid-cols-2") ||
+              grid.className.includes("xl:grid-cols"))
+          ) {
+            // Force 1-column layout for stats grid (md typically has 1 column)
+            grid.className = "grid grid-cols-1 gap-y-1 p-4"
+            elementsToModify.push({ element: grid, originalClass })
+          }
+
+          // Special handling for the filters grid
+          if (grid.className.includes("grid-cols-1") && grid.className.includes("md:grid-cols")) {
+            // Force 1-column layout for filters grid (md typically has 1 column)
+            grid.className = "grid grid-cols-1 gap-y-4 p-4"
+            elementsToModify.push({ element: grid, originalClass })
+          }
+        })
+
+        // Find and modify button containers
+        const buttonContainers = statsSection.querySelectorAll("div")
+        buttonContainers.forEach((container) => {
+          // Look for the large screen buttons container (hidden by default on md)
+          if (
+            container.className.includes("hidden") &&
+            (container.className.includes("lg:grid") || container.className.includes("xl:grid"))
+          ) {
+            const originalClass = container.className
+            container.className = "hidden" // Keep hidden on md
+            elementsToModify.push({ element: container, originalClass })
+          }
+
+          // Look for the small screen buttons container (visible on md)
+          if (
+            container.className.includes("flex") &&
+            (container.className.includes("lg:hidden") || container.className.includes("xl:hidden"))
+          ) {
+            const originalClass = container.className
+            container.className = "flex flex-col gap-2" // Force visible
+            elementsToModify.push({ element: container, originalClass })
+          }
+
+          // Handle the 2xl stats grid - keep it hidden in md view
+          if (container.className.includes("hidden") && container.className.includes("2xl:grid")) {
+            const originalClass = container.className
+            container.className = "hidden" // Keep hidden in md view
+            elementsToModify.push({ element: container, originalClass })
+          }
+
+          // Make sure the regular stats grid is visible (the one that's hidden in 2xl)
+          if (container.className.includes("2xl:hidden")) {
+            const originalClass = container.className
+            // Force 1-column layout for stats in md view
+            container.className = "grid grid-cols-1 gap-y-1 p-4"
+            elementsToModify.push({ element: container, originalClass })
+          }
+        })
+      }
+
+      // Wait 3 seconds for the layout to fully render
       await new Promise((resolve) => setTimeout(resolve, 3000))
 
-      // Export stats section
+      // Export stats section with MD styling
       const statsElement = reportRef.current.querySelector(".bg-gray-300")
       if (statsElement) {
         const statsCanvas = await html2canvas(statsElement as HTMLElement, {
@@ -71,6 +156,7 @@ export function ExportToPdfButton({
           logging: false,
           useCORS: true,
           allowTaint: true,
+          width: 768, // Force md screen width
         })
 
         const statsImgData = statsCanvas.toDataURL("image/png")
@@ -81,14 +167,44 @@ export function ExportToPdfButton({
         currentY += statsImgHeight + 10
       }
 
-      // Export pie charts
-      const pieChartsElement = reportRef.current.querySelector('[data-tab="pieCharts"]')
-      if (pieChartsElement) {
-        const pieCanvas = await html2canvas(pieChartsElement as HTMLElement, {
+      // Now switch to 2XL styling for the charts (was XL)
+      // Restore original classes first
+      elementsToModify.forEach(({ element, originalClass }) => {
+        if (element) {
+          element.className = originalClass
+        }
+      })
+
+      // Clear the elements to modify array for the next section
+      elementsToModify.length = 0
+
+      // Set XL width for charts
+      reportRef.current.style.width = "1536px" // 2xl breakpoint (was 1280px for xl)
+
+      // Force extra large screen layout for the charts (update comment)
+      const pieChartsSection = reportRef.current.querySelector('[data-tab="pieCharts"]')
+      if (pieChartsSection) {
+        const pieChartGrids = pieChartsSection.querySelectorAll(".grid")
+        pieChartGrids.forEach((grid) => {
+          if (grid.className.includes("grid-cols-2") || grid.className.includes("grid-cols-1")) {
+            const originalClass = grid.className
+            grid.className = "grid grid-cols-2 gap-6 mb-6" // Force 2-column layout for 2xl
+            elementsToModify.push({ element: grid, originalClass })
+          }
+        })
+      }
+
+      // Wait 3 seconds for the layout to fully render with 2xl styling
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+
+      // Export pie charts with 2XL styling
+      if (pieChartsSection) {
+        const pieCanvas = await html2canvas(pieChartsSection as HTMLElement, {
           scale: 2,
           logging: false,
           useCORS: true,
           allowTaint: true,
+          width: 1536, // Force 2xl screen width (was 1280px for xl)
         })
 
         // Check if we need a new page
@@ -105,8 +221,7 @@ export function ExportToPdfButton({
         currentY += pieImgHeight + 10
       }
 
-      // Export line charts and bar charts for all timeframes
-      // We'll arrange them 2 per page
+      // Export line charts and bar charts for all timeframes with 2XL styling
       const chartTypes = [
         { tab: "lineCharts", title: "Average Time Completion" },
         { tab: "barCharts", title: "Task Completion Status" },
@@ -136,6 +251,7 @@ export function ExportToPdfButton({
               logging: false,
               useCORS: true,
               allowTaint: true,
+              width: 1536, // Force 2xl screen width (was 1280px for xl)
             })
 
             // Calculate image dimensions
@@ -178,6 +294,19 @@ export function ExportToPdfButton({
     } catch (error) {
       console.error("Error exporting PDF:", error)
     } finally {
+      // Restore original styles and classes
+      if (reportRef.current) {
+        reportRef.current.style.width = originalWidth
+        document.body.style.overflow = originalOverflow
+
+        // Restore all modified elements to their original state
+        elementsToModify.forEach(({ element, originalClass }) => {
+          if (element) {
+            element.className = originalClass
+          }
+        })
+      }
+
       setIsExporting(false)
       onExportEnd()
     }
