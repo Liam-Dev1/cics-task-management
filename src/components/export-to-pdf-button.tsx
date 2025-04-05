@@ -143,6 +143,44 @@ export function ExportToPdfButton({
             elementsToModify.push({ element: container, originalClass })
           }
         })
+
+        // Hide all buttons in the stats section
+        const allButtons = statsSection.querySelectorAll("button")
+        allButtons.forEach((button) => {
+          // Check if this is a "Hide Graphs", "View Graphs", or "Export PDF" button
+          const buttonText = button.textContent || ""
+          if (
+            buttonText.includes("Hide Graphs") ||
+            buttonText.includes("View Graphs") ||
+            buttonText.includes("Export PDF")
+          ) {
+            const originalDisplay = button.style.display
+            button.style.display = "none"
+            elementsToModify.push({
+              element: button,
+              originalDisplay,
+              isStyle: true,
+              restore: () => {
+                button.style.display = originalDisplay
+              },
+            })
+
+            // Also hide the parent container if it's a flex or grid container
+            const parent = button.parentElement
+            if (parent && (parent.className.includes("flex") || parent.className.includes("grid"))) {
+              const originalParentDisplay = parent.style.display
+              parent.style.display = "none"
+              elementsToModify.push({
+                element: parent,
+                originalParentDisplay,
+                isStyle: true,
+                restore: () => {
+                  parent.style.display = originalParentDisplay
+                },
+              })
+            }
+          }
+        })
       }
 
       // Wait 3 seconds for the layout to fully render
@@ -167,21 +205,25 @@ export function ExportToPdfButton({
         currentY += statsImgHeight + 10
       }
 
-      // Now switch to 2XL styling for the charts (was XL)
+      // Now switch to 2XL styling for the charts
       // Restore original classes first
-      elementsToModify.forEach(({ element, originalClass }) => {
+      elementsToModify.forEach(({ element, originalClass, restore, isStyle }) => {
         if (element) {
-          element.className = originalClass
+          if (isStyle && restore) {
+            restore()
+          } else if (!isStyle && originalClass) {
+            element.className = originalClass
+          }
         }
       })
 
       // Clear the elements to modify array for the next section
       elementsToModify.length = 0
 
-      // Set XL width for charts
-      reportRef.current.style.width = "1536px" // 2xl breakpoint (was 1280px for xl)
+      // Set 2XL width for charts
+      reportRef.current.style.width = "1536px" // 2xl breakpoint
 
-      // Force extra large screen layout for the charts (update comment)
+      // Force extra large screen layout for the charts
       const pieChartsSection = reportRef.current.querySelector('[data-tab="pieCharts"]')
       if (pieChartsSection) {
         const pieChartGrids = pieChartsSection.querySelectorAll(".grid")
@@ -204,7 +246,7 @@ export function ExportToPdfButton({
           logging: false,
           useCORS: true,
           allowTaint: true,
-          width: 1536, // Force 2xl screen width (was 1280px for xl)
+          width: 1536, // Force 2xl screen width
         })
 
         // Check if we need a new page
@@ -251,7 +293,7 @@ export function ExportToPdfButton({
               logging: false,
               useCORS: true,
               allowTaint: true,
-              width: 1536, // Force 2xl screen width (was 1280px for xl)
+              width: 1536, // Force 2xl screen width
             })
 
             // Calculate image dimensions
@@ -300,9 +342,13 @@ export function ExportToPdfButton({
         document.body.style.overflow = originalOverflow
 
         // Restore all modified elements to their original state
-        elementsToModify.forEach(({ element, originalClass }) => {
+        elementsToModify.forEach(({ element, originalClass, restore, isStyle }) => {
           if (element) {
-            element.className = originalClass
+            if (isStyle && restore) {
+              restore()
+            } else if (!isStyle && originalClass) {
+              element.className = originalClass
+            }
           }
         })
       }
