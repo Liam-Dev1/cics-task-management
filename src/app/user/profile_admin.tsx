@@ -13,13 +13,13 @@ interface ProfileProps {
 }
 
 export default function Profile({ users, userName, userEmail, userRole, profilePhoto }: ProfileProps) {
-  // Get the stored role mode from localStorage on initial load
+  // Get the stored role mode from sessionStorage on initial load
   const [isAdmin, setIsAdmin] = useState(true) // Default to true, will be updated in useEffect
   const [displayedRole, setDisplayedRole] = useState(userRole)
   
-  // Initialize states from localStorage on component mount
+  // Initialize states from sessionStorage on component mount
   useEffect(() => {
-    const storedIsAdmin = localStorage.getItem('isAdminMode')
+    const storedIsAdmin = sessionStorage.getItem('isAdminMode')
     
     // If we have a stored preference, use it
     if (storedIsAdmin !== null) {
@@ -36,7 +36,7 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
       // Default to admin mode if user has admin role
       const defaultIsAdmin = userRole === "Admin" || userRole === "Super Admin"
       setIsAdmin(defaultIsAdmin)
-      localStorage.setItem('isAdminMode', defaultIsAdmin.toString())
+      sessionStorage.setItem('isAdminMode', defaultIsAdmin.toString())
     }
   }, [userRole])
 
@@ -44,8 +44,8 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
     const newIsAdmin = !isAdmin
     setIsAdmin(newIsAdmin)
     
-    // Store the preference in localStorage
-    localStorage.setItem('isAdminMode', newIsAdmin.toString())
+    // Store the preference in sessionStorage
+    sessionStorage.setItem('isAdminMode', newIsAdmin.toString())
     
     // Update the displayed role based on the switch
     if (newIsAdmin) {
@@ -55,6 +55,9 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
     }
   }
 
+  // Only render the role switch button for Admin and Super Admin
+  const isAdminOrSuperAdmin = userRole === "Admin" || userRole === "Super Admin"
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -62,7 +65,7 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
         <div className="flex items-baseline gap-4 mb-4 h-12">
           <h1 className="text-5xl font-bold text-[#333333]">User Profile</h1>
           <div className="w-24">
-            {isAdmin && <span className="text-4xl font-bold text-[#8B2332]">Admin</span>}
+            {isAdmin && isAdminOrSuperAdmin && <span className="text-4xl font-bold text-[#8B2332]">Admin</span>}
           </div>
         </div>
 
@@ -83,12 +86,14 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
           </div>
 
           <div className="p-6 flex flex-col sm:flex-row gap-4">
-            <Button
-              className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center"
-              onClick={handleRoleSwitch}
-            >
-              {isAdmin ? "Switch to Task Receiver Menu" : "Switch to Admin Menu"}
-            </Button>
+            {isAdminOrSuperAdmin && (
+              <Button
+                className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center"
+                onClick={handleRoleSwitch}
+              >
+                {isAdmin ? "Switch to Task Receiver Menu" : "Switch to Admin Menu"}
+              </Button>
+            )}
           </div>
         </div>
       </div>
