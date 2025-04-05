@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sidebar } from "@/components/sidebar-admin"
-import { db } from "@/app/firebase/firebase.config"
+import { db } from"@/app/firebase/firebase.config"
 import {
   collection,
   getDocs,
@@ -21,6 +21,7 @@ import {
   orderBy,
   serverTimestamp,
   updateDoc,
+  getDoc,
 } from "firebase/firestore"
 
 type TabType = "manual" | "faq" | "contact" | "manage"
@@ -41,6 +42,7 @@ interface ManualSection {
   title: string
   items: string[]
   timestamp?: any
+  docId?: string // Store the actual Firestore document ID
 }
 
 interface FaqEntry {
@@ -48,6 +50,7 @@ interface FaqEntry {
   question: string
   answer: string
   timestamp?: any
+  docId?: string // Store the actual Firestore document ID
 }
 
 // Initial data for manual sections
@@ -140,6 +143,9 @@ export default function AdminView() {
   const [faqEntries, setFaqEntries] = useState<FaqEntry[]>(initialFaqEntries)
   const [supportTickets, setSupportTickets] = useState<Ticket[]>(initialSupportTickets)
 
+  // Store document IDs mapping
+  const [docIdMap, setDocIdMap] = useState<Record<string, string>>({})
+
   // Load data from Firestore on component mount
   useEffect(() => {
     const loadData = async () => {
@@ -154,9 +160,20 @@ export default function AdminView() {
             return {
               ...data,
               items: Array.isArray(data.items) ? data.items : [],
+              docId: doc.id, // Store the actual Firestore document ID
             } as ManualSection
           })
+
+          // Create a mapping of section IDs to document IDs
+          const idMapping: Record<string, string> = {}
+          sections.forEach((section) => {
+            idMapping[section.id] = section.docId || ""
+          })
+
+          setDocIdMap(idMapping)
           setManualSections(sections)
+          console.log("Loaded sections:", sections)
+          console.log("Document ID mapping:", idMapping)
         } else {
           // Initialize with default data if collection is empty
           await initializeCollection(manualSectionsCollection, initialManualSections)
@@ -165,7 +182,13 @@ export default function AdminView() {
         // Load FAQ entries
         const faqSnapshot = await getDocs(query(faqEntriesCollection, orderBy("timestamp", "desc")))
         if (!faqSnapshot.empty) {
-          const faqs = faqSnapshot.docs.map((doc) => doc.data() as FaqEntry)
+          const faqs = faqSnapshot.docs.map(
+            (doc) =>
+              ({
+                ...doc.data(),
+                docId: doc.id,
+              }) as FaqEntry,
+          )
           setFaqEntries(faqs)
         } else {
           // Initialize with default data if collection is empty
@@ -202,6 +225,8 @@ export default function AdminView() {
   // Initialize a collection with default data
   const initializeCollection = async <T extends { id: string }>(collectionRef: any, defaultData: T[]) => {
     try {
+      const newIdMapping: Record<string, string> = { ...docIdMap }
+
       for (const item of defaultData) {
         // For manual sections, ensure items is stored as an array
         const itemWithTimestamp = {
@@ -214,8 +239,17 @@ export default function AdminView() {
               }
             : {}),
         }
-        await setDoc(doc(collectionRef, item.id), itemWithTimestamp)
+
+        // Add document to Firestore and get the document reference
+        const docRef = doc(collectionRef)
+        await setDoc(docRef, itemWithTimestamp)
+
+        // Store the mapping between the item ID and the document ID
+        newIdMapping[item.id] = docRef.id
       }
+
+      // Update the document ID mapping
+      setDocIdMap(newIdMapping)
     } catch (error) {
       console.error("Error initializing collection:", error)
     }
@@ -240,12 +274,47 @@ export default function AdminView() {
       faq.answer.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
+  // Filtered manual sections based on search query
+  const filteredManualSections = manualSections.filter((section) => {
+    const titleMatch = section.title.toLowerCase().includes(searchQuery.toLowerCase())
+    const itemsMatch = section.items.some((item) => item.toLowerCase().includes(searchQuery.toLowerCase()))
+    return titleMatch || itemsMatch
+  })
+
+  // Filtered support tickets based on search query
+  const filteredSupportTickets = supportTickets.filter(
+    (ticket) =>
+      ticket.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (ticket.description && ticket.description.toLowerCase().includes(searchQuery.toLowerCase())),
+  )
+
+  // Get the document ID for a section
+  const getDocumentId = (sectionId: string): string => {
+    // First check if the section has a docId property
+    const section = manualSections.find((s) => s.id === sectionId)
+    if (section && section.docId) {
+      return section.docId
+    }
+
+    // Then check the mapping
+    if (docIdMap[sectionId]) {
+      return docIdMap[sectionId]
+    }
+
+    // If not found, return the section ID itself (fallback)
+    return sectionId
+  }
+
   // Handle deleting a FAQ entry
   const handleDeleteFaq = async (id: string) => {
     // Show confirmation dialog
     if (window.confirm("Are you sure you want to delete this FAQ?")) {
       try {
-        await deleteDoc(doc(faqEntriesCollection, id))
+        const docId = faqEntries.find((f) => f.id === id)?.docId || id
+        await deleteDoc(doc(faqEntriesCollection, docId))
         const updatedFaqs = faqEntries.filter((faq) => faq.id !== id)
         setFaqEntries(updatedFaqs)
       } catch (error) {
@@ -259,7 +328,8 @@ export default function AdminView() {
     // Show confirmation dialog
     if (window.confirm("Are you sure you want to delete this section?")) {
       try {
-        await deleteDoc(doc(manualSectionsCollection, id))
+        const docId = getDocumentId(id)
+        await deleteDoc(doc(manualSectionsCollection, docId))
         const updatedSections = manualSections.filter((section) => section.id !== id)
         setManualSections(updatedSections)
       } catch (error) {
@@ -278,8 +348,9 @@ export default function AdminView() {
           const newItems = [...section.items]
           newItems.splice(itemIndex, 1)
 
+          const docId = getDocumentId(sectionId)
           const updatedSection = { ...section, items: newItems, timestamp: serverTimestamp() }
-          await updateDoc(doc(manualSectionsCollection, sectionId), updatedSection)
+          await updateDoc(doc(manualSectionsCollection, docId), updatedSection)
 
           const updatedSections = manualSections.map((s) => {
             if (s.id === sectionId) {
@@ -322,16 +393,33 @@ export default function AdminView() {
         })
       }
     } else if (type === "editItem" && id) {
-      // Find the section and item
-      for (const section of manualSections) {
-        const itemIndex = section.items.findIndex((_, index) => `${section.id}-${index}` === id)
-        if (itemIndex !== -1) {
+      try {
+        // Parse the ID to get section ID and item index
+        const parts = id.split("-")
+        if (parts.length !== 2) {
+          console.error("Invalid item ID format:", id)
+          return
+        }
+
+        const sectionId = parts[0]
+        const itemIndex = Number.parseInt(parts[1], 10)
+
+        if (isNaN(itemIndex)) {
+          console.error("Invalid item index:", parts[1])
+          return
+        }
+
+        const section = manualSections.find((s) => s.id === sectionId)
+        if (section && section.items[itemIndex]) {
           setEditForm({
             ...editForm,
             content: section.items[itemIndex],
           })
-          break
+        } else {
+          console.error("Section or item not found:", sectionId, itemIndex)
         }
+      } catch (error) {
+        console.error("Error setting up edit item form:", error)
       }
     } else if (type === "editFaq" && id) {
       const faq = faqEntries.find((f) => f.id === id)
@@ -407,43 +495,97 @@ export default function AdminView() {
     try {
       if (openDialog.type === "editSection" && openDialog.id) {
         const currentSection = manualSections.find((s) => s.id === openDialog.id)
-        const currentItems = currentSection?.items || []
+        if (currentSection) {
+          const docId = getDocumentId(openDialog.id)
+          console.log("Editing section with document ID:", docId)
 
-        const updatedSection = {
-          id: openDialog.id,
-          title: editForm.title,
-          items: Array.isArray(currentItems) ? currentItems : [],
-          timestamp: serverTimestamp(),
-        }
+          const updatedSection = {
+            ...currentSection,
+            title: editForm.title,
+            timestamp: serverTimestamp(),
+          }
 
-        await setDoc(doc(manualSectionsCollection, openDialog.id), updatedSection)
+          await setDoc(doc(manualSectionsCollection, docId), updatedSection)
 
-        const updatedSections = manualSections.map((section) =>
-          section.id === openDialog.id ? { ...section, title: editForm.title } : section,
-        )
-        setManualSections(updatedSections)
-      } else if (openDialog.type === "editItem" && openDialog.id) {
-        // Parse the ID to get section ID and item index
-        const [sectionId, itemIndexStr] = openDialog.id.split("-")
-        const itemIndex = Number.parseInt(itemIndexStr)
-
-        const section = manualSections.find((s) => s.id === sectionId)
-        if (section) {
-          const newItems = [...section.items]
-          newItems[itemIndex] = editForm.content
-
-          const updatedSection = { ...section, items: newItems, timestamp: serverTimestamp() }
-          await setDoc(doc(manualSectionsCollection, sectionId), updatedSection)
-
-          const updatedSections = manualSections.map((s) => {
-            if (s.id === sectionId) {
-              return { ...s, items: newItems }
-            }
-            return s
-          })
+          const updatedSections = manualSections.map((section) =>
+            section.id === openDialog.id ? { ...section, title: editForm.title } : section,
+          )
           setManualSections(updatedSections)
         }
+      } else if (openDialog.type === "editItem" && openDialog.id) {
+        try {
+          // Parse the ID to get section ID and item index
+          const parts = openDialog.id.split("-")
+          if (parts.length !== 2) {
+            throw new Error("Invalid item ID format")
+          }
+
+          const sectionId = parts[0]
+          const itemIndex = Number.parseInt(parts[1], 10)
+
+          if (isNaN(itemIndex)) {
+            throw new Error("Invalid item index")
+          }
+
+          console.log("Editing item:", sectionId, itemIndex, editForm.content)
+
+          // Find the section in our local state
+          const section = manualSections.find((s) => s.id === sectionId)
+          if (!section) {
+            throw new Error(`Section with ID ${sectionId} not found`)
+          }
+
+          // Get the actual document ID
+          const docId = getDocumentId(sectionId)
+          console.log("Document ID for section:", docId)
+
+          // Fetch the current document to ensure we have the latest data
+          const docRef = doc(manualSectionsCollection, docId)
+          const docSnap = await getDoc(docRef)
+
+          if (!docSnap.exists()) {
+            throw new Error(`Document with ID ${docId} not found`)
+          }
+
+          const currentData = docSnap.data()
+          console.log("Current document data:", currentData)
+
+          // Create a new items array with the updated item
+          const newItems = Array.isArray(currentData.items) ? [...currentData.items] : []
+          if (itemIndex >= 0 && itemIndex < newItems.length) {
+            newItems[itemIndex] = editForm.content
+          } else {
+            throw new Error(`Item index ${itemIndex} out of bounds`)
+          }
+
+          // Create the updated section object
+          const updatedSection = {
+            ...currentData,
+            items: newItems,
+            timestamp: serverTimestamp(),
+          }
+
+          console.log("Updating section:", updatedSection)
+
+          // Update in Firestore
+          await updateDoc(docRef, { items: newItems, timestamp: serverTimestamp() })
+
+          // Update local state
+          setManualSections(manualSections.map((s) => (s.id === sectionId ? { ...s, items: newItems } : s)))
+
+          console.log("Update successful")
+        } catch (error) {
+          console.error("Error updating item:", error)
+          alert("An error occurred while saving the item. Please try again.")
+        }
       } else if (openDialog.type === "editFaq" && openDialog.id) {
+        const faq = faqEntries.find((f) => f.id === openDialog.id)
+        if (!faq) {
+          throw new Error(`FAQ with ID ${openDialog.id} not found`)
+        }
+
+        const docId = faq.docId || openDialog.id
+
         const updatedFaq = {
           id: openDialog.id,
           question: editForm.question,
@@ -451,7 +593,7 @@ export default function AdminView() {
           timestamp: serverTimestamp(),
         }
 
-        await setDoc(doc(faqEntriesCollection, openDialog.id), updatedFaq)
+        await setDoc(doc(faqEntriesCollection, docId), updatedFaq)
 
         const updatedFaqs = faqEntries.map((faq) =>
           faq.id === openDialog.id ? { ...faq, question: editForm.question, answer: editForm.answer } : faq,
@@ -467,9 +609,17 @@ export default function AdminView() {
           timestamp: serverTimestamp(),
         }
 
-        await setDoc(doc(manualSectionsCollection, newId), newSection)
+        // Add document to Firestore and get the document reference
+        const docRef = doc(manualSectionsCollection)
+        await setDoc(docRef, newSection)
 
-        const updatedSections = [...manualSections, newSection]
+        // Update the document ID mapping
+        setDocIdMap({
+          ...docIdMap,
+          [newId]: docRef.id,
+        })
+
+        const updatedSections = [...manualSections, { ...newSection, docId: docRef.id }]
         setManualSections(updatedSections)
       } else if (openDialog.type === "addFaq") {
         const newId = (Math.max(0, ...faqEntries.map((f) => Number.parseInt(f.id))) + 1).toString()
@@ -481,17 +631,20 @@ export default function AdminView() {
           timestamp: serverTimestamp(),
         }
 
-        await setDoc(doc(faqEntriesCollection, newId), newFaq)
+        // Add document to Firestore and get the document reference
+        const docRef = doc(faqEntriesCollection)
+        await setDoc(docRef, newFaq)
 
-        const updatedFaqs = [...faqEntries, newFaq]
+        const updatedFaqs = [...faqEntries, { ...newFaq, docId: docRef.id }]
         setFaqEntries(updatedFaqs)
       } else if (openDialog.type === "addItem" && openDialog.id) {
         const section = manualSections.find((s) => s.id === openDialog.id)
         if (section) {
           const newItems = [...section.items, editForm.content]
 
+          const docId = getDocumentId(openDialog.id)
           const updatedSection = { ...section, items: newItems, timestamp: serverTimestamp() }
-          await setDoc(doc(manualSectionsCollection, openDialog.id), updatedSection)
+          await setDoc(doc(manualSectionsCollection, docId), updatedSection)
 
           const updatedSections = manualSections.map((s) => {
             if (s.id === openDialog.id) {
@@ -693,7 +846,7 @@ export default function AdminView() {
             </div>
 
             <div className="space-y-6">
-              {manualSections.map((section) => (
+              {filteredManualSections.map((section) => (
                 <section key={section.id}>
                   <div className="flex items-center mb-2">
                     <h3 className="text-xl font-bold">{section.title}</h3>
@@ -759,6 +912,11 @@ export default function AdminView() {
                   </ul>
                 </section>
               ))}
+              {filteredManualSections.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No manual sections found matching your search criteria.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -847,7 +1005,7 @@ export default function AdminView() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {supportTickets.map((ticket, index) => (
+                  {filteredSupportTickets.map((ticket, index) => (
                     <tr key={index}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.user}</td>
@@ -902,6 +1060,11 @@ export default function AdminView() {
                   ))}
                 </tbody>
               </table>
+              {filteredSupportTickets.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No support tickets found matching your search criteria.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
