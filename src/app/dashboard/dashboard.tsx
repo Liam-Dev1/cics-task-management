@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { Clock, AlertCircle } from "lucide-react"
-import { Sidebar } from "@/components/sidebar-admin"
 import { collection, getDocs, query, orderBy, where } from "firebase/firestore"
 import { auth, db } from "@/app/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
@@ -386,144 +385,138 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar imported from sidebar.tsx */}
-      <Sidebar />
-
-      {/* Main Content - Using grid layout instead of flex */}
-      <div className="flex-1 bg-gray-100">
-        <div className="grid grid-cols-[1fr_280px] h-screen">
-          {/* Left column - Main dashboard content */}
-          <div className="p-8 overflow-y-auto">
-            {/* Dashboard header */}
-            <div className="mb-6">
-              <h1 className="mb-2">
-                <span className="text-5xl font-bold">Dashboard</span>{" "}
-                <span className="text-3xl text-red-800 font-bold">
-                  {userRole === "super admin" ? "Super Admin" : "Admin"}
-                </span>
-              </h1>
-              <h2 className="text-xl font-semibold mt-2">Tasks You Assigned ({tasks.length})</h2>
-            </div>
-
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332]"></div>
-              </div>
-            ) : (
-              <div>
-                {/* KPI Cards */}
-                <div className="flex gap-4 mb-8">
-                  {/* On Time Stats */}
-                  <div
-                    className="flex-1 bg-[#8B2332] text-white p-6 rounded-md cursor-pointer hover:bg-[#7a1e2c] transition-colors"
-                    onClick={() => router.push("/task?filter=Completed On Time")}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="View tasks completed on time"
-                  >
-                    <div className="text-5xl font-bold">{stats.tasksCompletedOnTimePercent}%</div>
-                    <div className="text-sm mt-2">Tasks Performed on Time ({stats.onTimeCount})</div>
-                  </div>
-
-                  {/* Overdue Stats */}
-                  <div
-                    className="flex-1 bg-[#8B2332] text-white p-6 rounded-md cursor-pointer hover:bg-[#7a1e2c] transition-colors"
-                    onClick={() => router.push("/task?filter=Completed Overdue")}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="View tasks completed overdue"
-                  >
-                    <div className="text-5xl font-bold">{stats.tasksCompletedOverduePercent}%</div>
-                    <div className="text-sm mt-2">Tasks Performed Overdue ({stats.overdueCount})</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Tasks Near Deadline */}
-                  <div>
-                    <h2 className="text-xl font-semibold mb-4">Tasks Near Deadline</h2>
-                    {tasksNearDeadline.length > 0 ? (
-                      <div className="space-y-4">
-                        {tasksNearDeadline.map((task) => (
-                          <div key={task.id} className="bg-[#8B2332] text-white p-4 rounded-md">
-                            <div className="flex items-start gap-2 mb-2">
-                              <Clock className="h-5 w-5 mt-0.5" />
-                              <div>
-                                <div className="font-medium">{task.name}</div>
-                                <div className="text-sm">
-                                  Assigned on {formatDate(task.assignedOn)}
-                                  <br />
-                                  Deadline is {formatDate(task.deadline)}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex justify-end">
-                              <button
-                                onClick={() => handleViewTask(task.id)}
-                                className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
-                              >
-                                View Task
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="bg-white p-4 rounded-md text-gray-500 text-center">No tasks near deadline</div>
-                    )}
-                  </div>
-
-                  {/* Tasks Overdue */}
-                  <div>
-                    <h2 className="text-xl font-semibold mb-4">Tasks Overdue</h2>
-                    {tasksOverdue.length > 0 ? (
-                      <div className="space-y-4">
-                        {tasksOverdue.map((task) => (
-                          <div key={task.id} className="bg-[#8B2332] text-white p-4 rounded-md">
-                            <div className="flex items-start gap-2 mb-2">
-                              <AlertCircle className="h-5 w-5 mt-0.5" />
-                              <div>
-                                <div className="font-medium">{task.name}</div>
-                                <div className="text-sm">
-                                  Assigned on {formatDate(task.assignedOn)}
-                                  <br />
-                                  Deadline was {formatDate(task.deadline)}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex justify-end">
-                              <button
-                                onClick={() => handleViewTask(task.id)}
-                                className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
-                              >
-                                View Task
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="bg-white p-4 rounded-md text-gray-500 text-center">No overdue tasks</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+    <div className="flex-1 bg-gray-100">
+      <div className="grid grid-cols-[1fr_280px] h-screen">
+        {/* Left column - Main dashboard content */}
+        <div className="p-8 overflow-y-auto">
+          {/* Dashboard header */}
+          <div className="mb-6">
+            <h1 className="mb-2">
+              <span className="text-5xl font-bold">Dashboard</span>{" "}
+              <span className="text-3xl text-red-800 font-bold">
+                {userRole === "super admin" ? "Super Admin" : "Admin"}
+              </span>
+            </h1>
+            <h2 className="text-xl font-semibold mt-2">Tasks You Assigned ({tasks.length})</h2>
           </div>
 
-          {/* Right column - Notifications card */}
-          <div className="h-screen bg-white border-l">
-            <div className="h-full p-4">
-              <NotificationsCard
-                notifications={notifications}
-                loading={loading}
-                onNotificationClick={handleViewTask}
-                formatDate={formatDate}
-                className="h-full"
-                maxHeight="calc(100vh - 32px)"
-              />
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332]"></div>
             </div>
+          ) : (
+            <div>
+              {/* KPI Cards */}
+              <div className="flex gap-4 mb-8">
+                {/* On Time Stats */}
+                <div
+                  className="flex-1 bg-[#8B2332] text-white p-6 rounded-md cursor-pointer hover:bg-[#7a1e2c] transition-colors"
+                  onClick={() => router.push("/task?filter=Completed On Time")}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="View tasks completed on time"
+                >
+                  <div className="text-5xl font-bold">{stats.tasksCompletedOnTimePercent}%</div>
+                  <div className="text-sm mt-2">Tasks Performed on Time ({stats.onTimeCount})</div>
+                </div>
+
+                {/* Overdue Stats */}
+                <div
+                  className="flex-1 bg-[#8B2332] text-white p-6 rounded-md cursor-pointer hover:bg-[#7a1e2c] transition-colors"
+                  onClick={() => router.push("/task?filter=Completed Overdue")}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="View tasks completed overdue"
+                >
+                  <div className="text-5xl font-bold">{stats.tasksCompletedOverduePercent}%</div>
+                  <div className="text-sm mt-2">Tasks Performed Overdue ({stats.overdueCount})</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Tasks Near Deadline */}
+                <div>
+                  <h2 className="text-xl font-semibold mb-4">Tasks Near Deadline</h2>
+                  {tasksNearDeadline.length > 0 ? (
+                    <div className="space-y-4">
+                      {tasksNearDeadline.map((task) => (
+                        <div key={task.id} className="bg-[#8B2332] text-white p-4 rounded-md">
+                          <div className="flex items-start gap-2 mb-2">
+                            <Clock className="h-5 w-5 mt-0.5" />
+                            <div>
+                              <div className="font-medium">{task.name}</div>
+                              <div className="text-sm">
+                                Assigned on {formatDate(task.assignedOn)}
+                                <br />
+                                Deadline is {formatDate(task.deadline)}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => handleViewTask(task.id)}
+                              className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                            >
+                              View Task
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-white p-4 rounded-md text-gray-500 text-center">No tasks near deadline</div>
+                  )}
+                </div>
+
+                {/* Tasks Overdue */}
+                <div>
+                  <h2 className="text-xl font-semibold mb-4">Tasks Overdue</h2>
+                  {tasksOverdue.length > 0 ? (
+                    <div className="space-y-4">
+                      {tasksOverdue.map((task) => (
+                        <div key={task.id} className="bg-[#8B2332] text-white p-4 rounded-md">
+                          <div className="flex items-start gap-2 mb-2">
+                            <AlertCircle className="h-5 w-5 mt-0.5" />
+                            <div>
+                              <div className="font-medium">{task.name}</div>
+                              <div className="text-sm">
+                                Assigned on {formatDate(task.assignedOn)}
+                                <br />
+                                Deadline was {formatDate(task.deadline)}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => handleViewTask(task.id)}
+                              className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                            >
+                              View Task
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-white p-4 rounded-md text-gray-500 text-center">No overdue tasks</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right column - Notifications card */}
+        <div className="h-screen bg-white border-l">
+          <div className="h-full p-4">
+            <NotificationsCard
+              notifications={notifications}
+              loading={loading}
+              onNotificationClick={handleViewTask}
+              formatDate={formatDate}
+              className="h-full"
+              maxHeight="calc(100vh - 32px)"
+            />
           </div>
         </div>
       </div>
