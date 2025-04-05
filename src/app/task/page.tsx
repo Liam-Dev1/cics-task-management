@@ -1,15 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { auth, db } from "@/app/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
-import AdminTaskView from "./admintaskview"
-import UserTaskView from "./usertaskview"
 import { Sidebar as AdminSidebar } from "@/components/sidebar-admin"
 import { Sidebar as UserSidebar } from "@/components/sidebar-user"
+
+// Import the wrapper components from the same directory
+import AdminTaskViewWrapper from "./admintaskview"
+import UserTaskViewWrapper from "./usertaskview"
 
 export default function TaskPage() {
   const [user, loading] = useAuthState(auth)
@@ -17,6 +19,9 @@ export default function TaskPage() {
   const [isRoleLoading, setIsRoleLoading] = useState(true)
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const taskId = searchParams.get("taskId")
+  const filterParam = searchParams.get("filter")
 
   // Fetch the user's role from Firestore
   useEffect(() => {
@@ -57,6 +62,64 @@ export default function TaskPage() {
     return () => unsubscribe()
   }, [router])
 
+  // Handle task ID scrolling
+  useEffect(() => {
+    if (taskId) {
+      // Find and scroll to the task element
+      setTimeout(() => {
+        const taskElement = document.getElementById(`task-${taskId}`)
+        if (taskElement) {
+          taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
+          taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+          setTimeout(() => {
+            taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+          }, 2000)
+        }
+      }, 500) // Give it time to render
+    }
+  }, [taskId, userRole])
+
+  // Add a useEffect to handle URL search parameters for task search
+  useEffect(() => {
+    // Check if there's a search parameter in the URL
+    const searchParam = searchParams.get("search")
+    if (searchParam && userRole) {
+      // Find the task element by search term
+      const taskElements = document.querySelectorAll('[id^="task-"]')
+
+      for (const element of taskElements) {
+        const taskText = element.textContent?.toLowerCase() || ""
+        if (taskText.includes(searchParam.toLowerCase())) {
+          // Scroll to the first matching task
+          element.scrollIntoView({ behavior: "smooth", block: "center" })
+
+          // Highlight the task briefly
+          element.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+          setTimeout(() => {
+            element.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+          }, 2000)
+
+          break
+        }
+      }
+    }
+  }, [searchParams, userRole])
+
+  // Add a useEffect to handle URL filter parameters
+  useEffect(() => {
+    // Check if there's a filter parameter in the URL
+    const filterParam = searchParams.get("filter")
+    if (filterParam) {
+      // Store the filter in localStorage so task views can access it
+      localStorage.setItem("activeTaskFilter", filterParam)
+    }
+  }, [searchParams])
+
+  // Handle sidebar minimize/maximize
+  const handleSidebarMinimize = (minimized: boolean) => {
+    setIsSidebarMinimized(minimized)
+  }
+
   // If not logged in, redirect to login
   if (!loading && !user) {
     return (
@@ -71,18 +134,23 @@ export default function TaskPage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar is always visible */}
-      <SidebarComponent onMinimize={setIsSidebarMinimized} />
+      {/* Sidebar with onMinimize prop */}
+      <SidebarComponent onMinimize={handleSidebarMinimize} />
 
-      {/* Main content area with proper margin to account for fixed sidebar */}
-      <div className="flex-1 transition-all duration-300" style={{ marginLeft: isSidebarMinimized ? "4rem" : "16rem" }}>
+      {/* Main content area with dynamic margin based on sidebar state */}
+      <div
+        className="flex-1 transition-all duration-300"
+        style={{
+          marginLeft: isSidebarMinimized ? "4rem" : "16rem",
+        }}
+      >
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
             <div className="text-xl ml-3">Loading tasks...</div>
           </div>
         ) : (
-          <>{userRole === "admin" || userRole === "super admin" ? <AdminTaskView /> : <UserTaskView />}</>
+          <>{userRole === "admin" || userRole === "super admin" ? <AdminTaskViewWrapper /> : <UserTaskViewWrapper />}</>
         )}
       </div>
     </div>

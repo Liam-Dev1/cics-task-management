@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Clock, AlertCircle, Bell } from "lucide-react"
+import { Clock, AlertCircle } from "lucide-react"
 import { Sidebar } from "@/components/sidebar-admin"
 import { collection, getDocs, query, orderBy, where } from "firebase/firestore"
 import { auth, db } from "@/app/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { useRouter } from "next/navigation"
+import NotificationsCard from "@/components/notifications-card"
 
 // Task interface
 interface Task {
@@ -45,11 +46,13 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [stats, setStats] = useState({
     tasksCompletedOnTimePercent: 0,
-    tasksOverduePercent: 0,
-    totalTasks: 0,
+    tasksCompletedOverduePercent: 0,
+    totalCompletedTasks: 0,
+    onTimeCount: 0,
+    overdueCount: 0,
   })
-  const [showAllNotifications, setShowAllNotifications] = useState(false)
   const [userName, setUserName] = useState<string>("")
+  const [userRole, setUserRole] = useState<string>("")
 
   const router = useRouter()
 
@@ -65,6 +68,7 @@ export default function Dashboard() {
           if (!querySnapshot.empty) {
             const userData = querySnapshot.docs[0].data()
             setUserName(userData.name || userData.displayName || user.displayName || "Admin User")
+            setUserRole(userData.role || "admin")
           }
         } catch (error) {
           console.error("Error fetching user name:", error)
@@ -99,6 +103,13 @@ export default function Dashboard() {
 
       // Filter tasks assigned by the current user in memory
       const userTasks = fetchedTasks.filter((task) => task.assignedBy === userName)
+
+      // Debug log to check task statuses
+      console.log("All tasks:", fetchedTasks.length)
+      console.log("User tasks:", userTasks.length)
+      console.log("Completed On Time:", userTasks.filter((task) => task.status === "Completed On Time").length)
+      console.log("Completed Overdue:", userTasks.filter((task) => task.status === "Completed Overdue").length)
+
       setTasks(userTasks)
 
       // Process tasks for dashboard
@@ -118,7 +129,43 @@ export default function Dashboard() {
     }
   }, [user, userName])
 
-  // Process tasks for dashboard display
+  // Update the calculateTaskStats function to work with the new statuses
+  const calculateTaskStats = (tasks: Task[]) => {
+    // Only consider completed tasks for the KPIs
+    const completedTasks = tasks.filter(
+      (task) => task.status === "Completed On Time" || task.status === "Completed Overdue",
+    )
+
+    // Count completed tasks that were done on time vs. overdue
+    const onTimeCount = tasks.filter((task) => task.status === "Completed On Time").length
+    const overdueCount = tasks.filter((task) => task.status === "Completed Overdue").length
+
+    if (completedTasks.length === 0) {
+      setStats({
+        tasksCompletedOnTimePercent: 0,
+        tasksCompletedOverduePercent: 0,
+        totalCompletedTasks: 0,
+        onTimeCount,
+        overdueCount,
+      })
+      return
+    }
+
+    // Calculate percentages based only on completed tasks
+    const totalCompletedTasks = completedTasks.length
+    const tasksCompletedOnTimePercent = Math.round((onTimeCount / totalCompletedTasks) * 100)
+    const tasksCompletedOverduePercent = Math.round((overdueCount / totalCompletedTasks) * 100)
+
+    setStats({
+      tasksCompletedOnTimePercent,
+      tasksCompletedOverduePercent,
+      totalCompletedTasks,
+      onTimeCount,
+      overdueCount,
+    })
+  }
+
+  // Update the processTasksForDashboard function to handle the new statuses
   const processTasksForDashboard = (tasks: Task[]) => {
     // Calculate current date
     const today = new Date()
@@ -132,17 +179,20 @@ export default function Dashboard() {
     const nearDeadline = tasks.filter((task) => {
       const dueDate = new Date(task.deadline)
       dueDate.setHours(0, 0, 0, 0)
-      return dueDate >= today && dueDate <= threeDaysFromNow && task.status !== "Completed"
+      return (
+        dueDate >= today &&
+        dueDate <= threeDaysFromNow &&
+        task.status !== "Completed On Time" &&
+        task.status !== "Completed Overdue"
+      )
     })
-    // Remove the slice to show all tasks near deadline
 
     // Filter overdue tasks (past deadline and not completed)
     const overdue = tasks.filter((task) => {
       const dueDate = new Date(task.deadline)
       dueDate.setHours(0, 0, 0, 0)
-      return dueDate < today && task.status !== "Completed"
+      return dueDate < today && task.status !== "Completed On Time" && task.status !== "Completed Overdue"
     })
-    // Remove the slice to show all overdue tasks
 
     setTasksNearDeadline(nearDeadline)
     setTasksOverdue(overdue)
@@ -155,56 +205,6 @@ export default function Dashboard() {
   }
 
   // Calculate task statistics
-  const calculateTaskStats = (tasks: Task[]) => {
-    if (tasks.length === 0) {
-      setStats({
-        tasksCompletedOnTimePercent: 0,
-        tasksOverduePercent: 0,
-        totalTasks: 0,
-      })
-      return
-    }
-
-    const completedTasks = tasks.filter((task) => task.status === "Completed")
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    // Count completed tasks that were done on time vs. overdue
-    let onTimeCount = 0
-    let overdueCompletedCount = 0
-
-    completedTasks.forEach((task) => {
-      if (task.completed && task.deadline) {
-        const completedDate = new Date(task.completed)
-        const deadlineDate = new Date(task.deadline)
-
-        if (completedDate <= deadlineDate) {
-          onTimeCount++
-        } else {
-          overdueCompletedCount++
-        }
-      }
-    })
-
-    // Count active tasks that are currently overdue
-    const activeOverdueTasks = tasks.filter((task) => {
-      const dueDate = new Date(task.deadline)
-      dueDate.setHours(0, 0, 0, 0)
-      return dueDate < today && task.status !== "Completed"
-    })
-
-    // Calculate percentages
-    const totalTasks = tasks.length
-    const tasksCompletedOnTimePercent = totalTasks > 0 ? Math.round((onTimeCount / totalTasks) * 100) : 0
-    const totalOverdueCount = overdueCompletedCount + activeOverdueTasks.length
-    const tasksOverduePercent = totalTasks > 0 ? Math.round((totalOverdueCount / totalTasks) * 100) : 0
-
-    setStats({
-      tasksCompletedOnTimePercent,
-      tasksOverduePercent,
-      totalTasks,
-    })
-  }
 
   // Calculate working days between two dates (excluding weekends)
   const calculateWorkingDays = (startDate: Date, endDate: Date): number => {
@@ -350,7 +350,7 @@ export default function Dashboard() {
               message:
                 daysUntilDeadline === 1
                   ? `Task "${task.name}" is due tomorrow`
-                  : `Task "${task.name}" is due in ${daysUntilDeadline} days (${percentageComplete}% time elapsed)`,
+                  : `Task "${task.name}" is due in ${daysUntilDeadline} days`,
               date: task.deadline,
               taskId: task.id,
               notificationDate: notificationDate,
@@ -379,10 +379,10 @@ export default function Dashboard() {
     return new Date(dateString).toLocaleDateString(undefined, options)
   }
 
-  // Update the handleViewTask function to use a simple direct path
+  // Update the handleViewTask function to navigate to the task management page with the taskId
   const handleViewTask = (taskId: string) => {
-    // Navigate directly to the task page with the taskId in the path
-    router.push(`/task/${taskId}`)
+    // Navigate to the task page with the taskId as a query parameter
+    router.push(`/task?taskId=${taskId}`)
   }
 
   return (
@@ -390,186 +390,141 @@ export default function Dashboard() {
       {/* Sidebar imported from sidebar.tsx */}
       <Sidebar />
 
-      {/* Main Content */}
+      {/* Main Content - Using grid layout instead of flex */}
       <div className="flex-1 bg-gray-100">
-        <div className="p-8">
-          {/* Updated header with Admin text */}
-          <div className="flex items-baseline gap-4 mb-4">
-            <h1 className="text-5xl font-bold text-[#333333]">Dashboard</h1>
-            <span className="text-4xl font-bold text-[#8B2332]">Admin</span>
+        <div className="grid grid-cols-[1fr_280px] h-screen">
+          {/* Left column - Main dashboard content */}
+          <div className="p-8 overflow-y-auto">
+            {/* Dashboard header */}
+            <div className="mb-6">
+              <h1 className="mb-2">
+                <span className="text-5xl font-bold">Dashboard</span>{" "}
+                <span className="text-3xl text-red-800 font-bold">
+                  {userRole === "super admin" ? "Super Admin" : "Admin"}
+                </span>
+              </h1>
+              <h2 className="text-xl font-semibold mt-2">Tasks You Assigned ({tasks.length})</h2>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332]"></div>
+              </div>
+            ) : (
+              <div>
+                {/* KPI Cards */}
+                <div className="flex gap-4 mb-8">
+                  {/* On Time Stats */}
+                  <div
+                    className="flex-1 bg-[#8B2332] text-white p-6 rounded-md cursor-pointer hover:bg-[#7a1e2c] transition-colors"
+                    onClick={() => router.push("/task?filter=Completed On Time")}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="View tasks completed on time"
+                  >
+                    <div className="text-5xl font-bold">{stats.tasksCompletedOnTimePercent}%</div>
+                    <div className="text-sm mt-2">Tasks Performed on Time ({stats.onTimeCount})</div>
+                  </div>
+
+                  {/* Overdue Stats */}
+                  <div
+                    className="flex-1 bg-[#8B2332] text-white p-6 rounded-md cursor-pointer hover:bg-[#7a1e2c] transition-colors"
+                    onClick={() => router.push("/task?filter=Completed Overdue")}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="View tasks completed overdue"
+                  >
+                    <div className="text-5xl font-bold">{stats.tasksCompletedOverduePercent}%</div>
+                    <div className="text-sm mt-2">Tasks Performed Overdue ({stats.overdueCount})</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Tasks Near Deadline */}
+                  <div>
+                    <h2 className="text-xl font-semibold mb-4">Tasks Near Deadline</h2>
+                    {tasksNearDeadline.length > 0 ? (
+                      <div className="space-y-4">
+                        {tasksNearDeadline.map((task) => (
+                          <div key={task.id} className="bg-[#8B2332] text-white p-4 rounded-md">
+                            <div className="flex items-start gap-2 mb-2">
+                              <Clock className="h-5 w-5 mt-0.5" />
+                              <div>
+                                <div className="font-medium">{task.name}</div>
+                                <div className="text-sm">
+                                  Assigned on {formatDate(task.assignedOn)}
+                                  <br />
+                                  Deadline is {formatDate(task.deadline)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex justify-end">
+                              <button
+                                onClick={() => handleViewTask(task.id)}
+                                className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                              >
+                                View Task
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-white p-4 rounded-md text-gray-500 text-center">No tasks near deadline</div>
+                    )}
+                  </div>
+
+                  {/* Tasks Overdue */}
+                  <div>
+                    <h2 className="text-xl font-semibold mb-4">Tasks Overdue</h2>
+                    {tasksOverdue.length > 0 ? (
+                      <div className="space-y-4">
+                        {tasksOverdue.map((task) => (
+                          <div key={task.id} className="bg-[#8B2332] text-white p-4 rounded-md">
+                            <div className="flex items-start gap-2 mb-2">
+                              <AlertCircle className="h-5 w-5 mt-0.5" />
+                              <div>
+                                <div className="font-medium">{task.name}</div>
+                                <div className="text-sm">
+                                  Assigned on {formatDate(task.assignedOn)}
+                                  <br />
+                                  Deadline was {formatDate(task.deadline)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex justify-end">
+                              <button
+                                onClick={() => handleViewTask(task.id)}
+                                className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                              >
+                                View Task
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-white p-4 rounded-md text-gray-500 text-center">No overdue tasks</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Tasks Assigned by You */}
-          <h2 className="text-xl font-semibold mb-4">Tasks You Assigned ({tasks.length} total)</h2>
-
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332]"></div>
+          {/* Right column - Notifications card */}
+          <div className="h-screen bg-white border-l">
+            <div className="h-full p-4">
+              <NotificationsCard
+                notifications={notifications}
+                loading={loading}
+                onNotificationClick={handleViewTask}
+                formatDate={formatDate}
+                className="h-full"
+                maxHeight="calc(100vh - 32px)"
+              />
             </div>
-          ) : (
-            <>
-              <div className="flex gap-4 mb-8">
-                {/* On Time Stats */}
-                <div className="flex-1 bg-[#8B2332] text-white p-6 rounded-md">
-                  <div className="text-7xl font-bold">{stats.tasksCompletedOnTimePercent}%</div>
-                  <div className="text-lg">
-                    Tasks Completed
-                    <br />
-                    on Time
-                  </div>
-                </div>
-
-                {/* Overdue Stats */}
-                <div className="flex-1 bg-[#8B2332] text-white p-6 rounded-md">
-                  <div className="text-7xl font-bold">{stats.tasksOverduePercent}%</div>
-                  <div className="text-lg">
-                    Tasks
-                    <br />
-                    Overdue
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Tasks Near Deadline */}
-                <div>
-                  <h2 className="text-xl font-semibold mb-4">Tasks Near Deadline ({tasksNearDeadline.length})</h2>
-                  {tasksNearDeadline.length > 0 ? (
-                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                      {tasksNearDeadline.map((task) => (
-                        <div key={task.id} className="bg-[#8B2332] text-white p-4 rounded-md">
-                          <div className="flex items-start gap-2 mb-2">
-                            <Clock className="h-5 w-5 mt-0.5" />
-                            <div>
-                              <div className="font-medium">{task.name}</div>
-                              <div className="text-sm">
-                                Assigned on {formatDate(task.assignedOn)}
-                                <br />
-                                Deadline is {formatDate(task.deadline)}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex justify-end">
-                            <button
-                              onClick={() => handleViewTask(task.id)}
-                              className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
-                            >
-                              View Task
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-white p-4 rounded-md text-gray-500 text-center">No tasks near deadline</div>
-                  )}
-                </div>
-
-                {/* Tasks Overdue */}
-                <div>
-                  <h2 className="text-xl font-semibold mb-4">Tasks Overdue ({tasksOverdue.length})</h2>
-                  {tasksOverdue.length > 0 ? (
-                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                      {tasksOverdue.map((task) => (
-                        <div key={task.id} className="bg-[#8B2332] text-white p-4 rounded-md">
-                          <div className="flex items-start gap-2 mb-2">
-                            <AlertCircle className="h-5 w-5 mt-0.5" />
-                            <div>
-                              <div className="font-medium">{task.name}</div>
-                              <div className="text-sm">
-                                Assigned on {formatDate(task.assignedOn)}
-                                <br />
-                                Deadline was {formatDate(task.deadline)}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex justify-end">
-                            <button
-                              onClick={() => handleViewTask(task.id)}
-                              className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
-                            >
-                              View Task
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-white p-4 rounded-md text-gray-500 text-center">No overdue tasks</div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Notifications Panel */}
-      <div className="w-72 bg-white border-l p-4">
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <Bell className="h-5 w-5" />
-          Notifications
-        </h2>
-        <div className="space-y-4">
-          {loading ? (
-            <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#8B2332]"></div>
-            </div>
-          ) : notifications.length > 0 ? (
-            <div
-              className={`space-y-4 ${showAllNotifications ? "max-h-[calc(100vh-180px)] overflow-y-auto pr-2" : ""}`}
-            >
-              {(showAllNotifications ? notifications : notifications.slice(0, 5)).map((notification) => (
-                <div
-                  key={notification.id}
-                  className="border p-4 rounded-md hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => notification.taskId && handleViewTask(notification.taskId)}
-                >
-                  <div className="flex items-start gap-2">
-                    <div
-                      className={`h-2 w-2 rounded-full mt-2 ${
-                        notification.type.includes("High")
-                          ? "bg-red-600"
-                          : notification.type.includes("Medium")
-                            ? "bg-orange-500"
-                            : "bg-blue-500"
-                      }`}
-                    ></div>
-                    <div>
-                      <div className="font-medium">{notification.type}</div>
-                      <div className="text-sm text-gray-600">{notification.message}</div>
-                      <div className="text-xs text-gray-500 mt-1">Due: {formatDate(notification.date)}</div>
-                      {notification.percentageComplete !== undefined && (
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                          <div
-                            className={`h-1.5 rounded-full ${
-                              notification.percentageComplete > 75
-                                ? "bg-red-600"
-                                : notification.percentageComplete > 50
-                                  ? "bg-orange-500"
-                                  : "bg-blue-500"
-                            }`}
-                            style={{ width: `${notification.percentageComplete}%` }}
-                          ></div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-gray-500 py-4">No notifications</div>
-          )}
-
-          {notifications.length > 0 && (
-            <button
-              className="w-full text-center text-sm text-[#8B2332] hover:underline mt-2"
-              onClick={() => setShowAllNotifications(!showAllNotifications)}
-            >
-              {showAllNotifications ? "Show less" : "View all notifications"}
-            </button>
-          )}
+          </div>
         </div>
       </div>
     </div>
