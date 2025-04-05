@@ -2,9 +2,7 @@
 
 import { Sidebar } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { storage } from "@/app/firebase/firebase.config"
+import { useState, useEffect } from "react"
 
 interface ProfileProps {
   users: any[]
@@ -15,32 +13,45 @@ interface ProfileProps {
 }
 
 export default function Profile({ users, userName, userEmail, userRole, profilePhoto }: ProfileProps) {
-  const [isAdmin, setIsAdmin] = useState(userRole === "Admin" || userRole === "Super Admin")
-  const [isUploading, setIsUploading] = useState(false)
+  // Get the stored role mode from localStorage on initial load
+  const [isAdmin, setIsAdmin] = useState(true) // Default to true, will be updated in useEffect
+  const [displayedRole, setDisplayedRole] = useState(userRole)
+  
+  // Initialize states from localStorage on component mount
+  useEffect(() => {
+    const storedIsAdmin = localStorage.getItem('isAdminMode')
+    
+    // If we have a stored preference, use it
+    if (storedIsAdmin !== null) {
+      const isAdminMode = storedIsAdmin === 'true'
+      setIsAdmin(isAdminMode)
+      
+      // Set the displayed role based on the stored preference
+      if (isAdminMode) {
+        setDisplayedRole(userRole)
+      } else {
+        setDisplayedRole("Task Receiver")
+      }
+    } else {
+      // Default to admin mode if user has admin role
+      const defaultIsAdmin = userRole === "Admin" || userRole === "Super Admin"
+      setIsAdmin(defaultIsAdmin)
+      localStorage.setItem('isAdminMode', defaultIsAdmin.toString())
+    }
+  }, [userRole])
 
   const handleRoleSwitch = () => {
-    setIsAdmin(!isAdmin)
-  }
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    setIsUploading(true)
-
-    try {
-      const fileRef = ref(storage, `profile-photos/${file.name}`)
-      await uploadBytes(fileRef, file)
-
-      const downloadURL = await getDownloadURL(fileRef)
-      setProfilePhoto(downloadURL) // Update profile photo URL
-
-      alert("Profile photo updated successfully!")
-    } catch (error) {
-      console.error("Error uploading file:", error)
-      alert("Failed to upload profile photo. Please try again.")
-    } finally {
-      setIsUploading(false)
+    const newIsAdmin = !isAdmin
+    setIsAdmin(newIsAdmin)
+    
+    // Store the preference in localStorage
+    localStorage.setItem('isAdminMode', newIsAdmin.toString())
+    
+    // Update the displayed role based on the switch
+    if (newIsAdmin) {
+      setDisplayedRole(userRole) // Original role
+    } else {
+      setDisplayedRole("Task Receiver") // Switch to Task Receiver
     }
   }
 
@@ -48,9 +59,11 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
     <div className="flex min-h-screen">
       <Sidebar />
       <div className="flex-1 bg-gray-100 p-8">
-        <div className="flex items-baseline gap-4 mb-4">
+        <div className="flex items-baseline gap-4 mb-4 h-12">
           <h1 className="text-5xl font-bold text-[#333333]">User Profile</h1>
-          {isAdmin && <span className="text-4xl font-bold text-[#8B2332]">Admin</span>}
+          <div className="w-24">
+            {isAdmin && <span className="text-4xl font-bold text-[#8B2332]">Admin</span>}
+          </div>
         </div>
 
         <div className="p-3 m-5">
@@ -64,32 +77,14 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
             </div>
             <div className="pl-5">
               <span className="text-4xl font-bold text-[#8B2332]">{userName}</span>
-              <h1 className="text-5xl font-bold text-[#333333]">{userRole}</h1>
+              <h1 className="text-5xl font-bold text-[#333333] h-16">{displayedRole}</h1>
               <h5 className="text-xl font-bold">{userEmail}</h5>
             </div>
           </div>
 
           <div className="p-6 flex flex-col sm:flex-row gap-4">
-            {/* File Input */}
-            <input
-              type="file"
-              id="profile-photo-upload"
-              accept="image/*"
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-            />
-
-            <label htmlFor="profile-photo-upload" className="cursor-pointer">
-              <Button
-                className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white"
-                disabled={isUploading}
-              >
-                {isUploading ? "Uploading..." : "Edit Profile Picture"}
-              </Button>
-            </label>
-
             <Button
-              className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white"
+              className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center"
               onClick={handleRoleSwitch}
             >
               {isAdmin ? "Switch to Task Receiver Menu" : "Switch to Admin Menu"}
