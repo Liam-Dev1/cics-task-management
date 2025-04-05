@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -15,6 +15,7 @@ import {
   endOfQuarter,
   startOfYear,
   endOfYear,
+  differenceInDays
 } from "date-fns"
 import { TaskCompletionPieChart } from "@/components/task-completion-pie-chart"
 import { ProgressBar } from "@/components/progress-bar"
@@ -25,23 +26,97 @@ import { taskData } from "@/lib/sample-data"
 import { Sidebar } from "@/components/sidebar-admin"
 import { ExportToPdfButton } from "@/components/export-to-pdf-button"
 import { LoadingOverlay } from "@/components/loading-overlay"
+//firebase import
+import { db } from "@/lib/firebase/firebase.config"
+import { collection, getDocs } from "firebase/firestore"
+
 
 export default function TaskReportDashboard() {
+
+  //add firebase data state
+  const [tasks, setTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // UI state
   const [timeFrame, setTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly")
   const [activeTab, setActiveTab] = useState<"pieCharts" | "lineCharts" | "barCharts">("pieCharts")
   const [showGraphs, setShowGraphs] = useState(false)
   const [showReport, setShowReport] = useState(false)
 
-  const allReceivers = Array.from(
-    new Set(taskData.tasks.map((task) => task.assignedTo))
-  );
+  // Fetch data from Firebase on component mount
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        setIsLoading(true);
+        const tasksRef = collection(db, "tasks");
+        const querySnapshot = await getDocs(tasksRef);
+        
+        const tasksList = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          
+          // Map status from Firebase format to your app's format
+          let mappedStatus = data.status;
+          if (data.status === "Completed On Time") {
+            mappedStatus = "Completed";
+          } else if (data.status === "Completed Overdue") {
+            mappedStatus = "Overdue";
+          }
+          
+          // Calculate completion time in days (if completion date exists)
+          let completionTime = null;
+          if (data.completed && data.assignedOn) {
+            const assignedDate = new Date(data.assignedOn);
+            const completedDate = new Date(data.completed);
+            completionTime = differenceInDays(completedDate, assignedDate);
+          }
+          
+          // Return transformed task object
+          return {
+            id: doc.id,
+            assignedTo: data.assignedTo,
+            status: mappedStatus,
+            priority: data.priority || "Medium",
+            assignedDate: data.assignedOn,     // renamed from assignedOn
+            dueDate: data.deadline,            // renamed from deadline
+            completionDate: data.completed,    // renamed from completed
+            reopened: false,                   // not in Firebase, defaulting to false
+            completionTime: completionTime,    // calculated value
+            // Additional Firebase fields you might want to keep
+            name: data.name,
+            description: data.description,
+            assignedBy: data.assignedBy,
+            assignedToEmail: data.assignedToEmail,
+            assignedToId: data.assignedToId,
+            files: data.files
+          };
+        });
+        
+        setTasks(tasksList);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching tasks:", err);
+        setError("Failed to load tasks. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, []);
+
+  // Generate dynamic lists from fetched data
+  const allReceivers = useMemo(() => {
+    return Array.from(new Set(tasks.map((task) => task.assignedTo)));
+  }, [tasks]);
+  
   const allTaskStatuses = ["Completed", "Pending", "Overdue"]
   const allPriorities = ["High", "Medium", "Low"]
 
   const [currentFilters, setCurrentFilters] = useState({
     taskReceivers: [] as string[],
-    fromDate: new Date(2024, 0, 1),
-    toDate: new Date(2024, 9, 10),
+    fromDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
+    toDate: new Date(),
     taskStatus: [] as string[],
     priority: [] as string[],
   })
@@ -90,19 +165,22 @@ export default function TaskReportDashboard() {
     setActiveTab(tab as "pieCharts" | "lineCharts" | "barCharts")
   }
 
+  // Use the fetched tasks instead of taskData
   const filteredTasks = useMemo(() => {
-    return taskData.tasks.filter((task) => {
+    return tasks.filter((task) => {
       const matchesReceiver =
         currentFilters.taskReceivers.length === 0 || currentFilters.taskReceivers.includes(task.assignedTo)
       const matchesStatus = appliedFilters.taskStatus.length === 0 || appliedFilters.taskStatus.includes(task.status)
       const matchesPriority = appliedFilters.priority.length === 0 || appliedFilters.priority.includes(task.priority)
+      
       const taskDate = new Date(task.assignedDate)
       const isWithinDateRange =
         (!appliedFilters.fromDate || taskDate >= appliedFilters.fromDate) &&
         (!appliedFilters.toDate || taskDate <= appliedFilters.toDate)
+      
       return matchesReceiver && matchesStatus && matchesPriority && isWithinDateRange
     })
-  }, [appliedFilters, currentFilters.taskReceivers, currentFilters.taskReceivers.length])
+  }, [tasks, appliedFilters, currentFilters.taskReceivers])
 
   const stats = useMemo(() => {
     const tasksAssigned = filteredTasks.length
