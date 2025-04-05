@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { auth, db, storage } from "@/app/firebase/firebase.config"
+import { auth, db, storage } from "@/lib/firebase/firebase.config"
 import { collection, query, where, getDocs, updateDoc, doc, orderBy } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Sidebar } from "@/components/sidebar-admin"

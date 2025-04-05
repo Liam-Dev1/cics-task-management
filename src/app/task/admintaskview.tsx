@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { auth, db, storage } from "@/app/firebase/firebase.config"
+import { auth, db, storage } from "@/lib/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { collection, addDoc, getDocs, updateDoc, doc, query, orderBy, where } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
