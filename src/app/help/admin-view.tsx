@@ -148,7 +148,14 @@ export default function AdminView() {
         // Load manual sections
         const sectionsSnapshot = await getDocs(query(manualSectionsCollection, orderBy("timestamp", "desc")))
         if (!sectionsSnapshot.empty) {
-          const sections = sectionsSnapshot.docs.map((doc) => doc.data() as ManualSection)
+          const sections = sectionsSnapshot.docs.map((doc) => {
+            const data = doc.data()
+            // Ensure items is always an array
+            return {
+              ...data,
+              items: Array.isArray(data.items) ? data.items : [],
+            } as ManualSection
+          })
           setManualSections(sections)
         } else {
           // Initialize with default data if collection is empty
@@ -166,9 +173,17 @@ export default function AdminView() {
         }
 
         // Load support tickets
-        const ticketsSnapshot = await getDocs(query(supportTicketsCollection, orderBy("timestamp", "desc")))
+        const ticketsSnapshot = await getDocs(supportTicketsCollection)
         if (!ticketsSnapshot.empty) {
           const tickets = ticketsSnapshot.docs.map((doc) => doc.data() as Ticket)
+
+          // Sort tickets by their numeric ID (extract number from #X format)
+          tickets.sort((a, b) => {
+            const aNum = Number.parseInt(a.id.replace("#", ""))
+            const bNum = Number.parseInt(b.id.replace("#", ""))
+            return bNum - aNum // Descending order (newest first)
+          })
+
           setSupportTickets(tickets)
         } else {
           // Initialize with default data if collection is empty
@@ -188,9 +203,16 @@ export default function AdminView() {
   const initializeCollection = async <T extends { id: string }>(collectionRef: any, defaultData: T[]) => {
     try {
       for (const item of defaultData) {
+        // For manual sections, ensure items is stored as an array
         const itemWithTimestamp = {
           ...item,
           timestamp: serverTimestamp(),
+          // If this is a manual section with items, ensure it's stored as an array
+          ...("items" in item
+            ? {
+                items: Array.isArray((item as any).items) ? [...(item as any).items] : [],
+              }
+            : {}),
         }
         await setDoc(doc(collectionRef, item.id), itemWithTimestamp)
       }
@@ -338,11 +360,14 @@ export default function AdminView() {
         content: "",
       })
     } else if (type === "addTicket") {
+      // Get the current user's email if available (for future implementation)
+      const userEmail = "" // This would be populated from auth context in a real implementation
+
       setEditForm({
         ...editForm,
-        ticketUser: "",
+        ticketUser: userEmail,
         ticketSubject: "",
-        ticketStatus: "New",
+        ticketStatus: "New", // Default to "New"
         ticketDescription: "",
       })
     } else if (type === "editTicket" && id) {
@@ -381,10 +406,13 @@ export default function AdminView() {
 
     try {
       if (openDialog.type === "editSection" && openDialog.id) {
+        const currentSection = manualSections.find((s) => s.id === openDialog.id)
+        const currentItems = currentSection?.items || []
+
         const updatedSection = {
           id: openDialog.id,
           title: editForm.title,
-          items: manualSections.find((s) => s.id === openDialog.id)?.items || [],
+          items: Array.isArray(currentItems) ? currentItems : [],
           timestamp: serverTimestamp(),
         }
 
@@ -474,25 +502,54 @@ export default function AdminView() {
           setManualSections(updatedSections)
         }
       } else if (openDialog.type === "addTicket") {
-        // Generate a new ticket ID
-        const newId = `#${Math.floor(1000 + Math.random() * 9000)}`
+        try {
+          // Get all existing tickets to determine the next ID
+          const ticketsSnapshot = await getDocs(supportTicketsCollection)
 
-        // Create new ticket
-        const newTicket: Ticket = {
-          id: newId,
-          user: editForm.ticketUser,
-          subject: editForm.ticketSubject,
-          status: editForm.ticketStatus,
-          date: new Date().toISOString().split("T")[0],
-          description: editForm.ticketDescription,
-          timestamp: serverTimestamp(),
+          // Find the highest ticket number
+          let highestTicketNum = 0
+
+          ticketsSnapshot.docs.forEach((doc) => {
+            const ticketId = doc.id
+            if (ticketId.startsWith("#")) {
+              const ticketNum = Number.parseInt(ticketId.substring(1))
+              if (!isNaN(ticketNum) && ticketNum > highestTicketNum) {
+                highestTicketNum = ticketNum
+              }
+            }
+          })
+
+          // Next ticket ID is one higher than the current highest
+          const nextTicketNum = highestTicketNum + 1
+          const newId = `#${nextTicketNum}`
+
+          // Create new ticket
+          const newTicket: Ticket = {
+            id: newId,
+            user: editForm.ticketUser,
+            subject: editForm.ticketSubject,
+            status: "New", // Always use "New" for new tickets
+            date: new Date().toISOString().split("T")[0],
+            description: editForm.ticketDescription,
+            timestamp: serverTimestamp(),
+          }
+
+          await setDoc(doc(supportTicketsCollection, newId), newTicket)
+
+          // Add to tickets and sort them
+          const updatedTickets = [newTicket, ...supportTickets]
+          // Sort tickets by their numeric ID
+          updatedTickets.sort((a, b) => {
+            const aNum = Number.parseInt(a.id.replace("#", ""))
+            const bNum = Number.parseInt(b.id.replace("#", ""))
+            return bNum - aNum // Descending order (newest first)
+          })
+
+          setSupportTickets(updatedTickets)
+        } catch (error) {
+          console.error("Error adding ticket:", error)
+          alert("An error occurred while saving. Please try again.")
         }
-
-        await setDoc(doc(supportTicketsCollection, newId), newTicket)
-
-        // Add to tickets
-        const updatedTickets = [newTicket, ...supportTickets]
-        setSupportTickets(updatedTickets)
       } else if (openDialog.type === "editTicket" && openDialog.id) {
         // Update existing ticket
         const updatedTicket = {
@@ -919,7 +976,7 @@ export default function AdminView() {
               </div>
             )}
 
-            {(openDialog?.type === "addTicket" || openDialog?.type === "editTicket") && (
+            {openDialog?.type === "addTicket" && (
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <label htmlFor="ticketUser" className="text-sm font-medium">
@@ -930,7 +987,62 @@ export default function AdminView() {
                     type="email"
                     value={editForm.ticketUser}
                     onChange={(e) => setEditForm({ ...editForm, ticketUser: e.target.value })}
+                    list="userEmails"
                   />
+                  <datalist id="userEmails">
+                    <option value="liamkeith.mariano.cics@ust.edu.ph" />
+                    <option value="lebronjames@gmail.com" />
+                    <option value="john.doe@example.com" />
+                  </datalist>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="ticketSubject" className="text-sm font-medium">
+                    Subject
+                  </label>
+                  <Input
+                    id="ticketSubject"
+                    value={editForm.ticketSubject}
+                    onChange={(e) => setEditForm({ ...editForm, ticketSubject: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="ticketStatus" className="text-sm font-medium">
+                    Status
+                  </label>
+                  <Input id="ticketStatus" value="New" disabled className="bg-gray-100" />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="ticketDescription" className="text-sm font-medium">
+                    Description
+                  </label>
+                  <Textarea
+                    id="ticketDescription"
+                    rows={4}
+                    value={editForm.ticketDescription}
+                    onChange={(e) => setEditForm({ ...editForm, ticketDescription: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {openDialog?.type === "editTicket" && (
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label htmlFor="ticketUser" className="text-sm font-medium">
+                    User Email
+                  </label>
+                  <Input
+                    id="ticketUser"
+                    type="email"
+                    value={editForm.ticketUser}
+                    onChange={(e) => setEditForm({ ...editForm, ticketUser: e.target.value })}
+                    list="userEmails"
+                  />
+                  <datalist id="userEmails">
+                    <option value="liamkeith.mariano.cics@ust.edu.ph" />
+                    <option value="lebronjames@gmail.com" />
+                    <option value="john.doe@example.com" />
+                  </datalist>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="ticketSubject" className="text-sm font-medium">
