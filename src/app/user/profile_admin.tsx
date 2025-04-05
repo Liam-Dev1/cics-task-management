@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { app } from "@/app/firebase/firebase.config" // Ensure this is correctly configured
+import { app } from "@/lib/firebase/firebase.config" // Ensure this is correctly configured
 
 interface ProfileProps {
   users: any[]
