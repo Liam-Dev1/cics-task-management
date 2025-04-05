@@ -660,13 +660,16 @@ export default function AdminView() {
               Contact Support
             </Button>
 
-            <Button
-              variant="default"
-              className="bg-[#8B0000] hover:bg-[#6B0000] text-white ml-auto"
-              onClick={() => setEditMode(!editMode)}
-            >
-              {editMode ? "Exit Edit Mode" : "Edit Mode"}
-            </Button>
+            {/* Only show Edit Mode button when not in Contact Support tab */}
+            {activeTab !== "contact" && (
+              <Button
+                variant="default"
+                className="bg-[#8B0000] hover:bg-[#6B0000] text-white ml-auto"
+                onClick={() => setEditMode(!editMode)}
+              >
+                {editMode ? "Exit Edit Mode" : "Edit Mode"}
+              </Button>
+            )}
           </div>
         </div>
 
