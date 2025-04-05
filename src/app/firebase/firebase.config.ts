@@ -1,18 +1,16 @@
-// Import the functions you need from the SDKs you need
 import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
 import { initializeApp, getApps, getApp } from "firebase/app"
 import { getFirestore } from "firebase/firestore"
-import { getStorage } from "firebase/storage" // Import Firebase Storage
+import { getStorage } from "firebase/storage" 
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDHcy0dzLUQ7y3rGzrSggSPH0tYvwOuqWY",
-  authDomain: "cics-task-management.firebaseapp.com",
-  projectId: "cics-task-management",
-  storageBucket: "cics-task-management.appspot.com", // Update this to your storage bucket
-  messagingSenderId: "8408950164",
-  appId: "1:8408950164:web:547aad1d79a1a6e0d39b81",
-  measurementId: "G-4R4Q56DN12"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
