@@ -1,4 +1,4 @@
-import { taskData as sampleData } from "./sample-data"
+import { taskData as sampleData } from "./task-data"
 
 export async function fetchTaskData() {
   // Simulating an API call with a delay

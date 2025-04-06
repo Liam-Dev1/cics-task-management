@@ -1,5 +1,5 @@
 import { Task, Notification } from "./utils";
-import { taskData } from "./sample-data";
+import { taskData } from "./task-data";
 
 // Replace this with your actual logic for obtaining the current user's doc_id.
 const currentUserDocId = "doc1";

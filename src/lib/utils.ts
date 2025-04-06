@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { taskData } from "./sample-data"
+import { taskData } from "./task-data"
 
 // Define the Task interface to match the structure in sample-data.ts
 export interface Task {

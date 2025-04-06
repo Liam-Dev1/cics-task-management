@@ -1,6 +1,6 @@
 "use client"
-
-import { useState, useMemo, useRef } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
+import { fetchTaskData } from "@/lib/task-data"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -21,74 +21,43 @@ import { ProgressBar } from "@/components/progress-bar"
 import { AverageCompletionTimeChart } from "@/components/average-completion-time-chart"
 import { TaskCompletionStatusChart } from "@/components/task-completion-status-chart"
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip"
-import { taskData } from "@/lib/sample-data"
+import { taskData } from "@/lib/task-data"
 import { Sidebar } from "@/components/sidebar-admin"
 import { ExportToPdfButton } from "@/components/export-to-pdf-button"
 import { LoadingOverlay } from "@/components/loading-overlay"
+import { LoadingOverlay2 } from "@/components/loading-overlay2"
 
 export default function TaskReportDashboard() {
-  const [timeFrame, setTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly")
-  const [activeTab, setActiveTab] = useState<"pieCharts" | "lineCharts" | "barCharts">("pieCharts")
-  const [showGraphs, setShowGraphs] = useState(false)
-  const [showReport, setShowReport] = useState(false)
-
-  const allReceivers = Array.from(
-    new Set(taskData.tasks.map((task) => task.assignedTo))
-  );
-  const allTaskStatuses = ["Completed", "Pending", "Overdue"]
-  const allPriorities = ["High", "Medium", "Low"]
-
+  const [loading, setLoading] = useState(true);
+  const [timeFrame, setTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly");
+  const [activeTab, setActiveTab] = useState<"pieCharts" | "lineCharts" | "barCharts">("pieCharts");
+  const [showGraphs, setShowGraphs] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  
   const [currentFilters, setCurrentFilters] = useState({
     taskReceivers: [] as string[],
-    fromDate: new Date(2024, 0, 1),
-    toDate: new Date(2024, 9, 10),
+    fromDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
+    toDate: new Date(),
     taskStatus: [] as string[],
     priority: [] as string[],
-  })
-  const [appliedFilters, setAppliedFilters] = useState(currentFilters)
+  });
+  
+  const [appliedFilters, setAppliedFilters] = useState(currentFilters);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportTimeFrame, setExportTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly");
+  const [exportTab, setExportTab] = useState<"pieCharts" | "lineCharts" | "barCharts">("pieCharts");
+  
+  const reportRef = useRef<HTMLDivElement>(null);
 
-  const [isExporting, setIsExporting] = useState(false)
-  const [exportTimeFrame, setExportTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly")
-  const [exportTab, setExportTab] = useState<"pieCharts" | "lineCharts" | "barCharts">("pieCharts")
-  const reportRef = useRef<HTMLDivElement>(null)
-
-  const handleFilterChange = (key: string, value: any) => {
-    setCurrentFilters((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const handleGenerateReport = () => {
-    setAppliedFilters(currentFilters)
-    setShowReport(true)
-  }
-
-  const handleResetFilters = () => {
-    setCurrentFilters({
-      taskReceivers: [],
-      fromDate: new Date(2024, 0, 1),
-      toDate: new Date(2024, 9, 10),
-      taskStatus: [],
-      priority: [],
-    })
-  }
-
-  const handleExportStart = () => {
-    setIsExporting(true)
-    setShowGraphs(true)
-  }
-
-  const handleExportEnd = () => {
-    setIsExporting(false)
-    setTimeFrame(exportTimeFrame)
-    setActiveTab(exportTab)
-  }
-
-  const handleExportTimeFrameChange = (timeFrame: string) => {
-    setTimeFrame(timeFrame as "weekly" | "monthly" | "quarterly" | "yearly")
-  }
-
-  const handleExportTabChange = (tab: string) => {
-    setActiveTab(tab as "pieCharts" | "lineCharts" | "barCharts")
-  }
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await fetchTaskData();
+      setLoading(false);
+    };
+    
+    loadData();
+  }, []);
 
   const filteredTasks = useMemo(() => {
     return taskData.tasks.filter((task) => {
@@ -96,7 +65,7 @@ export default function TaskReportDashboard() {
         currentFilters.taskReceivers.length === 0 || currentFilters.taskReceivers.includes(task.assignedTo)
       const matchesStatus = appliedFilters.taskStatus.length === 0 || appliedFilters.taskStatus.includes(task.status)
       const matchesPriority = appliedFilters.priority.length === 0 || appliedFilters.priority.includes(task.priority)
-      const taskDate = new Date(task.assignedDate)
+      const taskDate = new Date(task.assignedOn)
       const isWithinDateRange =
         (!appliedFilters.fromDate || taskDate >= appliedFilters.fromDate) &&
         (!appliedFilters.toDate || taskDate <= appliedFilters.toDate)
@@ -192,7 +161,7 @@ export default function TaskReportDashboard() {
         periodEnd = periodEnd > endDate ? endDate : periodEnd
 
         const tasksInPeriod = filteredTasks.filter((task) => {
-          const taskDate = new Date(task.completionDate || task.dueDate)
+          const taskDate = new Date(task.completed || task.deadline)
           return taskDate >= date && taskDate < periodEnd && task.status === "Completed"
         })
 
@@ -249,7 +218,7 @@ export default function TaskReportDashboard() {
         periodEnd = periodEnd > endDate ? endDate : periodEnd
 
         const tasksInPeriod = filteredTasks.filter((task) => {
-          const taskDate = new Date(task.completionDate || task.dueDate)
+          const taskDate = new Date(task.completed || task.deadline)
           return taskDate >= date && taskDate < periodEnd && task.status === "Completed"
         })
 
@@ -276,7 +245,7 @@ export default function TaskReportDashboard() {
         periodEnd = periodEnd > endDate ? endDate : periodEnd
 
         const tasksInPeriod = filteredTasks.filter((task) => {
-          const taskDate = new Date(task.completionDate || task.dueDate)
+          const taskDate = new Date(task.completed || task.deadline)
           return taskDate >= date && taskDate < periodEnd
         })
 
@@ -336,7 +305,7 @@ export default function TaskReportDashboard() {
         periodEnd = periodEnd > endDate ? endDate : periodEnd
 
         const tasksInPeriod = filteredTasks.filter((task) => {
-          const taskDate = new Date(task.completionDate || task.dueDate)
+          const taskDate = new Date(task.completed || task.deadline)
           return taskDate >= date && taskDate < periodEnd
         })
 
@@ -374,6 +343,56 @@ export default function TaskReportDashboard() {
       },
     }
   }, [filteredTasks, stats, appliedFilters])
+
+  const allReceivers = useMemo(() => {
+    if (loading) return [];
+    return Array.from(new Set(taskData.tasks.map((task) => task.assignedTo)))
+  }, [loading]);
+  
+  const allTaskStatuses = ["Completed", "Pending", "Overdue"];
+  const allPriorities = ["High", "Medium", "Low"];
+
+  const handleFilterChange = (key: string, value: any) => {
+    setCurrentFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  if (loading) {
+    return <LoadingOverlay2 isVisible={true} />;
+  }
+
+  const handleGenerateReport = () => {
+    setAppliedFilters(currentFilters)
+    setShowReport(true)
+  }
+
+  const handleResetFilters = () => {
+    setCurrentFilters({
+      taskReceivers: [],
+      fromDate: new Date(2024, 0, 1),
+      toDate: new Date(2024, 9, 10),
+      taskStatus: [],
+      priority: [],
+    })
+  }
+
+  const handleExportStart = () => {
+    setIsExporting(true)
+    setShowGraphs(true)
+  }
+
+  const handleExportEnd = () => {
+    setIsExporting(false)
+    setTimeFrame(exportTimeFrame)
+    setActiveTab(exportTab)
+  }
+
+  const handleExportTimeFrameChange = (timeFrame: string) => {
+    setTimeFrame(timeFrame as "weekly" | "monthly" | "quarterly" | "yearly")
+  }
+
+  const handleExportTabChange = (tab: string) => {
+    setActiveTab(tab as "pieCharts" | "lineCharts" | "barCharts")
+  }
 
   return (
     <>
