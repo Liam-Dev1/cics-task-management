@@ -477,45 +477,6 @@ export default function TaskManagement() {
         childTaskIds: isRecurringTask ? [] : undefined,
       }
 
-      const docRef = await addDoc(collection(db, "tasks"), newTaskData)
-
-      // If there's a file, upload it to Firebase Storage
-      if (file) {
-        const fileUrl = await uploadFileToStorage(file, docRef.id)
-
-        // Update the task document with the file information
-        await updateDoc(doc(db, "tasks", docRef.id), {
-          files: [
-            {
-              name: file.name,
-              url: fileUrl,
-            },
-          ],
-        })
-
-        // Update local state
-        const newTask: Task = {
-          id: docRef.id,
-          ...newTaskData,
-          files: [
-            {
-              name: file.name,
-              url: fileUrl,
-            },
-          ],
-        }
-
-        setTasks((prev) => [newTask, ...prev])
-      } else {
-        // Update local state without files
-        const newTask: Task = {
-          id: docRef.id,
-          ...newTaskData,
-        }
-
-        setTasks((prev) => [newTask, ...prev])
-      }
-
       // Reset form
       setFile(null)
       setShowNewTask(false)
