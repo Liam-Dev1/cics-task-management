@@ -1,14 +1,10 @@
 "use client"
 
-import type React from "react"
-
-import { Sidebar } from "@/components/sidebar-admin"
+import { Sidebar } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
-
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { storage } from "@/app/firebase/firebase.config" // Ensure this is correctly configured
-
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { app } from "@/lib/firebase/firebase.config" // Ensure this is correctly configured
 
 interface ProfileProps {
   users: any[]
@@ -21,7 +17,6 @@ interface ProfileProps {
 export default function Profile({ users, userName, userEmail, userRole, profilePhoto }: ProfileProps) {
   const [isAdmin, setIsAdmin] = useState(userRole === "Admin" || userRole === "Super Admin")
   const [isUploading, setIsUploading] = useState(false)
-  const [profilePhotoState, setProfilePhoto] = useState(profilePhoto)
 
   const handleRoleSwitch = () => {
     setIsAdmin(!isAdmin)
@@ -33,6 +28,7 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
 
     setIsUploading(true)
     try {
+      const storage = getStorage(app)
       const storageRef = ref(storage, `profile-photos/${file.name}`)
       await uploadBytes(storageRef, file)
       const downloadURL = await getDownloadURL(storageRef)
@@ -59,7 +55,7 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
           <div className="flex items-center">
             <div className="pr-1">
               <img
-                src={profilePhotoState || "https://placehold.co/200"}
+                src={profilePhoto || "https://placehold.co/200"}
                 className="rounded-full border border-white w-40 h-40 object-cover"
                 alt="Profile"
               />
@@ -103,4 +99,3 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
     </div>
   )
 }
-

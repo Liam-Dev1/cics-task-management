@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { Sidebar } from "@/components/sidebar-user"
+import { Sidebar } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
@@ -16,16 +14,9 @@ interface ProfileProps {
   profilePhoto: string | null
 }
 
-export default function Profile({
-  users,
-  userName,
-  userEmail,
-  userRole,
-  profilePhoto: initialProfilePhoto,
-}: ProfileProps) {
+export default function Profile({ users, userName, userEmail, userRole, profilePhoto }: ProfileProps) {
   const [isAdmin, setIsAdmin] = useState(userRole === "Admin" || userRole === "Super Admin")
   const [isUploading, setIsUploading] = useState(false)
-  const [profilePhoto, setProfilePhoto] = useState(initialProfilePhoto)
 
   const handleRoleSwitch = () => {
     setIsAdmin(!isAdmin)
@@ -89,12 +80,18 @@ export default function Profile({
             />
 
             <label htmlFor="profile-photo-upload" className="cursor-pointer">
-              <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white" disabled={isUploading}>
+              <Button
+                className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white"
+                disabled={isUploading}
+              >
                 {isUploading ? "Uploading..." : "Edit Profile Picture"}
               </Button>
             </label>
 
-            <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white" onClick={handleRoleSwitch}>
+            <Button
+              className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white"
+              onClick={handleRoleSwitch}
+            >
               {isAdmin ? "Switch to Task Receiver Menu" : "Switch to Admin Menu"}
             </Button>
           </div>
@@ -103,4 +100,3 @@ export default function Profile({
     </div>
   )
 }
-
