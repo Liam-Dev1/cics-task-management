@@ -1,8 +1,9 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useRef, useEffect } from "react"
-import { ChevronDown, Search, Upload, Plus, Save, X, CheckCircle, RefreshCw, Calendar } from "lucide-react"
+import { ChevronDown, Search, Upload, Plus, Save, X, CheckCircle, RefreshCw, Calendar, Repeat } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,14 +18,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { auth, db, storage } from "@/lib/firebase/firebase.config"
-import { useAuthState } from "react-firebase-hooks/auth"
-import { collection, addDoc, getDocs, updateDoc, doc, query, orderBy, where } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { useSearchParams } from "next/navigation"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import RecurringTaskModal, { type RecurringSettings } from "@/components/recurring-task-modal"
+import { auth, db, storage } from "@/app/firebase/firebase.config"
+import { useAuthState } from "react-firebase-hooks/auth"
+import { collection, addDoc, getDocs, updateDoc, doc, query, orderBy, where, serverTimestamp } from "firebase/firestore"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { useSearchParams } from "next/navigation"
+import RecurringTaskModal, { type RecurringSettings } from "./recurring-task-modal"
 
 // File object interface
 interface FileObject extends File {
@@ -38,9 +39,9 @@ interface Task {
   id: string
   name: string
   assignedBy: string
-  assignedTo: string // User's name for display
-  assignedToEmail: string // User's email
-  assignedToId: string // User's ID
+  assignedTo: string
+  assignedToEmail: string
+  assignedToId: string
   assignedOn: string
   deadline: string
   status: string
@@ -48,14 +49,16 @@ interface Task {
   description: string
   completed?: string | null
   files?: Array<{ name: string; url: string }>
+  // Recurring task properties
   isRecurring?: boolean
-  recurrencePattern?: string
+  recurrencePattern?: "daily" | "weekly" | "biweekly" | "monthly" | "custom"
   recurrenceInterval?: number
-  recurrenceEndType?: string
-  recurrenceCount?: number
   recurrenceEndDate?: string
-  nextDeadlines?: string[]
+  recurrenceCount?: number
+  recurrenceEndType?: "never" | "after" | "on"
+  parentTaskId?: string
   childTaskIds?: string[]
+  nextDeadlines?: string[]
 }
 
 // User interface
@@ -85,14 +88,11 @@ export default function TaskManagement() {
     type: null,
   })
   const [users, setUsers] = useState<User[]>([])
-  const [isRecurringTask, setIsRecurringTask] = useState(false)
-
-  type SortValue = string | null
-  const [activeSort, setActiveSort] = useState<SortValue>(null)
-  const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
   // Recurring task state
+  const [isRecurringTask, setIsRecurringTask] = useState(false)
   const [showRecurringModal, setShowRecurringModal] = useState(false)
+  const [currentRecurringTask, setCurrentRecurringTask] = useState<string | null>(null)
   const [recurringSettings, setRecurringSettings] = useState<RecurringSettings>({
     isRecurring: true,
     recurrencePattern: "weekly",
@@ -103,19 +103,9 @@ export default function TaskManagement() {
     nextDeadlines: [],
   })
 
-  // Track which task's recurring settings we're editing
-  const [editingRecurringTaskId, setEditingRecurringTaskId] = useState<string | null>(null)
-
-  // Check for filter from localStorage (set by the dashboard)
-  useEffect(() => {
-    const savedFilter = localStorage.getItem("activeTaskFilter")
-    if (savedFilter) {
-      setActiveFilter(savedFilter)
-      // Clear the filter from localStorage after using it
-      localStorage.removeItem("activeTaskFilter")
-    }
-  }, [])
-
+  type SortValue = string | null
+  const [activeSort, setActiveSort] = useState<SortValue>(null)
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
 
   const searchParams = useSearchParams()
@@ -213,6 +203,107 @@ export default function TaskManagement() {
     fetchTasks()
   }, [])
 
+  // Check for tasks that need to be duplicated (recurring tasks that have reached their deadline)
+  useEffect(() => {
+    const checkRecurringTasks = async () => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const recurringTasks = tasks.filter(
+        (task) =>
+          task.isRecurring &&
+          task.status !== "Completed On Time" &&
+          task.status !== "Completed Overdue" &&
+          task.nextDeadlines &&
+          task.nextDeadlines.length > 0,
+      )
+
+      for (const task of recurringTasks) {
+        // Check if any of the next deadlines have passed
+        const passedDeadlines =
+          task.nextDeadlines?.filter((deadline) => {
+            const deadlineDate = new Date(deadline)
+            deadlineDate.setHours(0, 0, 0, 0)
+            return deadlineDate <= today
+          }) || []
+
+        if (passedDeadlines.length > 0) {
+          // Create a new task for each passed deadline
+          for (const deadline of passedDeadlines) {
+            await createRecurringTaskInstance(task, deadline)
+          }
+
+          // Update the original task to remove the used deadlines
+          const remainingDeadlines = task.nextDeadlines?.filter((deadline) => !passedDeadlines.includes(deadline)) || []
+
+          const taskRef = doc(db, "tasks", task.id)
+          await updateDoc(taskRef, {
+            nextDeadlines: remainingDeadlines,
+          })
+
+          // Update local state
+          setTasks((prevTasks) =>
+            prevTasks.map((t) => (t.id === task.id ? { ...t, nextDeadlines: remainingDeadlines } : t)),
+          )
+        }
+      }
+    }
+
+    if (tasks.length > 0) {
+      checkRecurringTasks()
+    }
+  }, [tasks])
+
+  // Create a new instance of a recurring task
+  const createRecurringTaskInstance = async (parentTask: Task, deadline: string) => {
+    try {
+      // Create a new task based on the parent task
+      const newTaskData = {
+        name: parentTask.name,
+        assignedBy: parentTask.assignedBy,
+        assignedTo: parentTask.assignedTo,
+        assignedToEmail: parentTask.assignedToEmail,
+        assignedToId: parentTask.assignedToId,
+        assignedOn: new Date().toISOString().split("T")[0],
+        deadline: deadline,
+        status: "Pending",
+        priority: parentTask.priority,
+        description: parentTask.description,
+        files: parentTask.files || [],
+        isRecurring: false, // Child tasks are not recurring themselves
+        parentTaskId: parentTask.id,
+        createdAt: serverTimestamp(),
+      }
+
+      const docRef = await addDoc(collection(db, "tasks"), newTaskData)
+
+      // Update the parent task's childTaskIds array
+      const parentTaskRef = doc(db, "tasks", parentTask.id)
+      await updateDoc(parentTaskRef, {
+        childTaskIds: [...(parentTask.childTaskIds || []), docRef.id],
+      })
+
+      // Update local state
+      const newTask = {
+        ...newTaskData,
+        id: docRef.id,
+        assignedOn: new Date().toISOString().split("T")[0], // Convert Timestamp to string
+      }
+
+      setTasks((prevTasks) => [
+        newTask as Task,
+        ...prevTasks.map((t) =>
+          t.id === parentTask.id ? { ...t, childTaskIds: [...(t.childTaskIds || []), docRef.id] } : t,
+        ),
+      ])
+
+      showNotification("Recurring task instance created", "success")
+    } catch (error) {
+      console.error("Error creating recurring task instance:", error)
+      showNotification("Failed to create recurring task instance", "error")
+    }
+  }
+
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
     if (taskIdFromUrl && tasks.length > 0) {
@@ -239,14 +330,15 @@ export default function TaskManagement() {
   }, [taskIdFromUrl, tasks])
 
   // Filter tasks based on search query and active filter
-  const matchesFilter = (task: Task) =>
-    !activeFilter ||
-    (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
-      task.status === activeFilter) ||
-    (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter)
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesSearch && matchesFilter(task)
+    const matchesFilter =
+      !activeFilter ||
+      (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
+        task.status === activeFilter) ||
+      (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter) ||
+      (activeFilter === "Recurring" && task.isRecurring)
+    return matchesSearch && matchesFilter
   })
 
   // Sort tasks based on active sort option
@@ -364,78 +456,6 @@ export default function TaskManagement() {
     return downloadURL
   }
 
-  // Handle recurring task toggle for new tasks
-  const handleRecurringToggle = (checked: boolean) => {
-    setIsRecurringTask(checked)
-  }
-
-  // Handle recurring task toggle for existing tasks
-  const handleEditRecurringToggle = (checked: boolean, taskId: string) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              isRecurring: checked,
-            }
-          : task,
-      ),
-    )
-  }
-
-  // Open recurring modal for a specific task
-  const openRecurringModal = (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task) return
-
-    // Set the current task's recurring settings
-    setEditingRecurringTaskId(taskId)
-
-    // Initialize with default settings if not already set
-    const currentSettings: RecurringSettings = {
-      isRecurring: task.isRecurring || false,
-      recurrencePattern: (task.recurrencePattern as any) || "weekly",
-      recurrenceInterval: task.recurrenceInterval || 1,
-      recurrenceEndType: (task.recurrenceEndType as any) || "never",
-      recurrenceCount: task.recurrenceCount || 10,
-      recurrenceEndDate:
-        task.recurrenceEndDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      nextDeadlines: task.nextDeadlines || [],
-    }
-
-    setRecurringSettings(currentSettings)
-    setShowRecurringModal(true)
-  }
-
-  // Save recurring settings for a specific task
-  const handleSaveRecurringSettings = (settings: RecurringSettings) => {
-    if (editingRecurringTaskId) {
-      // Update the task with new recurring settings
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === editingRecurringTaskId
-            ? {
-                ...task,
-                isRecurring: settings.isRecurring,
-                recurrencePattern: settings.recurrencePattern,
-                recurrenceInterval: settings.recurrenceInterval,
-                recurrenceEndType: settings.recurrenceEndType,
-                recurrenceCount: settings.recurrenceCount,
-                recurrenceEndDate: settings.recurrenceEndDate,
-                nextDeadlines: settings.nextDeadlines,
-              }
-            : task,
-        ),
-      )
-    } else {
-      // For new tasks
-      setRecurringSettings(settings)
-    }
-
-    setShowRecurringModal(false)
-    setEditingRecurringTaskId(null)
-  }
-
   // Task management functions
   const handleAddTask = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -455,12 +475,12 @@ export default function TaskManagement() {
       }
 
       // Create new task document in Firestore
-      const newTaskData = {
+      const newTaskData: Partial<Task> = {
         name: (formData.get("name") as string) || "",
         assignedBy: userName,
-        assignedTo: assignedToUser.name, // User's name for display
-        assignedToEmail: assignedToUser.email, // User's email
-        assignedToId: assignedToUser.id, // User's ID
+        assignedTo: assignedToUser.name,
+        assignedToEmail: assignedToUser.email,
+        assignedToId: assignedToUser.id,
         assignedOn: new Date().toISOString().split("T")[0],
         deadline: (formData.get("deadline") as string) || "",
         status: (formData.get("status") as string) || "Pending",
@@ -468,13 +488,17 @@ export default function TaskManagement() {
         description: (formData.get("description") as string) || "",
         files: [],
         isRecurring: isRecurringTask,
-        recurrencePattern: isRecurringTask ? recurringSettings.recurrencePattern : undefined,
-        recurrenceInterval: isRecurringTask ? recurringSettings.recurrenceInterval : undefined,
-        recurrenceEndType: isRecurringTask ? recurringSettings.recurrenceEndType : undefined,
-        recurrenceCount: isRecurringTask ? recurringSettings.recurrenceCount : undefined,
-        recurrenceEndDate: isRecurringTask ? recurringSettings.recurrenceEndDate : undefined,
-        nextDeadlines: isRecurringTask ? recurringSettings.nextDeadlines : undefined,
-        childTaskIds: isRecurringTask ? [] : undefined,
+      }
+
+      // Add recurring task properties if applicable
+      if (isRecurringTask) {
+        newTaskData.recurrencePattern = recurringSettings.recurrencePattern
+        newTaskData.recurrenceInterval = recurringSettings.recurrenceInterval
+        newTaskData.recurrenceEndType = recurringSettings.recurrenceEndType
+        newTaskData.recurrenceCount = recurringSettings.recurrenceCount
+        newTaskData.recurrenceEndDate = recurringSettings.recurrenceEndDate
+        newTaskData.nextDeadlines = recurringSettings.nextDeadlines
+        newTaskData.childTaskIds = []
       }
 
       const docRef = await addDoc(collection(db, "tasks"), newTaskData)
@@ -495,8 +519,8 @@ export default function TaskManagement() {
 
         // Update local state
         const newTask: Task = {
+          ...(newTaskData as Task),
           id: docRef.id,
-          ...newTaskData,
           files: [
             {
               name: file.name,
@@ -509,8 +533,8 @@ export default function TaskManagement() {
       } else {
         // Update local state without files
         const newTask: Task = {
+          ...(newTaskData as Task),
           id: docRef.id,
-          ...newTaskData,
         }
 
         setTasks((prev) => [newTask, ...prev])
@@ -519,8 +543,17 @@ export default function TaskManagement() {
       // Reset form
       setFile(null)
       setShowNewTask(false)
-      form.reset()
       setIsRecurringTask(false)
+      setRecurringSettings({
+        isRecurring: true,
+        recurrencePattern: "weekly",
+        recurrenceInterval: 1,
+        recurrenceEndType: "never",
+        recurrenceCount: 10,
+        recurrenceEndDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        nextDeadlines: [],
+      })
+      form.reset()
 
       showNotification("Task created successfully", "success")
     } catch (error) {
@@ -538,20 +571,18 @@ export default function TaskManagement() {
     setEditingTask(taskId)
     setEditingTaskOriginal({ ...taskToEdit })
 
-    // Set recurring task state based on the task being edited
+    // If it's a recurring task, set up the recurring settings
     if (taskToEdit.isRecurring) {
-      // Initialize recurring settings from the task
-      const taskSettings: RecurringSettings = {
-        isRecurring: taskToEdit.isRecurring || false,
-        recurrencePattern: (taskToEdit.recurrencePattern as any) || "weekly",
+      setRecurringSettings({
+        isRecurring: true,
+        recurrencePattern: taskToEdit.recurrencePattern || "weekly",
         recurrenceInterval: taskToEdit.recurrenceInterval || 1,
-        recurrenceEndType: (taskToEdit.recurrenceEndType as any) || "never",
+        recurrenceEndType: taskToEdit.recurrenceEndType || "never",
         recurrenceCount: taskToEdit.recurrenceCount || 10,
         recurrenceEndDate:
           taskToEdit.recurrenceEndDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
         nextDeadlines: taskToEdit.nextDeadlines || [],
-      }
-      setRecurringSettings(taskSettings)
+      })
     }
   }
 
@@ -560,8 +591,9 @@ export default function TaskManagement() {
       const taskToUpdate = tasks.find((task) => task.id === taskId)
       if (!taskToUpdate) return
 
-      // Prepare update data including recurring task settings
-      const updateData: Partial<Task> = {
+      // Update the task in Firestore
+      const taskRef = doc(db, "tasks", taskId)
+      await updateDoc(taskRef, {
         name: taskToUpdate.name,
         assignedTo: taskToUpdate.assignedTo,
         assignedToEmail: taskToUpdate.assignedToEmail,
@@ -570,23 +602,14 @@ export default function TaskManagement() {
         status: taskToUpdate.status,
         priority: taskToUpdate.priority,
         description: taskToUpdate.description,
-        // Include recurring task properties
         isRecurring: taskToUpdate.isRecurring,
-      }
-
-      // Only include recurring properties if the task is recurring
-      if (taskToUpdate.isRecurring) {
-        updateData.recurrencePattern = taskToUpdate.recurrencePattern
-        updateData.recurrenceInterval = taskToUpdate.recurrenceInterval
-        updateData.recurrenceEndType = taskToUpdate.recurrenceEndType
-        updateData.recurrenceCount = taskToUpdate.recurrenceCount
-        updateData.recurrenceEndDate = taskToUpdate.recurrenceEndDate
-        updateData.nextDeadlines = taskToUpdate.nextDeadlines
-      }
-
-      // Update the task in Firestore
-      const taskRef = doc(db, "tasks", taskId)
-      await updateDoc(taskRef, updateData)
+        recurrencePattern: taskToUpdate.recurrencePattern,
+        recurrenceInterval: taskToUpdate.recurrenceInterval,
+        recurrenceEndType: taskToUpdate.recurrenceEndType,
+        recurrenceCount: taskToUpdate.recurrenceCount,
+        recurrenceEndDate: taskToUpdate.recurrenceEndDate,
+        nextDeadlines: taskToUpdate.nextDeadlines,
+      })
 
       showNotification("Task updated successfully", "success")
     } catch (error) {
@@ -624,19 +647,27 @@ export default function TaskManagement() {
 
       // Determine if the task is completed on time or overdue
       const deadlineDate = new Date(taskToUpdate.deadline)
-      const currentDate = new Date()
+      const completionDate = taskToUpdate.completed ? new Date(taskToUpdate.completed) : new Date()
 
       // Set the appropriate status based on deadline comparison
-      const newStatus = currentDate <= deadlineDate ? "Completed On Time" : "Completed Overdue"
+      const newStatus = completionDate <= deadlineDate ? "Completed On Time" : "Completed Overdue"
 
       await updateDoc(taskRef, {
         status: newStatus,
-        completed: completedDate,
+        completed: taskToUpdate.completed || completedDate,
       })
 
       // Update local state
       setTasks((prev) =>
-        prev.map((task) => (task.id === taskId ? { ...task, status: newStatus, completed: completedDate } : task)),
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                status: newStatus,
+                completed: task.completed || completedDate,
+              }
+            : task,
+        ),
       )
 
       showNotification(`Task marked as ${newStatus}`, "success")
@@ -673,6 +704,143 @@ export default function TaskManagement() {
     setUploadingTaskId(taskId)
     if (fileInputRef.current) {
       fileInputRef.current.click()
+    }
+  }
+
+  // Handle recurring task settings
+  const handleRecurringToggle = (value: boolean) => {
+    setIsRecurringTask(value)
+  }
+
+  const openRecurringModal = (taskId: string | null = null) => {
+    if (taskId) {
+      const task = tasks.find((t) => t.id === taskId)
+      if (task) {
+        setRecurringSettings({
+          isRecurring: task.isRecurring || false,
+          recurrencePattern: task.recurrencePattern || "weekly",
+          recurrenceInterval: task.recurrenceInterval || 1,
+          recurrenceEndType: task.recurrenceEndType || "never",
+          recurrenceCount: task.recurrenceCount || 10,
+          recurrenceEndDate:
+            task.recurrenceEndDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+          nextDeadlines: task.nextDeadlines || [],
+        })
+      }
+    }
+    setCurrentRecurringTask(taskId)
+    setShowRecurringModal(true)
+  }
+
+  const handleSaveRecurringSettings = async (settings: RecurringSettings) => {
+    if (currentRecurringTask) {
+      // Update existing task
+      try {
+        const taskRef = doc(db, "tasks", currentRecurringTask)
+        await updateDoc(taskRef, {
+          isRecurring: true,
+          recurrencePattern: settings.recurrencePattern,
+          recurrenceInterval: settings.recurrenceInterval,
+          recurrenceEndType: settings.recurrenceEndType,
+          recurrenceCount: settings.recurrenceCount,
+          recurrenceEndDate: settings.recurrenceEndDate,
+          nextDeadlines: settings.nextDeadlines,
+        })
+
+        // Update local state
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === currentRecurringTask
+              ? {
+                  ...task,
+                  isRecurring: true,
+                  recurrencePattern: settings.recurrencePattern,
+                  recurrenceInterval: settings.recurrenceInterval,
+                  recurrenceEndType: settings.recurrenceEndType,
+                  recurrenceCount: settings.recurrenceCount,
+                  recurrenceEndDate: settings.recurrenceEndDate,
+                  nextDeadlines: settings.nextDeadlines,
+                }
+              : task,
+          ),
+        )
+
+        showNotification("Recurring task settings updated", "success")
+      } catch (error) {
+        console.error("Error updating recurring task settings:", error)
+        showNotification("Failed to update recurring task settings", "error")
+      }
+    } else {
+      // For new task
+      setRecurringSettings(settings)
+    }
+    setCurrentRecurringTask(null)
+  }
+
+  // Calculate next deadline based on recurrence pattern
+  const calculateNextDeadline = (task: Task): string | null => {
+    if (!task.isRecurring || !task.recurrencePattern || !task.deadline) return null
+
+    const lastDeadline = new Date(task.deadline)
+    const nextDeadline = new Date(lastDeadline)
+
+    switch (task.recurrencePattern) {
+      case "daily":
+        nextDeadline.setDate(lastDeadline.getDate() + (task.recurrenceInterval || 1))
+        break
+      case "weekly":
+        nextDeadline.setDate(lastDeadline.getDate() + 7 * (task.recurrenceInterval || 1))
+        break
+      case "biweekly":
+        nextDeadline.setDate(lastDeadline.getDate() + 14 * (task.recurrenceInterval || 1))
+        break
+      case "monthly":
+        nextDeadline.setMonth(lastDeadline.getMonth() + (task.recurrenceInterval || 1))
+        break
+      default:
+        return null
+    }
+
+    return nextDeadline.toISOString().split("T")[0]
+  }
+
+  // Add another deadline to a recurring task
+  const handleAddAnotherDeadline = async (taskId: string) => {
+    try {
+      const task = tasks.find((t) => t.id === taskId)
+      if (!task) return
+
+      // For custom recurrence, open the modal to let the admin choose
+      if (task.recurrencePattern === "custom") {
+        openRecurringModal(taskId)
+        return
+      }
+
+      // Calculate the next deadline based on the recurrence pattern
+      const nextDeadline = calculateNextDeadline(task)
+      if (!nextDeadline) {
+        showNotification("Could not calculate next deadline", "error")
+        return
+      }
+
+      // Add the new deadline to the nextDeadlines array
+      const updatedDeadlines = [...(task.nextDeadlines || []), nextDeadline].sort(
+        (a, b) => new Date(a).getTime() - new Date(b).getTime(),
+      )
+
+      // Update the task in Firestore
+      const taskRef = doc(db, "tasks", taskId)
+      await updateDoc(taskRef, {
+        nextDeadlines: updatedDeadlines,
+      })
+
+      // Update local state
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, nextDeadlines: updatedDeadlines } : t)))
+
+      showNotification("Added another deadline to recurring task", "success")
+    } catch (error) {
+      console.error("Error adding another deadline:", error)
+      showNotification("Failed to add another deadline", "error")
     }
   }
 
@@ -767,6 +935,12 @@ export default function TaskManagement() {
                 onCheckedChange={() => setActiveFilter(activeFilter === "Reopened" ? null : "Reopened")}
               >
                 Reopened
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Recurring"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Recurring" ? null : "Recurring")}
+              >
+                Recurring Tasks
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "High"}
@@ -908,6 +1082,7 @@ export default function TaskManagement() {
                       </Select>
                     </div>
                   </div>
+
                   <div>
                     <label htmlFor="description" className="block text-sm font-medium mb-1">
                       Description
@@ -920,8 +1095,9 @@ export default function TaskManagement() {
                       required
                     />
                   </div>
+
                   {/* Recurring Task Toggle */}
-                  <div className="flex items-center space-x-2 mb-4">
+                  <div className="flex items-center space-x-2">
                     <Switch id="recurring-task" checked={isRecurringTask} onCheckedChange={handleRecurringToggle} />
                     <Label htmlFor="recurring-task">Make this a recurring task</Label>
 
@@ -930,7 +1106,7 @@ export default function TaskManagement() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowRecurringModal(true)}
+                        onClick={() => openRecurringModal()}
                         className="ml-auto"
                       >
                         <Calendar className="mr-2 h-4 w-4" />
@@ -938,6 +1114,7 @@ export default function TaskManagement() {
                       </Button>
                     )}
                   </div>
+
                   <div className="flex justify-between">
                     <Button
                       type="button"
@@ -1082,7 +1259,15 @@ export default function TaskManagement() {
                       <>
                         <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Task Name: </span>
-                          {task.name}
+                          <div className="flex items-center">
+                            {task.name}
+                            {task.isRecurring && (
+                              <Badge className="ml-2 bg-blue-600">
+                                <Repeat className="h-3 w-3 mr-1" />
+                                Recurring
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Assigned By: </span>
@@ -1162,11 +1347,15 @@ export default function TaskManagement() {
                             <Switch
                               id={`recurring-task-${task.id}`}
                               checked={task.isRecurring || false}
-                              onCheckedChange={(checked) => handleEditRecurringToggle(checked, task.id)}
+                              onCheckedChange={(checked: boolean) => {
+                                setTasks((prev) =>
+                                  prev.map((t) => (t.id === task.id ? { ...t, isRecurring: checked } : t)),
+                                )
+                              }}
                             />
                             <Label htmlFor={`recurring-task-${task.id}`}>Recurring task</Label>
 
-                            {task.isRecurring && (
+                            {(task.isRecurring || false) && (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -1184,13 +1373,18 @@ export default function TaskManagement() {
                         <>
                           <p className="my-2">{task.description}</p>
 
-                          {/* Show recurring badge if task is recurring */}
-                          {task.isRecurring && (
-                            <div className="mt-2 mb-4">
-                              <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
-                                <RefreshCw className="h-3 w-3 mr-1" />
-                                Recurring Task ({task.recurrencePattern})
-                              </Badge>
+                          {/* Show upcoming deadlines for recurring tasks */}
+                          {task.isRecurring && task.nextDeadlines && task.nextDeadlines.length > 0 && (
+                            <div className="mt-4 mb-2">
+                              <h4 className="font-medium text-sm mb-2">Upcoming Deadlines:</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {task.nextDeadlines.map((deadline, index) => (
+                                  <Badge key={index} variant="outline" className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(deadline).toLocaleDateString()}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </>
@@ -1276,6 +1470,19 @@ export default function TaskManagement() {
                                 <RefreshCw className="h-4 w-4" />
                                 Reopen
                               </Button>
+
+                              {/* Add "Choose Another Deadline" button for recurring tasks */}
+                              {task.isRecurring && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleAddAnotherDeadline(task.id)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Calendar className="h-4 w-4" />
+                                  Choose Another Deadline
+                                </Button>
+                              )}
                             </>
                           )}
                         </div>
@@ -1291,13 +1498,11 @@ export default function TaskManagement() {
               )}
         </div>
       </div>
+
       {/* Recurring Task Modal */}
       <RecurringTaskModal
         isOpen={showRecurringModal}
-        onClose={() => {
-          setShowRecurringModal(false)
-          setEditingRecurringTaskId(null)
-        }}
+        onClose={() => setShowRecurringModal(false)}
         onSave={handleSaveRecurringSettings}
         initialSettings={recurringSettings}
       />
