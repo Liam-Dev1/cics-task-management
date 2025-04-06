@@ -180,15 +180,9 @@ export default function AdminDashboard() {
     const totalUsers = users.length
 
     // Calculate percentages
-    const completedPercentage =
-      totalTasks > 0
-        ? Math.round((completedOnTimeTasks / (completedOnTimeTasks + completedOverdueTasks)) * 100) || 0
-        : 0
+    const completedPercentage = completedTasks > 0 ? Math.round((completedOnTimeTasks / completedTasks) * 100) || 0 : 0
 
-    const overduePercentage =
-      totalTasks > 0
-        ? Math.round((completedOverdueTasks / (completedOnTimeTasks + completedOverdueTasks)) * 100) || 0
-        : 0
+    const overduePercentage = completedTasks > 0 ? Math.round((completedOverdueTasks / completedTasks) * 100) || 0 : 0
 
     setStats({
       totalTasks,
@@ -207,7 +201,7 @@ export default function AdminDashboard() {
     generateNotificationsFromTasks(tasks)
   }
 
-  // Generate notifications from tasks
+  // Generate notifications from notifications from tasks
   const generateNotificationsFromTasks = (tasks: Task[]) => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)

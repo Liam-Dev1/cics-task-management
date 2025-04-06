@@ -120,6 +120,7 @@ export default function TaskManagement() {
 
   const searchParams = useSearchParams()
   const taskIdFromUrl = searchParams.get("taskId")
+  const expandFromUrl = searchParams.get("expand")
 
   // Show notification
   const showNotification = (message: string, type: "success" | "error") => {
@@ -199,7 +200,12 @@ export default function TaskManagement() {
         // Initialize expanded state for all tasks
         const initialExpandedState: Record<string, boolean> = {}
         fetchedTasks.forEach((task) => {
-          initialExpandedState[task.id] = false
+          // If there's a taskId in the URL and expand=true, expand that task
+          if (taskIdFromUrl && expandFromUrl === "true" && task.id === taskIdFromUrl) {
+            initialExpandedState[task.id] = true
+          } else {
+            initialExpandedState[task.id] = false
+          }
         })
         setExpandedTasks(initialExpandedState)
       } catch (error) {
@@ -211,7 +217,7 @@ export default function TaskManagement() {
     }
 
     fetchTasks()
-  }, [])
+  }, [taskIdFromUrl, expandFromUrl])
 
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
@@ -232,18 +238,33 @@ export default function TaskManagement() {
             setTimeout(() => {
               taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
             }, 2000)
+
+            // If expand parameter is true, expand the task
+            if (expandFromUrl === "true") {
+              setExpandedTasks((prev) => ({
+                ...prev,
+                [taskIdFromUrl]: true,
+              }))
+            }
           }
         }, 300)
       }
     }
-  }, [taskIdFromUrl, tasks])
+  }, [taskIdFromUrl, expandFromUrl, tasks])
 
   // Filter tasks based on search query and active filter
   const matchesFilter = (task: Task) =>
     !activeFilter ||
     (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
       task.status === activeFilter) ||
-    (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter)
+    (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter) ||
+    (activeFilter === "Completed" && (task.status === "Completed On Time" || task.status === "Completed Overdue")) ||
+    (activeFilter === "Overdue" &&
+      ((new Date(task.deadline) < new Date() &&
+        task.status !== "Completed On Time" &&
+        task.status !== "Completed Overdue") ||
+        task.status === "Completed Overdue"))
+
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesSearch && matchesFilter(task)
@@ -475,6 +496,45 @@ export default function TaskManagement() {
         recurrenceEndDate: isRecurringTask ? recurringSettings.recurrenceEndDate : undefined,
         nextDeadlines: isRecurringTask ? recurringSettings.nextDeadlines : undefined,
         childTaskIds: isRecurringTask ? [] : undefined,
+      }
+
+      const docRef = await addDoc(collection(db, "tasks"), newTaskData)
+
+      // If there's a file, upload it to Firebase Storage
+      if (file) {
+        const fileUrl = await uploadFileToStorage(file, docRef.id)
+
+        // Update the task document with the file information
+        await updateDoc(doc(db, "tasks", docRef.id), {
+          files: [
+            {
+              name: file.name,
+              url: fileUrl,
+            },
+          ],
+        })
+
+        // Update local state
+        const newTask: Task = {
+          id: docRef.id,
+          ...newTaskData,
+          files: [
+            {
+              name: file.name,
+              url: fileUrl,
+            },
+          ],
+        }
+
+        setTasks((prev) => [newTask, ...prev])
+      } else {
+        // Update local state without files
+        const newTask: Task = {
+          id: docRef.id,
+          ...newTaskData,
+        }
+
+        setTasks((prev) => [newTask, ...prev])
       }
 
       // Reset form
@@ -746,6 +806,18 @@ export default function TaskManagement() {
                 onCheckedChange={() => setActiveFilter(activeFilter === "Low" ? null : "Low")}
               >
                 Low Priority
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Completed"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Completed" ? null : "Completed")}
+              >
+                All Completed Tasks
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Overdue"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Overdue" ? null : "Overdue")}
+              >
+                All Overdue Tasks
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
