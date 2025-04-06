@@ -90,7 +90,6 @@ export default function TaskManagement() {
   type SortValue = string | null
   const [activeSort, setActiveSort] = useState<SortValue>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
-  const [selectedReceiver, setSelectedReceiver] = useState<string | null>(null)
 
   // Recurring task state
   const [showRecurringModal, setShowRecurringModal] = useState(false)
@@ -179,15 +178,31 @@ export default function TaskManagement() {
     fetchUsers()
   }, [])
 
+  // Determine the current user
+  const currentUser = users.find((u) => u.email === user?.email);
+
   // Fetch tasks from Firestore
   useEffect(() => {
     const fetchTasks = async () => {
       try {
         setLoading(true)
         const tasksCollection = collection(db, "tasks")
-        const tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
+  
+        let tasksQuery
+        if (currentUser?.role === "admin") {
+          // Filter tasks for "Admin" role
+          tasksQuery = query(
+            tasksCollection,
+            where("assignedBy", "==", userName),
+            where("assignedToEmail", "==", user?.email || "")
+          )
+        } else {
+          // Unrestricted view for "Super Admin" role
+          tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
+        }
+  
         const querySnapshot = await getDocs(tasksQuery)
-
+  
         const fetchedTasks: Task[] = []
         querySnapshot.forEach((doc) => {
           fetchedTasks.push({
@@ -195,9 +210,9 @@ export default function TaskManagement() {
             ...(doc.data() as Omit<Task, "id">),
           })
         })
-
+  
         setTasks(fetchedTasks)
-
+  
         // Initialize expanded state for all tasks
         const initialExpandedState: Record<string, boolean> = {}
         fetchedTasks.forEach((task) => {
@@ -216,57 +231,60 @@ export default function TaskManagement() {
         setLoading(false)
       }
     }
-
+  
     fetchTasks()
-  }, [taskIdFromUrl, expandFromUrl])
+  }, [taskIdFromUrl, expandFromUrl, userName, user?.email, currentUser?.role])
 
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
     if (taskIdFromUrl && tasks.length > 0) {
-      const taskExists = tasks.some((task) => task.id === taskIdFromUrl);
-  
+      // Make sure the task exists
+      const taskExists = tasks.some((task) => task.id === taskIdFromUrl)
+
       if (taskExists) {
+        // Scroll to the task with a slight delay to ensure rendering is complete
         setTimeout(() => {
-          const taskElement = document.getElementById(`task-${taskIdFromUrl}`);
+          const taskElement = document.getElementById(`task-${taskIdFromUrl}`)
           if (taskElement) {
-            taskElement.scrollIntoView({ behavior: "smooth", block: "center" });
-  
-            // Add the glow effect
-            taskElement.classList.add("glow");
+            // Scroll to the task
+            taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
+
+            // Highlight the task briefly to make it more noticeable
+            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
             setTimeout(() => {
-              taskElement.classList.remove("glow");
-            }, 2000); // Remove the glow after 2 seconds
-  
-            // Expand the task
-            setExpandedTasks((prev) => ({
-              ...prev,
-              [taskIdFromUrl]: true,
-            }));
+              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            }, 2000)
+
+            // If expand parameter is true, expand the task
+            if (expandFromUrl === "true") {
+              setExpandedTasks((prev) => ({
+                ...prev,
+                [taskIdFromUrl]: true,
+              }))
+            }
           }
-        }, 300);
+        }, 300)
       }
     }
   }, [taskIdFromUrl, expandFromUrl, tasks])
 
   // Filter tasks based on search query and active filter
+  const matchesFilter = (task: Task) =>
+    !activeFilter ||
+    (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
+      task.status === activeFilter) ||
+    (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter) ||
+    (activeFilter === "Completed" && (task.status === "Completed On Time" || task.status === "Completed Overdue")) ||
+    (activeFilter === "Overdue" &&
+      ((new Date(task.deadline) < new Date() &&
+        task.status !== "Completed On Time" &&
+        task.status !== "Completed Overdue") ||
+        task.status === "Completed Overdue"))
+
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter =
-      !activeFilter ||
-      (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
-        task.status === activeFilter) ||
-      (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter) ||
-      (activeFilter === "Completed" && (task.status === "Completed On Time" || task.status === "Completed Overdue")) ||
-      (activeFilter === "Overdue" &&
-        ((new Date(task.deadline) < new Date() &&
-          task.status !== "Completed On Time" &&
-          task.status !== "Completed Overdue") ||
-          task.status === "Completed Overdue"));
-
-    const matchesReceiver = !selectedReceiver || task.assignedTo === selectedReceiver;
-
-    return matchesSearch && matchesFilter && matchesReceiver;
-  });
+    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesSearch && matchesFilter(task)
+  })
 
   // Sort tasks based on active sort option
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -729,7 +747,7 @@ export default function TaskManagement() {
             />
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           </div>
-          <Select onValueChange={(value) => setSelectedReceiver(value === "all" ? null : value)}>
+          <Select>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Receiver" />
             </SelectTrigger>
@@ -840,6 +858,7 @@ export default function TaskManagement() {
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button>Generate Reports</Button>
         </div>
 
         {/* Tasks List */}
