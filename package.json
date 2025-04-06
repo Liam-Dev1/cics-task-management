@@ -40,8 +40,7 @@
     "rechart": "^0.0.1",
     "recharts": "^2.15.1",
     "shadcn": "^2.4.0-canary.12",
-    "tailwind": "^4.0.0",
-    "tailwind-merge": "^3.0.1",
+    "tailwind-merge": "^3.1.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {

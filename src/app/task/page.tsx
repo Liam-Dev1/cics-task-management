@@ -8,8 +8,6 @@ import { collection, query, where, getDocs } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
 import { Sidebar as AdminSidebar } from "@/components/sidebar-admin"
 import { Sidebar as UserSidebar } from "@/components/sidebar-user"
-
-// Import the wrapper components from the same directory
 import AdminTaskViewWrapper from "./admintaskview"
 import UserTaskViewWrapper from "./usertaskview"
 
@@ -22,6 +20,16 @@ export default function TaskPage() {
   const searchParams = useSearchParams()
   const taskId = searchParams.get("taskId")
   const filterParam = searchParams.get("filter")
+  
+  // Get the admin view mode from session storage
+  const [adminViewMode, setAdminViewMode] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedMode = sessionStorage.getItem('adminViewMode');
+      setAdminViewMode(storedMode);
+    }
+  }, []);
 
   // Fetch the user's role from Firestore
   useEffect(() => {
@@ -50,70 +58,47 @@ export default function TaskPage() {
     fetchUserRole()
   }, [user, loading])
 
+  // Check if sidebar should be minimized based on orientation
   useEffect(() => {
-    // Set up the onAuthStateChanged observer
+    const checkOrientation = () => {
+      if (typeof window !== "undefined") {
+        const isPortrait = window.matchMedia("(orientation: portrait)").matches
+        setIsSidebarMinimized(isPortrait)
+      }
+    }
+
+    // Initial check
+    checkOrientation()
+
+    // Set up listener for orientation changes
+    const mediaQuery = window.matchMedia("(orientation: portrait)")
+    const handleOrientationChange = () => checkOrientation()
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleOrientationChange)
+    } else {
+      window.addEventListener("resize", handleOrientationChange)
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", handleOrientationChange)
+      } else {
+        window.removeEventListener("resize", handleOrientationChange)
+      }
+    }
+  }, [])
+
+  // Authentication check
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.push("/login")
       }
     })
 
-    // Clean up the observer when the component unmounts
     return () => unsubscribe()
   }, [router])
-
-  // Handle task ID scrolling
-  useEffect(() => {
-    if (taskId) {
-      // Find and scroll to the task element
-      setTimeout(() => {
-        const taskElement = document.getElementById(`task-${taskId}`)
-        if (taskElement) {
-          taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
-          taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
-          setTimeout(() => {
-            taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
-          }, 2000)
-        }
-      }, 500) // Give it time to render
-    }
-  }, [taskId, userRole])
-
-  // Add a useEffect to handle URL search parameters for task search
-  useEffect(() => {
-    // Check if there's a search parameter in the URL
-    const searchParam = searchParams.get("search")
-    if (searchParam && userRole) {
-      // Find the task element by search term
-      const taskElements = document.querySelectorAll('[id^="task-"]')
-
-      for (const element of taskElements) {
-        const taskText = element.textContent?.toLowerCase() || ""
-        if (taskText.includes(searchParam.toLowerCase())) {
-          // Scroll to the first matching task
-          element.scrollIntoView({ behavior: "smooth", block: "center" })
-
-          // Highlight the task briefly
-          element.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
-          setTimeout(() => {
-            element.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
-          }, 2000)
-
-          break
-        }
-      }
-    }
-  }, [searchParams, userRole])
-
-  // Add a useEffect to handle URL filter parameters
-  useEffect(() => {
-    // Check if there's a filter parameter in the URL
-    const filterParam = searchParams.get("filter")
-    if (filterParam) {
-      // Store the filter in localStorage so task views can access it
-      localStorage.setItem("activeTaskFilter", filterParam)
-    }
-  }, [searchParams])
 
   // Handle sidebar minimize/maximize
   const handleSidebarMinimize = (minimized: boolean) => {
@@ -129,8 +114,13 @@ export default function TaskPage() {
     )
   }
 
-  // Determine which sidebar to show based on user role
-  const SidebarComponent = userRole === "admin" || userRole === "super admin" ? AdminSidebar : UserSidebar
+  // Determine which view to show based on user role and admin mode
+  const isAdmin = (userRole === "admin" || userRole === "super admin");
+  const isAdminInUserMode = isAdmin && adminViewMode === 'user';
+  const shouldShowAdminView = isAdmin && adminViewMode !== 'user';
+  
+  // Determine which sidebar to show
+  const SidebarComponent = shouldShowAdminView ? AdminSidebar : UserSidebar
 
   return (
     <div className="flex min-h-screen">
@@ -138,14 +128,18 @@ export default function TaskPage() {
       <SidebarComponent onMinimize={handleSidebarMinimize} />
 
       {/* Main content area with dynamic margin based on sidebar state */}
-      <div className="flex-1 transition-all duration-300">
+      <div
+        className="flex-1 transition-all duration-300"
+      >
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
             <div className="text-xl ml-3">Loading tasks...</div>
           </div>
         ) : (
-          <>{userRole === "admin" || userRole === "super admin" ? <AdminTaskViewWrapper /> : <UserTaskViewWrapper />}</>
+          <>
+            {shouldShowAdminView ? <AdminTaskViewWrapper /> : <UserTaskViewWrapper />}
+          </>
         )}
       </div>
     </div>
