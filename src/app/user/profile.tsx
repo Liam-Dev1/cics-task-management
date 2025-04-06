@@ -5,8 +5,6 @@ import type React from "react"
 import { Sidebar } from "@/components/sidebar-user"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { storage } from "@/lib/firebase/firebase.config"
 
 interface ProfileProps {
   users: any[]
@@ -24,33 +22,10 @@ export default function Profile({
   profilePhoto: initialProfilePhoto,
 }: ProfileProps) {
   const [isAdmin, setIsAdmin] = useState(userRole === "Admin" || userRole === "Super Admin")
-  const [isUploading, setIsUploading] = useState(false)
-  const [profilePhoto, setProfilePhoto] = useState(initialProfilePhoto)
+  const [profilePhoto] = useState(initialProfilePhoto)
 
   const handleRoleSwitch = () => {
     setIsAdmin(!isAdmin)
-  }
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    setIsUploading(true)
-
-    try {
-      const fileRef = ref(storage, `profile-photos/${file.name}`)
-      await uploadBytes(fileRef, file)
-
-      const downloadURL = await getDownloadURL(fileRef)
-      setProfilePhoto(downloadURL) // Update profile photo URL
-
-      alert("Profile photo updated successfully!")
-    } catch (error) {
-      console.error("Error uploading file:", error)
-      alert("Failed to upload profile photo. Please try again.")
-    } finally {
-      setIsUploading(false)
-    }
   }
 
   return (
@@ -79,21 +54,6 @@ export default function Profile({
           </div>
 
           <div className="p-6 flex flex-col sm:flex-row gap-4">
-            {/* File Input */}
-            <input
-              type="file"
-              id="profile-photo-upload"
-              accept="image/*"
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-            />
-
-            <label htmlFor="profile-photo-upload" className="cursor-pointer">
-              <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white" disabled={isUploading}>
-                {isUploading ? "Uploading..." : "Edit Profile Picture"}
-              </Button>
-            </label>
-
             <Button className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white" onClick={handleRoleSwitch}>
               {isAdmin ? "Switch to Task Receiver Menu" : "Switch to Admin Menu"}
             </Button>

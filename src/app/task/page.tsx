@@ -8,11 +8,8 @@ import { collection, query, where, getDocs } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
 import { Sidebar as AdminSidebar } from "@/components/sidebar-admin"
 import { Sidebar as UserSidebar } from "@/components/sidebar-user"
-
-// Import the wrapper components
 import AdminTaskViewWrapper from "./admintaskview"
 import UserTaskViewWrapper from "./usertaskview"
-
 
 export default function TaskPage() {
   const [user, loading] = useAuthState(auth)
@@ -23,6 +20,16 @@ export default function TaskPage() {
   const searchParams = useSearchParams()
   const taskId = searchParams.get("taskId")
   const filterParam = searchParams.get("filter")
+  
+  // Get the admin view mode from session storage
+  const [adminViewMode, setAdminViewMode] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedMode = sessionStorage.getItem('adminViewMode');
+      setAdminViewMode(storedMode);
+    }
+  }, []);
 
   // Fetch the user's role from Firestore
   useEffect(() => {
@@ -51,7 +58,38 @@ export default function TaskPage() {
     fetchUserRole()
   }, [user, loading])
 
-  // Redirect to login if not authenticated
+  // Check if sidebar should be minimized based on orientation
+  useEffect(() => {
+    const checkOrientation = () => {
+      if (typeof window !== "undefined") {
+        const isPortrait = window.matchMedia("(orientation: portrait)").matches
+        setIsSidebarMinimized(isPortrait)
+      }
+    }
+
+    // Initial check
+    checkOrientation()
+
+    // Set up listener for orientation changes
+    const mediaQuery = window.matchMedia("(orientation: portrait)")
+    const handleOrientationChange = () => checkOrientation()
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleOrientationChange)
+    } else {
+      window.addEventListener("resize", handleOrientationChange)
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", handleOrientationChange)
+      } else {
+        window.removeEventListener("resize", handleOrientationChange)
+      }
+    }
+  }, [])
+
+  // Authentication check
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
@@ -61,79 +99,6 @@ export default function TaskPage() {
 
     return () => unsubscribe()
   }, [router])
-
-  // Handle task ID scrolling
-  useEffect(() => {
-    if (taskId) {
-      // Find and scroll to the task element
-      setTimeout(() => {
-        const taskElement = document.getElementById(`task-${taskId}`)
-        if (taskElement) {
-          // Scroll to the task
-          taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
-
-          // Add highlight class
-          taskElement.classList.add("highlight-task")
-
-          // Remove highlight class after 2 seconds
-          setTimeout(() => {
-            taskElement.classList.remove("highlight-task")
-          }, 2000)
-        }
-      }, 500) // Give it time to render
-    }
-  }, [taskId, userRole])
-
-  // Handle URL search parameters for task search
-  useEffect(() => {
-    const searchParam = searchParams.get("search")
-    if (searchParam && userRole) {
-      // Find the task element by search term
-      const taskElements = document.querySelectorAll('[id^="task-"]')
-
-      for (const element of taskElements) {
-        const taskText = element.textContent?.toLowerCase() || ""
-        if (taskText.includes(searchParam.toLowerCase())) {
-          // Scroll to the first matching task
-          element.scrollIntoView({ behavior: "smooth", block: "center" })
-
-          // Highlight the task briefly
-          element.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
-          setTimeout(() => {
-            element.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
-          }, 2000)
-
-          break
-        }
-      }
-    }
-  }, [searchParams, userRole])
-
-  // Handle URL filter parameters
-  useEffect(() => {
-    const filterParam = searchParams.get("filter")
-    if (filterParam) {
-      // Store the filter in localStorage so task views can access it
-      localStorage.setItem("activeTaskFilter", filterParam)
-    }
-  }, [searchParams])
-
-  // Add the following useEffect to save expandedTasks to localStorage whenever it changes
-  // This should be added near the other useEffect hooks in the TaskPage component
-
-  useEffect(() => {
-    // Load expanded tasks state from localStorage on initial render
-    const savedExpandedTasks = localStorage.getItem("expandedTasks")
-    if (savedExpandedTasks) {
-      try {
-        const parsedExpandedTasks = JSON.parse(savedExpandedTasks)
-        // We'll pass this to the task view components
-        localStorage.setItem("expandedTasksInitial", savedExpandedTasks)
-      } catch (error) {
-        console.error("Error parsing saved expanded tasks:", error)
-      }
-    }
-  }, [])
 
   // Handle sidebar minimize/maximize
   const handleSidebarMinimize = (minimized: boolean) => {
@@ -149,8 +114,13 @@ export default function TaskPage() {
     )
   }
 
-  // Determine which sidebar to show based on user role
-  const SidebarComponent = userRole === "admin" || userRole === "super admin" ? AdminSidebar : UserSidebar
+  // Determine which view to show based on user role and admin mode
+  const isAdmin = (userRole === "admin" || userRole === "super admin");
+  const isAdminInUserMode = isAdmin && adminViewMode === 'user';
+  const shouldShowAdminView = isAdmin && adminViewMode !== 'user';
+  
+  // Determine which sidebar to show
+  const SidebarComponent = shouldShowAdminView ? AdminSidebar : UserSidebar
 
   return (
     <div className="flex min-h-screen">
@@ -170,7 +140,9 @@ export default function TaskPage() {
             <div className="text-xl ml-3">Loading tasks...</div>
           </div>
         ) : (
-          <>{userRole === "admin" || userRole === "super admin" ? <AdminTaskViewWrapper /> : <UserTaskViewWrapper />}</>
+          <>
+            {shouldShowAdminView ? <AdminTaskViewWrapper /> : <UserTaskViewWrapper />}
+          </>
         )}
       </div>
     </div>

@@ -26,6 +26,7 @@ export default function UserPage() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [isRoleLoading, setIsRoleLoading] = useState(true)
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
+  const [isAdminMode, setIsAdminMode] = useState(true)
   const [userData, setUserData] = useState({
     users: [] as UserData[],
     userName: "",
@@ -34,6 +35,23 @@ export default function UserPage() {
     profilePhoto: "",
   })
   const router = useRouter()
+
+  // Check if admin is using receiver mode from session storage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedMode = sessionStorage.getItem("adminViewMode");
+      if (storedMode) {
+        setIsAdminMode(storedMode === "admin");
+      }
+    }
+  }, []);
+
+  // Update session storage when admin mode changes
+  useEffect(() => {
+    if (userRole === "admin" || userRole === "super admin") {
+      sessionStorage.setItem("adminViewMode", isAdminMode ? "admin" : "user");
+    }
+  }, [isAdminMode, userRole]);
 
   // Check if sidebar should be minimized based on orientation
   useEffect(() => {
@@ -90,7 +108,7 @@ export default function UserPage() {
 
             setUserData({
               users: allUsers,
-              userName: user.displayName || "",
+              userName: user.displayName || data.name || "",
               userEmail: user.email || "",
               userRole: data.role || "",
               profilePhoto: data.profilePhoto || "",
@@ -121,6 +139,11 @@ export default function UserPage() {
     return () => unsubscribe()
   }, [router])
 
+  // Toggle admin mode
+  const toggleAdminMode = () => {
+    setIsAdminMode(prev => !prev);
+  };
+
   // If not logged in, redirect to login
   if (!loading && !user) {
     return (
@@ -130,8 +153,12 @@ export default function UserPage() {
     )
   }
 
-  // Determine which sidebar to show based on user role
-  const SidebarComponent = userRole === "admin" || userRole === "super admin" ? AdminSidebar : UserSidebar
+  // Determine which component to show based on user role and admin mode
+  const isAdmin = (userRole === "admin" || userRole === "super admin");
+  const shouldShowAdminView = isAdmin && isAdminMode;
+  
+  // Determine which sidebar to show based on current view mode
+  const SidebarComponent = shouldShowAdminView ? AdminSidebar : UserSidebar;
 
   return (
     <div className="flex min-h-screen">
@@ -147,13 +174,15 @@ export default function UserPage() {
           </div>
         ) : (
           <>
-            {userRole === "admin" || userRole === "super admin" ? (
+            {isAdmin ? (
               <ProfileAdmin
                 users={userData.users}
                 userName={userData.userName}
                 userEmail={userData.userEmail}
                 userRole={userData.userRole}
                 profilePhoto={userData.profilePhoto}
+                isAdminMode={isAdminMode}
+                setIsAdminMode={toggleAdminMode}
               />
             ) : (
               <ProfileUser

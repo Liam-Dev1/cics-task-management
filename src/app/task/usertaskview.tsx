@@ -17,15 +17,16 @@ import { Badge } from "@/components/ui/badge"
 import { auth, db, storage } from "@/lib/firebase/firebase.config"
 import { collection, query, where, getDocs, updateDoc, doc, orderBy } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { useSearchParams } from "next/navigation"
 
 // Task interface definition
 interface Task {
   id: string
   name: string
   assignedBy: string
-  assignedTo: string
-  assignedToEmail: string
-  assignedToId: string
+  assignedTo: string // User's name for display
+  assignedToEmail: string // User's email
+  assignedToId: string // User's ID
   assignedOn: string
   deadline: string
   status: string
@@ -42,22 +43,32 @@ export default function UserTaskViewWrapper() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const searchParams = useSearchParams()
 
   type SortValue = string | null
   const [activeSort, setActiveSort] = useState<SortValue>(null)
-  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState<string | null>(searchParams.get("filter"))
 
-  // Check for filter from localStorage (set by the dashboard)
+  // Check for filter from URL or localStorage
   useEffect(() => {
-    const savedFilter = localStorage.getItem("activeTaskFilter")
-    if (savedFilter) {
-      setActiveFilter(savedFilter)
-      // Clear the filter from localStorage after using it
-      localStorage.removeItem("activeTaskFilter")
+    const urlFilter = searchParams.get("filter")
+    if (urlFilter) {
+      setActiveFilter(urlFilter)
+    } else {
+      const savedFilter = localStorage.getItem("activeTaskFilter")
+      if (savedFilter) {
+        setActiveFilter(savedFilter)
+        // Clear the filter from localStorage after using it
+        localStorage.removeItem("activeTaskFilter")
+      }
     }
-  }, [])
+  }, [searchParams])
 
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
+  
+  // Check for expandable task from URL
+  const taskIdFromUrl = searchParams.get("taskId")
+  const expandFromUrl = searchParams.get("expand") === "true"
 
   // Load expandedTasks from localStorage on component mount
   useEffect(() => {
@@ -69,7 +80,15 @@ export default function UserTaskViewWrapper() {
         console.error("Error parsing saved expanded tasks:", error)
       }
     }
-  }, [])
+    
+    // If there's a taskId in the URL and expand=true, make sure that task is expanded
+    if (taskIdFromUrl && expandFromUrl) {
+      setExpandedTasks(prev => ({
+        ...prev,
+        [taskIdFromUrl]: true
+      }))
+    }
+  }, [taskIdFromUrl, expandFromUrl])
 
   // Save expandedTasks to localStorage whenever it changes
   useEffect(() => {
@@ -107,7 +126,11 @@ export default function UserTaskViewWrapper() {
 
         // Query tasks assigned to this user by ID
         const tasksCollection = collection(db, "tasks")
-        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"))
+        const tasksQuery = query(
+          tasksCollection, 
+          where("assignedToId", "==", userId), 
+          orderBy("assignedOn", "desc")
+        )
 
         const querySnapshot = await getDocs(tasksQuery)
 
@@ -296,6 +319,31 @@ export default function UserTaskViewWrapper() {
       showNotification("Failed to submit task. Please try again.", "error")
     }
   }
+
+  // Scroll to specific task if ID is provided in URL
+  useEffect(() => {
+    if (taskIdFromUrl && tasks.length > 0) {
+      // Make sure the task exists
+      const taskExists = tasks.some((task) => task.id === taskIdFromUrl)
+
+      if (taskExists) {
+        // Scroll to the task with a slight delay to ensure rendering is complete
+        setTimeout(() => {
+          const taskElement = document.getElementById(`task-${taskIdFromUrl}`)
+          if (taskElement) {
+            // Scroll to the task
+            taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
+
+            // Highlight the task briefly to make it more noticeable
+            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            setTimeout(() => {
+              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            }, 2000)
+          }
+        }, 300)
+      }
+    }
+  }, [taskIdFromUrl, tasks])
 
   return (
     <div className="flex-1 bg-white">
