@@ -248,6 +248,14 @@ export default function TaskManagement() {
     }
   }, [taskIdFromUrl, expandFromUrl, tasks])
 
+  // Update the useEffect that reads URL parameters to also check for the filter parameter
+  useEffect(() => {
+    const filterFromUrl = searchParams.get("filter")
+    if (filterFromUrl) {
+      setActiveFilter(filterFromUrl)
+    }
+  }, [searchParams])
+
   // Filter tasks based on search query and active filter
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase());
