@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect, useRef } from "react"
-import { ChevronDown, ChevronUp, Paperclip, Search, Send } from "lucide-react"
+import { useState, useRef, useEffect } from "react"
+import { ChevronDown, Search, Paperclip, Send } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -18,16 +17,16 @@ import { Badge } from "@/components/ui/badge"
 import { auth, db, storage } from "@/lib/firebase/firebase.config"
 import { collection, query, where, getDocs, updateDoc, doc, orderBy } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { Sidebar } from "@/components/sidebar-admin"
+import { useSearchParams } from "next/navigation"
 
 // Task interface definition
 interface Task {
   id: string
   name: string
   assignedBy: string
-  assignedTo: string
-  assignedToEmail: string
-  assignedToId: string // Added field for user's ID
+  assignedTo: string // User's name for display
+  assignedToEmail: string // User's email
+  assignedToId: string // User's ID
   assignedOn: string
   deadline: string
   status: string
@@ -37,18 +36,67 @@ interface Task {
   files?: Array<{ name: string; url: string }>
 }
 
-export default function TasksPage() {
+export default function UserTaskViewWrapper() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [uploadingFile, setUploadingFile] = useState(false)
   const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const searchParams = useSearchParams()
 
   type SortValue = string | null
   const [activeSort, setActiveSort] = useState<SortValue>(null)
-  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState<string | null>(searchParams.get("filter"))
+
+  // Check for filter from URL or localStorage
+  useEffect(() => {
+    const urlFilter = searchParams.get("filter")
+    if (urlFilter) {
+      setActiveFilter(urlFilter)
+    } else {
+      const savedFilter = localStorage.getItem("activeTaskFilter")
+      if (savedFilter) {
+        setActiveFilter(savedFilter)
+        // Clear the filter from localStorage after using it
+        localStorage.removeItem("activeTaskFilter")
+      }
+    }
+  }, [searchParams])
+
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
+  
+  // Check for expandable task from URL
+  const taskIdFromUrl = searchParams.get("taskId")
+  const expandFromUrl = searchParams.get("expand") === "true"
+
+  // Load expandedTasks from localStorage on component mount
+  useEffect(() => {
+    const savedExpandedTasks = localStorage.getItem("expandedTasksInitial") || localStorage.getItem("expandedTasks")
+    if (savedExpandedTasks) {
+      try {
+        setExpandedTasks(JSON.parse(savedExpandedTasks))
+      } catch (error) {
+        console.error("Error parsing saved expanded tasks:", error)
+      }
+    }
+    
+    // If there's a taskId in the URL and expand=true, make sure that task is expanded
+    if (taskIdFromUrl && expandFromUrl) {
+      setExpandedTasks(prev => ({
+        ...prev,
+        [taskIdFromUrl]: true
+      }))
+    }
+  }, [taskIdFromUrl, expandFromUrl])
+
+  // Save expandedTasks to localStorage whenever it changes
+  useEffect(() => {
+    if (Object.keys(expandedTasks).length > 0) {
+      localStorage.setItem("expandedTasks", JSON.stringify(expandedTasks))
+    }
+  }, [expandedTasks])
+
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | null }>({
     message: "",
     type: null,
@@ -78,7 +126,11 @@ export default function TasksPage() {
 
         // Query tasks assigned to this user by ID
         const tasksCollection = collection(db, "tasks")
-        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"))
+        const tasksQuery = query(
+          tasksCollection, 
+          where("assignedToId", "==", userId), 
+          orderBy("assignedOn", "desc")
+        )
 
         const querySnapshot = await getDocs(tasksQuery)
 
@@ -92,12 +144,16 @@ export default function TasksPage() {
 
         setTasks(fetchedTasks)
 
-        // Initialize expanded state for all tasks
-        const initialExpandedState: Record<string, boolean> = {}
-        fetchedTasks.forEach((task) => {
-          initialExpandedState[task.id] = true
+        // Preserve expanded states for existing tasks and initialize new ones to false
+        setExpandedTasks((prevExpandedState) => {
+          const updatedExpandedState = { ...prevExpandedState }
+          fetchedTasks.forEach((task) => {
+            if (updatedExpandedState[task.id] === undefined) {
+              updatedExpandedState[task.id] = false
+            }
+          })
+          return updatedExpandedState
         })
-        setExpandedTasks(initialExpandedState)
       } catch (error) {
         console.error("Error fetching tasks:", error)
         showNotification("Failed to load tasks. Please try again.", "error")
@@ -114,7 +170,8 @@ export default function TasksPage() {
     const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFilter =
       !activeFilter ||
-      (["Pending", "Verifying", "Completed", "Reopened"].includes(activeFilter) && task.status === activeFilter) ||
+      (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
+        task.status === activeFilter) ||
       (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter)
     return matchesSearch && matchesFilter
   })
@@ -217,20 +274,43 @@ export default function TasksPage() {
     }
   }
 
+  // Update the handleTaskSubmit function to determine if the task is completed on time or overdue
   const handleTaskSubmit = async (taskId: string) => {
     try {
+      // Get the current task
+      const taskToUpdate = tasks.find((task) => task.id === taskId)
+      if (!taskToUpdate) return
+
       // Update the task in Firestore
       const taskRef = doc(db, "tasks", taskId)
       const completedDate = new Date().toISOString().split("T")[0]
 
+      // Determine if the task is completed on time or overdue
+      const deadlineDate = new Date(taskToUpdate.deadline)
+      const currentDate = new Date()
+
+      // For users, we'll set it to "Verifying" first, but we'll also check if it's on time
+      // This information will be useful when the admin verifies the task
+      const isOnTime = currentDate <= deadlineDate
+
       await updateDoc(taskRef, {
         status: "Verifying",
         completed: completedDate,
+        isCompletedOnTime: isOnTime, // Store this information for the admin
       })
 
       // Update local state
       setTasks(
-        tasks.map((task) => (task.id === taskId ? { ...task, status: "Verifying", completed: completedDate } : task)),
+        tasks.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                status: "Verifying",
+                completed: completedDate,
+                isCompletedOnTime: isOnTime,
+              }
+            : task,
+        ),
       )
 
       showNotification("Task submitted for verification", "success")
@@ -240,255 +320,291 @@ export default function TasksPage() {
     }
   }
 
-  return (
-    <div className="flex min-h-screen">
-      <Sidebar />
+  // Scroll to specific task if ID is provided in URL
+  useEffect(() => {
+    if (taskIdFromUrl && tasks.length > 0) {
+      // Make sure the task exists
+      const taskExists = tasks.some((task) => task.id === taskIdFromUrl)
 
-      {/* Main Content */}
-      <div className="flex-1 bg-white">
-        <div className="p-6">
-          {/* Notification */}
-          {notification.type && (
-            <div
-              className={`fixed top-4 right-4 z-50 p-4 rounded shadow-md ${
-                notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-              }`}
-            >
-              {notification.message}
+      if (taskExists) {
+        // Scroll to the task with a slight delay to ensure rendering is complete
+        setTimeout(() => {
+          const taskElement = document.getElementById(`task-${taskIdFromUrl}`)
+          if (taskElement) {
+            // Scroll to the task
+            taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
+
+            // Highlight the task briefly to make it more noticeable
+            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            setTimeout(() => {
+              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            }, 2000)
+          }
+        }, 300)
+      }
+    }
+  }, [taskIdFromUrl, tasks])
+
+  return (
+    <div className="flex-1 bg-white">
+      <div className="p-6">
+        {/* Notification */}
+        {notification.type && (
+          <div
+            className={`fixed top-4 right-4 z-50 p-4 rounded shadow-md ${
+              notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+            }`}
+          >
+            {notification.message}
+          </div>
+        )}
+
+        <h1 className="mb-6">
+          <span className="text-5xl font-bold">Tasks</span>{" "}
+          <span className="text-3xl text-red-800 font-bold">User</span>
+        </h1>
+
+        {/* Hidden file input */}
+        <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+
+        {/* Action Bar */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <div className="relative">
+            <Input
+              type="search"
+              placeholder="Search Tasks"
+              className="pl-8 w-64"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" className={activeFilter ? "bg-red-100" : ""}>
+                Filters
+                <ChevronDown className="ml-1 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuCheckboxItem checked={activeFilter === null} onCheckedChange={() => setActiveFilter(null)}>
+                All
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Pending"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Pending" ? null : "Pending")}
+              >
+                Pending
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Verifying"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Verifying" ? null : "Verifying")}
+              >
+                Verifying
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Completed On Time"}
+                onCheckedChange={() =>
+                  setActiveFilter(activeFilter === "Completed On Time" ? null : "Completed On Time")
+                }
+              >
+                Completed On Time
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Completed Overdue"}
+                onCheckedChange={() =>
+                  setActiveFilter(activeFilter === "Completed Overdue" ? null : "Completed Overdue")
+                }
+              >
+                Completed Overdue
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Reopened"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Reopened" ? null : "Reopened")}
+              >
+                Reopened
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "High"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "High" ? null : "High")}
+              >
+                High Priority
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Medium"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Medium" ? null : "Medium")}
+              >
+                Medium Priority
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Low"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Low" ? null : "Low")}
+              >
+                Low Priority
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" className={activeSort ? "bg-red-100" : ""}>
+                Sort
+                <ChevronDown className="ml-1 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              <DropdownMenuRadioGroup value={activeSort ?? ""} onValueChange={setActiveSort}>
+                <DropdownMenuRadioItem value="">Default</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="nameAsc">Task Name (A-Z)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="nameDesc">Task Name (Z-A)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="assignedAsc">Date Assigned (Oldest First)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="assignedDesc">Date Assigned (Newest First)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="deadlineAsc">Deadline (Earliest First)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="deadlineDesc">Deadline (Latest First)</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Tasks List */}
+        <div className="space-y-4">
+          <div className="grid grid-cols-7 gap-4 font-semibold mb-2 hidden md:grid">
+            <div>Task Name</div>
+            <div>Assigned by</div>
+            <div>Assigned to</div>
+            <div>Assigned on</div>
+            <div>Deadline</div>
+            <div>Status</div>
+            <div>Priority</div>
+          </div>
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-800"></div>
             </div>
           )}
 
-          <h1 className="mb-6">
-            <span className="text-5xl font-bold">Tasks</span>
-          </h1>
-
-          {/* Hidden file input */}
-          <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
-
-          {/* Action Bar */}
-          <div className="flex flex-wrap gap-2 mb-6">
-            <div className="relative">
-              <Input
-                type="search"
-                placeholder="Search Tasks"
-                className="pl-8 w-64"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" className={activeFilter ? "bg-red-100" : ""}>
-                  Filters
-                  <ChevronDown className="ml-1 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48">
-                <DropdownMenuCheckboxItem checked={activeFilter === null} onCheckedChange={() => setActiveFilter(null)}>
-                  All
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={activeFilter === "Pending"}
-                  onCheckedChange={() => setActiveFilter(activeFilter === "Pending" ? null : "Pending")}
-                >
-                  Pending
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={activeFilter === "Verifying"}
-                  onCheckedChange={() => setActiveFilter(activeFilter === "Verifying" ? null : "Verifying")}
-                >
-                  Verifying
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={activeFilter === "Completed"}
-                  onCheckedChange={() => setActiveFilter(activeFilter === "Completed" ? null : "Completed")}
-                >
-                  Completed
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={activeFilter === "Reopened"}
-                  onCheckedChange={() => setActiveFilter(activeFilter === "Reopened" ? null : "Reopened")}
-                >
-                  Reopened
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={activeFilter === "High"}
-                  onCheckedChange={() => setActiveFilter(activeFilter === "High" ? null : "High")}
-                >
-                  High Priority
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={activeFilter === "Medium"}
-                  onCheckedChange={() => setActiveFilter(activeFilter === "Medium" ? null : "Medium")}
-                >
-                  Medium Priority
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={activeFilter === "Low"}
-                  onCheckedChange={() => setActiveFilter(activeFilter === "Low" ? null : "Low")}
-                >
-                  Low Priority
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" className={activeSort ? "bg-red-100" : ""}>
-                  Sort
-                  <ChevronDown className="ml-1 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                <DropdownMenuRadioGroup value={activeSort ?? ""} onValueChange={setActiveSort}>
-                  <DropdownMenuRadioItem value="">Default</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="nameAsc">Task Name (A-Z)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="nameDesc">Task Name (Z-A)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="assignedAsc">Date Assigned (Oldest First)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="assignedDesc">Date Assigned (Newest First)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="deadlineAsc">Deadline (Earliest First)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="deadlineDesc">Deadline (Latest First)</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* Tasks List */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-7 gap-4 font-semibold mb-2 hidden md:grid">
-              <div>Task Name</div>
-              <div>Assigned by</div>
-              <div>Assigned to</div>
-              <div>Assigned on</div>
-              <div>Deadline</div>
-              <div>Status</div>
-              <div>Priority</div>
-            </div>
-
-            {/* Loading State */}
-            {loading && (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-800"></div>
-              </div>
-            )}
-
-            {/* Existing Tasks */}
-            {!loading && sortedTasks.length > 0
-              ? sortedTasks.map((task) => (
-                  <div key={task.id} className="bg-[#8B2332] text-white p-4 rounded">
-                    <div className="grid md:grid-cols-7 gap-4">
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Task Name: </span>
-                        {task.name}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Assigned by: </span>
-                        {task.assignedBy}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Assigned to: </span>
-                        {task.assignedTo}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Assigned on: </span>
-                        {task.assignedOn}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Deadline: </span>
-                        {task.deadline}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Status: </span>
-                        <Badge
-                          className={
-                            task.status === "Completed"
-                              ? "bg-green-600"
+          {/* Existing Tasks */}
+          {!loading && sortedTasks.length > 0
+            ? sortedTasks.map((task) => (
+                <div key={task.id} id={`task-${task.id}`} className="bg-[#8B2332] text-white p-4 rounded">
+                  <div className="grid md:grid-cols-7 gap-4">
+                    <div className="md:col-span-1">
+                      <span className="md:hidden font-semibold">Task Name: </span>
+                      {task.name}
+                    </div>
+                    <div className="md:col-span-1">
+                      <span className="md:hidden font-semibold">Assigned by: </span>
+                      {task.assignedBy}
+                    </div>
+                    <div className="md:col-span-1">
+                      <span className="md:hidden font-semibold">Assigned to: </span>
+                      {task.assignedTo}
+                    </div>
+                    <div className="md:col-span-1">
+                      <span className="md:hidden font-semibold">Assigned on: </span>
+                      {task.assignedOn}
+                    </div>
+                    <div className="md:col-span-1">
+                      <span className="md:hidden font-semibold">Deadline: </span>
+                      {task.deadline}
+                    </div>
+                    <div className="md:col-span-1">
+                      <span className="md:hidden font-semibold">Status: </span>
+                      <Badge
+                        className={
+                          task.status === "Completed On Time"
+                            ? "bg-green-600"
+                            : task.status === "Completed Overdue"
+                              ? "bg-orange-600"
                               : task.status === "Verifying"
                                 ? "bg-yellow-600"
                                 : task.status === "Reopened"
                                   ? "bg-purple-600"
                                   : "bg-blue-600"
+                        }
+                      >
+                        {task.status}
+                      </Badge>
+                    </div>
+                    <div className="md:col-span-1 flex justify-between items-center">
+                      <div>
+                        <span className="md:hidden font-semibold">Priority: </span>
+                        <Badge
+                          className={
+                            task.priority === "High"
+                              ? "bg-red-600"
+                              : task.priority === "Medium"
+                                ? "bg-orange-600"
+                                : "bg-green-600"
                           }
                         >
-                          {task.status}
+                          {task.priority}
                         </Badge>
                       </div>
-                      <div className="md:col-span-1 flex justify-between items-center">
-                        <div>
-                          <span className="md:hidden font-semibold">Priority: </span>
-                          <Badge
-                            className={
-                              task.priority === "High"
-                                ? "bg-red-600"
-                                : task.priority === "Medium"
-                                  ? "bg-orange-600"
-                                  : "bg-green-600"
-                            }
-                          >
-                            {task.priority}
-                          </Badge>
-                        </div>
-                        <button
-                          onClick={() => toggleTaskExpansion(task.id)}
-                          className="text-white hover:bg-[#9B3342] rounded p-1"
-                          aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
-                        >
-                          {expandedTasks[task.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => toggleTaskExpansion(task.id)}
+                        className="text-white hover:bg-[#9B3342] rounded p-1"
+                        aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
+                      >
+                        <ChevronDown size={16} />
+                      </button>
                     </div>
+                  </div>
 
-                    {expandedTasks[task.id] && (
-                      <div className="bg-white text-black p-4 rounded mt-2">
-                        <p className="my-2">{task.description}</p>
-                        <div className="flex flex-wrap justify-between mt-4">
-                          <div className="space-x-2 mb-2">
-                            {task.files &&
-                              task.files.map((file, index) => (
-                                <Button
-                                  key={index}
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() => window.open(file.url, "_blank")}
-                                >
-                                  {file.name}
-                                </Button>
-                              ))}
-                          </div>
-                          <div className="flex flex-row space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleFileAttachment(task.id)}
-                              disabled={uploadingFile}
-                            >
-                              {uploadingFile && uploadingTaskId === task.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-800 mr-1"></div>
-                              ) : (
-                                <Paperclip className="mr-1 h-4 w-4" />
-                              )}
-                              Attach Files
-                            </Button>
-                            {task.status !== "Completed" && task.status !== "Verifying" && (
+                  {expandedTasks[task.id] && (
+                    <div className="bg-white text-black p-4 rounded mt-2">
+                      <p className="my-2">{task.description}</p>
+                      <div className="flex flex-wrap justify-between mt-4">
+                        <div className="space-x-2 mb-2">
+                          {task.files &&
+                            task.files.map((file, index) => (
+                              <Button
+                                key={index}
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => window.open(file.url, "_blank")}
+                              >
+                                {file.name}
+                              </Button>
+                            ))}
+                        </div>
+                        <div className="flex flex-row space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFileAttachment(task.id)}
+                            disabled={uploadingFile}
+                          >
+                            {uploadingFile && uploadingTaskId === task.id ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-800 mr-1"></div>
+                            ) : (
+                              <Paperclip className="mr-1 h-4 w-4" />
+                            )}
+                            Attach Files
+                          </Button>
+                          {task.status !== "Completed On Time" &&
+                            task.status !== "Completed Overdue" &&
+                            task.status !== "Verifying" && (
                               <Button variant="default" size="sm" onClick={() => handleTaskSubmit(task.id)}>
                                 <Send className="mr-1 h-4 w-4" />
                                 Submit
                               </Button>
                             )}
-                          </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                ))
-              : !loading && (
-                  <div className="text-center py-8 bg-gray-50 rounded-lg">
-                    <p className="text-gray-500">No tasks match your current filters</p>
-                  </div>
-                )}
-          </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            : !loading && (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">No tasks match your current filters</p>
+                </div>
+              )}
         </div>
       </div>
     </div>
   )
 }
+
