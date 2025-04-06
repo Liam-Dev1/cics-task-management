@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useState } from "react"
 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { storage } from "@/app/firebase/firebase.config" // Ensure this is correctly configured
+import { storage } from "@/lib/firebase/firebase.config" // Ensure this is correctly configured
 
 
 interface ProfileProps {

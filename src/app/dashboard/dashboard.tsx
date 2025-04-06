@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Clock, AlertCircle } from "lucide-react"
 import { collection, getDocs, query, orderBy, where } from "firebase/firestore"
-import { auth, db } from "@/app/firebase/firebase.config"
+import { auth, db } from "@/lib/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { useRouter } from "next/navigation"
 import NotificationsCard from "@/components/notifications-card"
