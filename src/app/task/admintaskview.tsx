@@ -178,31 +178,15 @@ export default function TaskManagement() {
     fetchUsers()
   }, [])
 
-  // Determine the current user
-  const currentUser = users.find((u) => u.email === user?.email);
-
   // Fetch tasks from Firestore
   useEffect(() => {
     const fetchTasks = async () => {
       try {
         setLoading(true)
         const tasksCollection = collection(db, "tasks")
-  
-        let tasksQuery
-        if (currentUser?.role === "admin") {
-          // Filter tasks for "Admin" role
-          tasksQuery = query(
-            tasksCollection,
-            where("assignedBy", "==", userName),
-            where("assignedToEmail", "==", user?.email || "")
-          )
-        } else {
-          // Unrestricted view for "Super Admin" role
-          tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
-        }
-  
+        const tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
         const querySnapshot = await getDocs(tasksQuery)
-  
+
         const fetchedTasks: Task[] = []
         querySnapshot.forEach((doc) => {
           fetchedTasks.push({
@@ -210,9 +194,9 @@ export default function TaskManagement() {
             ...(doc.data() as Omit<Task, "id">),
           })
         })
-  
+
         setTasks(fetchedTasks)
-  
+
         // Initialize expanded state for all tasks
         const initialExpandedState: Record<string, boolean> = {}
         fetchedTasks.forEach((task) => {
@@ -231,9 +215,9 @@ export default function TaskManagement() {
         setLoading(false)
       }
     }
-  
+
     fetchTasks()
-  }, [taskIdFromUrl, expandFromUrl, userName, user?.email, currentUser?.role])
+  }, [taskIdFromUrl, expandFromUrl])
 
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
