@@ -92,7 +92,7 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
               className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white"
               onClick={handleRoleSwitch}
             >
-              {isAdmin ? "Switch to Task Receiver Menu" : "Switch to Admin Menu"}
+              {isAdmin ? "Switch to Task Receiver Men" : "Switch to Admin Menu"}
             </Button>
           </div>
         </div>
