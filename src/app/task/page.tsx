@@ -130,9 +130,6 @@ export default function TaskPage() {
       {/* Main content area with dynamic margin based on sidebar state */}
       <div
         className="flex-1 transition-all duration-300"
-        style={{
-          marginLeft: isSidebarMinimized ? "4rem" : "16rem",
-        }}
       >
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
