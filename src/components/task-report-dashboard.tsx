@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -23,6 +23,8 @@ import { TaskCompletionStatusChart } from "@/components/task-completion-status-c
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip"
 import { taskData } from "@/lib/sample-data"
 import { Sidebar } from "@/components/sidebar-admin"
+import { ExportToPdfButton } from "@/components/export-to-pdf-button"
+import { LoadingOverlay } from "@/components/loading-overlay"
 
 export default function TaskReportDashboard() {
   const [timeFrame, setTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly")
@@ -30,7 +32,9 @@ export default function TaskReportDashboard() {
   const [showGraphs, setShowGraphs] = useState(false)
   const [showReport, setShowReport] = useState(false)
 
-  const allReceivers = ["Hace John", "Liam Mariano"]
+  const allReceivers = Array.from(
+    new Set(taskData.tasks.map((task) => task.assignedTo))
+  );
   const allTaskStatuses = ["Completed", "Pending", "Overdue"]
   const allPriorities = ["High", "Medium", "Low"]
 
@@ -42,6 +46,11 @@ export default function TaskReportDashboard() {
     priority: [] as string[],
   })
   const [appliedFilters, setAppliedFilters] = useState(currentFilters)
+
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportTimeFrame, setExportTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly")
+  const [exportTab, setExportTab] = useState<"pieCharts" | "lineCharts" | "barCharts">("pieCharts")
+  const reportRef = useRef<HTMLDivElement>(null)
 
   const handleFilterChange = (key: string, value: any) => {
     setCurrentFilters((prev) => ({ ...prev, [key]: value }))
@@ -60,6 +69,25 @@ export default function TaskReportDashboard() {
       taskStatus: [],
       priority: [],
     })
+  }
+
+  const handleExportStart = () => {
+    setIsExporting(true)
+    setShowGraphs(true)
+  }
+
+  const handleExportEnd = () => {
+    setIsExporting(false)
+    setTimeFrame(exportTimeFrame)
+    setActiveTab(exportTab)
+  }
+
+  const handleExportTimeFrameChange = (timeFrame: string) => {
+    setTimeFrame(timeFrame as "weekly" | "monthly" | "quarterly" | "yearly")
+  }
+
+  const handleExportTabChange = (tab: string) => {
+    setActiveTab(tab as "pieCharts" | "lineCharts" | "barCharts")
   }
 
   const filteredTasks = useMemo(() => {
@@ -359,6 +387,7 @@ export default function TaskReportDashboard() {
     <>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
+
         <div className="flex-1 flex flex-col overflow-hidden ml-64">
           {" "}
           {/* Add margin-left to account for sidebar width */}
@@ -572,105 +601,185 @@ export default function TaskReportDashboard() {
               </div>
             </div>
             <div className="min-w-[1024px] p-6">
+
               {showReport && (
                 <>
                   {/* User Profile and Stats */}
-                  <div className="bg-gray-300 rounded-md p-4 mb-6">
-                    <div className="flex">
-                      {/* User Avatar */}
-                      <div className="mr-4">
-                        <div className="w-32 h-32 bg-gray-500 rounded-full overflow-hidden">
-                          <div className="w-full h-full bg-[#4A5568] flex items-center justify-center">
-                            {/* Silhouette placeholder */}
-                          </div>
-                        </div>
-                      </div>
-
+                    <div className="bg-gray-300 rounded-md p-4 mb-6 transition-all duration-500 ease-in-out">
+                    <div className="flex flex-wrap">
                       {/* User Info and Filters */}
                       <div className="flex-1">
-                        <div className="flex gap-2 mb-4">
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.taskReceivers.length === 0
-                              ? "All Receivers"
-                              : appliedFilters.taskReceivers.join(", ")}
-                          </Button>
-                          <Button className="bg-[#8B2332] text-white rounded-md">{`${format(appliedFilters.fromDate, "PPP")} - ${format(appliedFilters.toDate, "PPP")}`}</Button>
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.taskStatus.length === 0
-                              ? "All Task Status"
-                              : appliedFilters.taskStatus.join(", ")}
-                          </Button>
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.priority.length === 0
-                              ? "All Priorities"
-                              : appliedFilters.priority.join(", ")}
-                          </Button>
-                        </div>
-
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-1">
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Number of tasks Assigned:</span>
-                            <span>{stats.tasksAssigned}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Tasks Completed Late:</span>
-                            <span>{stats.completedLate.toString().padStart(2, "0")}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Completed Tasks:</span>
-                            <span>{stats.completedTasks}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Tasks Not Completed:</span>
-                            <span>{stats.notCompleted.toString().padStart(2, "0")}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Pending Tasks:</span>
-                            <span>{stats.pendingTasks.toString().padStart(2, "0")}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Average Completion Time:</span>
-                            <span>{stats.avgCompletionTime}%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Overdue Tasks:</span>
-                            <span>{stats.overdueTasks.toString().padStart(2, "0")}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Average Completion Rate:</span>
-                            <span>{stats.avgCompletionRate}%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Tasks Completed on time:</span>
-                            <span>{stats.completedOnTime}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Reopened Tasks:</span>
-                            <span>{stats.reopenedTasks}</span>
+                      <div className="grid grid-cols-[auto,1fr] items-center">
+                        {/* Avatar */}
+                        <div className="mr-4 p-4">
+                        <div className="w-32 h-32 md:w-36 md:h-36 bg-gray-500 rounded-md overflow-hidden flex items-center justify-center 2xl:w-48 2xl:h-48 transition-all duration-500 ease-in-out">
+                          <div className="w-full h-full bg-[#4A5568] flex items-center justify-center">
+                          {/* Silhouette placeholder */}
                           </div>
                         </div>
-                      </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex flex-col gap-2">
-                        <Button
+                        {/* Action Buttons for small screens */}
+                        <div className="mt-4 flex flex-col gap-2 lg:hidden">
+                          <Button
                           className="bg-gray-500 hover:bg-gray-600 text-white"
                           onClick={() => setShowGraphs(!showGraphs)}
-                        >
+                          >
                           {showGraphs ? "Hide Graphs" : "View Graphs"}
-                        </Button>
+                          </Button>
+                          <ExportToPdfButton
+                          reportRef={reportRef}
+                          fromDate={appliedFilters.fromDate}
+                          toDate={appliedFilters.toDate}
+                          onExportStart={handleExportStart}
+                          onExportEnd={handleExportEnd}
+                          timeFrames={["weekly", "monthly", "quarterly", "yearly"]}
+                          onTimeFrameChange={handleExportTimeFrameChange}
+                          onTabChange={handleExportTabChange}
+                          />
+                        </div>
+                        </div>
+
+                        {/* Filters and Buttons */}
+                        <div className="">
+                        <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-5 gap-x-4 gap-y-6 lg:gap-y-3 p-4 transition-all duration-500 ease-in-out">
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                          {appliedFilters.taskReceivers.length === 0
+                            ? "All Receivers"
+                            : appliedFilters.taskReceivers.join(", ")}
+                          </Button>
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                          {`${format(appliedFilters.fromDate, "MM/dd/yyyy")} - ${format(appliedFilters.toDate, "MM/dd/yyyy")}`}
+                          </Button>
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                          {appliedFilters.taskStatus.length === 0
+                            ? "All Task Status"
+                            : appliedFilters.taskStatus.join(", ")}
+                          </Button>
+                          <Button className="bg-[#8B2332] text-white rounded-md">
+                          {appliedFilters.priority.length === 0
+                            ? "All Priorities"
+                            : appliedFilters.priority.join(", ")}
+                          </Button>
+
+                          {/* Action Buttons for medium and larger screens */}
+                          <div className="hidden lg:grid grid-cols-2 gap-x-4 gap-y-4">
+                          <Button
+                            className="bg-gray-500 hover:bg-gray-600 text-white"
+                            onClick={() => setShowGraphs(!showGraphs)}
+                          >
+                            {showGraphs ? "Hide Graphs" : "View Graphs"}
+                          </Button>
+                          <ExportToPdfButton
+                            reportRef={reportRef}
+                            fromDate={appliedFilters.fromDate}
+                            toDate={appliedFilters.toDate}
+                            onExportStart={handleExportStart}
+                            onExportEnd={handleExportEnd}
+                            timeFrames={["weekly", "monthly", "quarterly", "yearly"]}
+                            onTimeFrameChange={handleExportTimeFrameChange}
+                            onTabChange={handleExportTabChange}
+                          />
+                          </div>
+                        </div>
+                        <div className="hidden 2xl:grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-x-16 gap-y-1 p-4 transition-all duration-500 ease-in-out">
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Number of tasks Assigned:</span>
+                          <span>{stats.tasksAssigned}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Tasks Completed Late:</span>
+                          <span>{stats.completedLate.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Completed Tasks:</span>
+                          <span>{stats.completedTasks}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Tasks Not Completed:</span>
+                          <span>{stats.notCompleted.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Pending Tasks:</span>
+                          <span>{stats.pendingTasks.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Average Completion Time:</span>
+                          <span>{stats.avgCompletionTime}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Overdue Tasks:</span>
+                          <span>{stats.overdueTasks.toString().padStart(2, "0")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Average Completion Rate:</span>
+                          <span>{stats.avgCompletionRate}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Tasks Completed on time:</span>
+                          <span>{stats.completedOnTime}</span>
+                          </div>
+                          <div className="flex justify-between">
+                          <span className="font-semibold">Reopened Tasks:</span>
+                          <span>{stats.reopenedTasks}</span>
+                          </div>
+                        </div>
+                        </div>
+                      </div>
+
+                      {/* Stats Grid for large screen */}
+                      <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-x-16 gap-y-1 p-4 2xl:hidden transition-all duration-500 ease-in-out">
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Number of tasks Assigned:</span>
+                        <span>{stats.tasksAssigned}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Tasks Completed Late:</span>
+                        <span>{stats.completedLate.toString().padStart(2, "0")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Completed Tasks:</span>
+                        <span>{stats.completedTasks}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Tasks Not Completed:</span>
+                        <span>{stats.notCompleted.toString().padStart(2, "0")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Pending Tasks:</span>
+                        <span>{stats.pendingTasks.toString().padStart(2, "0")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Average Completion Time:</span>
+                        <span>{stats.avgCompletionTime}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Overdue Tasks:</span>
+                        <span>{stats.overdueTasks.toString().padStart(2, "0")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Average Completion Rate:</span>
+                        <span>{stats.avgCompletionRate}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Tasks Completed on time:</span>
+                        <span>{stats.completedOnTime}</span>
+                        </div>
+                        <div className="flex justify-between">
+                        <span className="font-semibold">Reopened Tasks:</span>
+                        <span>{stats.reopenedTasks}</span>
+                        </div>
+                      </div>
                       </div>
                     </div>
-                  </div>
+                    </div>
 
                   {/* Charts Section */}
                   {showGraphs && (
                     <TooltipProvider>
-                      <div className="max-w-[1600px] mx-auto">
+                      <div className=" mx-auto">
                         {/* Chart Navigation */}
                         <div className="flex justify-between items-center mb-6">
-                          <div className="flex space-x-2">
+                          <div className="flex space-x-2 grid grid-cols-2 md:grid-cols-4 gap-2">
                             <Button
                               variant={activeTab === "pieCharts" ? "default" : "outline"}
                               onClick={() => setActiveTab("pieCharts")}
@@ -694,47 +803,47 @@ export default function TaskReportDashboard() {
                             </Button>
                           </div>
 
-                          {(activeTab === "lineCharts" || activeTab === "barCharts") && (
-                            <div className="flex space-x-2">
+                            {(activeTab === "lineCharts" || activeTab === "barCharts") && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                               <Button
-                                variant={timeFrame === "weekly" ? "default" : "outline"}
-                                onClick={() => setTimeFrame("weekly")}
-                                className={timeFrame === "weekly" ? "bg-[#8B2332]" : ""}
-                                size="sm"
+                              variant={timeFrame === "weekly" ? "default" : "outline"}
+                              onClick={() => setTimeFrame("weekly")}
+                              className={timeFrame === "weekly" ? "bg-[#8B2332]" : ""}
+                              size="sm"
                               >
-                                Weekly
+                              Weekly
                               </Button>
                               <Button
-                                variant={timeFrame === "monthly" ? "default" : "outline"}
-                                onClick={() => setTimeFrame("monthly")}
-                                className={timeFrame === "monthly" ? "bg-[#8B2332]" : ""}
-                                size="sm"
+                              variant={timeFrame === "monthly" ? "default" : "outline"}
+                              onClick={() => setTimeFrame("monthly")}
+                              className={timeFrame === "monthly" ? "bg-[#8B2332]" : ""}
+                              size="sm"
                               >
-                                Monthly
+                              Monthly
                               </Button>
                               <Button
-                                variant={timeFrame === "quarterly" ? "default" : "outline"}
-                                onClick={() => setTimeFrame("quarterly")}
-                                className={timeFrame === "quarterly" ? "bg-[#8B2332]" : ""}
-                                size="sm"
+                              variant={timeFrame === "quarterly" ? "default" : "outline"}
+                              onClick={() => setTimeFrame("quarterly")}
+                              className={timeFrame === "quarterly" ? "bg-[#8B2332]" : ""}
+                              size="sm"
                               >
-                                Quarterly
+                              Quarterly
                               </Button>
                               <Button
-                                variant={timeFrame === "yearly" ? "default" : "outline"}
-                                onClick={() => setTimeFrame("yearly")}
-                                className={timeFrame === "yearly" ? "bg-[#8B2332]" : ""}
-                                size="sm"
+                              variant={timeFrame === "yearly" ? "default" : "outline"}
+                              onClick={() => setTimeFrame("yearly")}
+                              className={timeFrame === "yearly" ? "bg-[#8B2332]" : ""}
+                              size="sm"
                               >
-                                Yearly
+                              Yearly
                               </Button>
                             </div>
-                          )}
-                        </div>
+                            )}
+                          </div>
 
                         {/* Pie Charts */}
                         {activeTab === "pieCharts" && (
-                          <div className="max-w-[1600px] mx-auto">
+                          <div className="max-w-[1600px] mx-auto" data-tab="pieCharts">
                             <div className="grid grid-cols-2 gap-6 mb-6">
                               {/* Completed Tasks Breakdown */}
                               <div>
@@ -806,7 +915,7 @@ export default function TaskReportDashboard() {
 
                         {/* Line Charts */}
                         {activeTab === "lineCharts" && (
-                          <div className="max-w-[1600px] mx-auto">
+                          <div className="max-w-[1600px] mx-auto" data-tab="lineCharts">
                             <h3 className="text-xl font-semibold mb-4">Average Time Completion ({timeFrame})</h3>
                             <AverageCompletionTimeChart data={chartData.averageCompletionTimeData[timeFrame]}>
                               <Tooltip
@@ -827,7 +936,7 @@ export default function TaskReportDashboard() {
 
                         {/* Bar Charts */}
                         {activeTab === "barCharts" && (
-                          <div className="max-w-[1600px] mx-auto">
+                          <div className="max-w-[1600px] mx-auto" data-tab="barCharts">
                             <h3 className="text-xl font-semibold mb-4">Task Completion Status ({timeFrame})</h3>
                             <TaskCompletionStatusChart data={chartData.taskCompletionStatusData[timeFrame]}>
                               <Tooltip
@@ -859,6 +968,7 @@ export default function TaskReportDashboard() {
           </div>
         </div>
       </div>
+      <LoadingOverlay isVisible={isExporting} />
     </>
   )
 }

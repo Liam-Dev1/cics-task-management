@@ -1,12 +1,14 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { LogOut, X } from "lucide-react"
-import { deleteCookie } from "cookies-next"
-import Image from "next/image"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { LogOut, X } from "lucide-react";
+import { deleteCookie } from "cookies-next";
+import Image from "next/image";
+import { auth } from "@/lib/firebase/firebase.config";
+import { signOut } from "firebase/auth";
 
 export default function LogoutPage() {
   const router = useRouter()
@@ -16,12 +18,11 @@ export default function LogoutPage() {
     setIsLoggingOut(true)
 
     try {
+      // Sign out from Firebase
+      await signOut(auth);
+      
       // Clear user role cookie
       deleteCookie("userRole")
-
-      // Simulate logout process
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
-
       // Redirect to login page after successful logout
       router.push("/login")
     } catch (error) {

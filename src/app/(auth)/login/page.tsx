@@ -1,17 +1,26 @@
-"use client"
+"use client";
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth, googleProvider, db } from "@/app/firebase/firebase.config";
+import { auth, googleProvider, db } from "@/lib/firebase/firebase.config";
 import { signInWithPopup } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { setCookie } from "cookies-next";
+import { useAuth } from "@/lib/firebase/auth-context";
 
 export default function LoginPage() {
   const [error, setError] = useState("");
   const router = useRouter();
+  const { user } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
 
   const handleGoogleLogin = async () => {
     try {
@@ -27,14 +36,15 @@ export default function LoginPage() {
           const userData = querySnapshot.docs[0].data();
 
           // Set user role in cookie
-          setCookie("userRole", userData.role, { maxAge: 60 * 60 * 24 * 7 }); // 7 days
+          setCookie("userRole", userData.role, { 
+            maxAge: 60 * 60 * 24 * 7, // 7 days
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: true,
+            sameSite: 'strict'
+          });
 
           // Redirect based on user role
-          if (userData.role === "admin" || userData.role === "super admin") {
-            router.push("/dashboard");
-          } else {
-            router.push("/dashboard");
-          }
+          router.push("/dashboard");
         } else {
           setError("Your email is not authorized to access this system.");
           await auth.signOut();
