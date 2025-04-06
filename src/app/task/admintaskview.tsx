@@ -90,6 +90,7 @@ export default function TaskManagement() {
   type SortValue = string | null
   const [activeSort, setActiveSort] = useState<SortValue>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [selectedReceiver, setSelectedReceiver] = useState<string | null>(null)
 
   // Recurring task state
   const [showRecurringModal, setShowRecurringModal] = useState(false)
@@ -248,22 +249,24 @@ export default function TaskManagement() {
   }, [taskIdFromUrl, expandFromUrl, tasks])
 
   // Filter tasks based on search query and active filter
-  const matchesFilter = (task: Task) =>
-    !activeFilter ||
-    (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
-      task.status === activeFilter) ||
-    (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter) ||
-    (activeFilter === "Completed" && (task.status === "Completed On Time" || task.status === "Completed Overdue")) ||
-    (activeFilter === "Overdue" &&
-      ((new Date(task.deadline) < new Date() &&
-        task.status !== "Completed On Time" &&
-        task.status !== "Completed Overdue") ||
-        task.status === "Completed Overdue"))
-
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesSearch && matchesFilter(task)
-  })
+    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter =
+      !activeFilter ||
+      (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
+        task.status === activeFilter) ||
+      (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter) ||
+      (activeFilter === "Completed" && (task.status === "Completed On Time" || task.status === "Completed Overdue")) ||
+      (activeFilter === "Overdue" &&
+        ((new Date(task.deadline) < new Date() &&
+          task.status !== "Completed On Time" &&
+          task.status !== "Completed Overdue") ||
+          task.status === "Completed Overdue"));
+
+    const matchesReceiver = !selectedReceiver || task.assignedTo === selectedReceiver;
+
+    return matchesSearch && matchesFilter && matchesReceiver;
+  });
 
   // Sort tasks based on active sort option
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -726,7 +729,7 @@ export default function TaskManagement() {
             />
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           </div>
-          <Select>
+          <Select onValueChange={(value) => setSelectedReceiver(value === "all" ? null : value)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Receiver" />
             </SelectTrigger>
