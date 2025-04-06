@@ -166,7 +166,7 @@ export default function UserPage() {
       <SidebarComponent onMinimize={setIsSidebarMinimized} />
 
       {/* Main content area with proper margin to account for fixed sidebar */}
-      <div className="flex-1 transition-all duration-300" style={{ marginLeft: isSidebarMinimized ? "4rem" : "16rem" }}>
+      <div className="flex-1 transition-all duration-300">
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
