@@ -288,8 +288,12 @@ export default function AdminDashboard() {
   }
 
   // Handle view task
-  const handleViewTask = (taskId: string) => {
-    router.push(`/task?taskId=${taskId}&expand=true`)
+  const handleViewTask = (taskId: string, filter: string | null = null) => {
+    if (filter) {
+      router.push(`/task?taskId=${taskId}&expand=true&filter=${filter}`)
+    } else {
+      router.push(`/task?taskId=${taskId}&expand=true`)
+    }
   }
 
   // Navigate to different pages
@@ -305,12 +309,12 @@ export default function AdminDashboard() {
 
   // Navigate to completed tasks
   const navigateToCompletedTasks = () => {
-    router.push("/task?filter=Completed")
+    router.push("/task?filter=Completed On Time")
   }
 
   // Navigate to overdue tasks
   const navigateToOverdueTasks = () => {
-    router.push("/task?filter=Overdue")
+    router.push("/task?filter=Completed Overdue")
   }
 
   // Add a new navigation function for total tasks
@@ -444,7 +448,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="flex justify-end">
                             <button
-                              onClick={() => handleViewTask(task.id)}
+                              onClick={() => handleViewTask(task.id, "Verifying")}
                               className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
                             >
                               Verify Task
@@ -480,7 +484,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="flex justify-end">
                             <button
-                              onClick={() => handleViewTask(task.id)}
+                              onClick={() => handleViewTask(task.id, "Overdue")}
                               className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
                             >
                               View Task
@@ -551,7 +555,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="flex justify-end">
                             <button
-                              onClick={() => handleViewTask(task.id)}
+                              onClick={() => handleViewTask(task.id, "Pending")}
                               className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm"
                             >
                               View Task
