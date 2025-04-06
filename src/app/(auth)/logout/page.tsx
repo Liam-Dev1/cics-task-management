@@ -40,10 +40,22 @@ export default function LogoutPage() {
     <div className="min-h-screen w-full flex items-center justify-center bg-zinc-100">
       <div className="w-full max-w-md px-4">
         <Card className="w-full shadow-lg">
-          <CardHeader className="space-y-1 flex flex-col items-center">
-            <div className="relative w-32 h-32">
-              <Image src="/images/CICSTASKMGMT_LOGO_NG.png" alt="CICS Logo" layout="fill" className="object-cover" priority />
+          {/* Logo positioned outside the CardHeader for maximum size */}
+          <div className="pt-6 px-6 flex justify-center">
+            <div className="w-[80%] relative">
+              <Image
+                src="/images/CICSTASKMGMT_LOGO_NG.png"
+                alt="CICS Logo"
+                width={800}
+                height={240}
+                style={{ width: "100%", height: "auto" }}
+                className="object-contain"
+                priority
+              />
             </div>
+          </div>
+
+          <CardHeader className="space-y-1 flex flex-col items-center pt-2">
             <CardTitle className="text-2xl font-bold text-center">Sign Out</CardTitle>
             <CardDescription className="text-center">
               Are you sure you want to sign out of your account?
@@ -70,5 +82,5 @@ export default function LogoutPage() {
         </Card>
       </div>
     </div>
-  );
-}
+    );
+  }
