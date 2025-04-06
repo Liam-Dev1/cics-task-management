@@ -203,8 +203,6 @@ export default function Dashboard() {
     generateNotificationsFromTasks(tasks)
   }
 
-  // Calculate task statistics
-
   // Calculate working days between two dates (excluding weekends)
   const calculateWorkingDays = (startDate: Date, endDate: Date): number => {
     let count = 0
@@ -378,10 +376,10 @@ export default function Dashboard() {
     return new Date(dateString).toLocaleDateString(undefined, options)
   }
 
-  // Update the handleViewTask function to navigate to the task management page with the taskId
+  // Update the handleViewTask function to navigate to the task management page with the taskId and expand=true
   const handleViewTask = (taskId: string) => {
-    // Navigate to the task page with the taskId as a query parameter
-    router.push(`/task?taskId=${taskId}`)
+    // Navigate to the task page with the taskId as a query parameter and expand=true to open the task
+    router.push(`/task?taskId=${taskId}&expand=true`)
   }
 
   return (

@@ -293,10 +293,10 @@ export default function UserDashboard() {
     return new Date(dateString).toLocaleDateString(undefined, options)
   }
 
-  // Handle view task - Updated to navigate to the tasks page with the taskId
+  // Handle view task - Updated to navigate to the tasks page with the taskId and expand=true
   const handleViewTask = (taskId: string) => {
-    // Navigate to the task page with the taskId as a query parameter
-    router.push(`/task?taskId=${taskId}`)
+    // Navigate to the task page with the taskId as a query parameter and expand=true to open the task
+    router.push(`/task?taskId=${taskId}&expand=true`)
   }
 
   return (

@@ -25,7 +25,7 @@ interface Task {
   assignedBy: string
   assignedTo: string
   assignedToEmail: string
-  assignedToId: string // Added field for user's ID
+  assignedToId: string
   assignedOn: string
   deadline: string
   status: string
@@ -35,7 +35,7 @@ interface Task {
   files?: Array<{ name: string; url: string }>
 }
 
-export default function TasksPage() {
+export default function UserTaskViewWrapper() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -58,6 +58,26 @@ export default function TasksPage() {
   }, [])
 
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
+
+  // Load expandedTasks from localStorage on component mount
+  useEffect(() => {
+    const savedExpandedTasks = localStorage.getItem("expandedTasksInitial") || localStorage.getItem("expandedTasks")
+    if (savedExpandedTasks) {
+      try {
+        setExpandedTasks(JSON.parse(savedExpandedTasks))
+      } catch (error) {
+        console.error("Error parsing saved expanded tasks:", error)
+      }
+    }
+  }, [])
+
+  // Save expandedTasks to localStorage whenever it changes
+  useEffect(() => {
+    if (Object.keys(expandedTasks).length > 0) {
+      localStorage.setItem("expandedTasks", JSON.stringify(expandedTasks))
+    }
+  }, [expandedTasks])
+
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | null }>({
     message: "",
     type: null,
@@ -101,12 +121,16 @@ export default function TasksPage() {
 
         setTasks(fetchedTasks)
 
-        // Initialize expanded state for all tasks
-        const initialExpandedState: Record<string, boolean> = {}
-        fetchedTasks.forEach((task) => {
-          initialExpandedState[task.id] = false
+        // Preserve expanded states for existing tasks and initialize new ones to false
+        setExpandedTasks((prevExpandedState) => {
+          const updatedExpandedState = { ...prevExpandedState }
+          fetchedTasks.forEach((task) => {
+            if (updatedExpandedState[task.id] === undefined) {
+              updatedExpandedState[task.id] = false
+            }
+          })
+          return updatedExpandedState
         })
-        setExpandedTasks(initialExpandedState)
       } catch (error) {
         console.error("Error fetching tasks:", error)
         showNotification("Failed to load tasks. Please try again.", "error")
@@ -475,7 +499,7 @@ export default function TasksPage() {
                         className="text-white hover:bg-[#9B3342] rounded p-1"
                         aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
                       >
-                        {expandedTasks[task.id] ? <ChevronDown size={16} /> : <ChevronDown size={16} />}
+                        <ChevronDown size={16} />
                       </button>
                     </div>
                   </div>
@@ -511,12 +535,14 @@ export default function TasksPage() {
                             )}
                             Attach Files
                           </Button>
-                          {task.status !== "Completed" && task.status !== "Verifying" && (
-                            <Button variant="default" size="sm" onClick={() => handleTaskSubmit(task.id)}>
-                              <Send className="mr-1 h-4 w-4" />
-                              Submit
-                            </Button>
-                          )}
+                          {task.status !== "Completed On Time" &&
+                            task.status !== "Completed Overdue" &&
+                            task.status !== "Verifying" && (
+                              <Button variant="default" size="sm" onClick={() => handleTaskSubmit(task.id)}>
+                                <Send className="mr-1 h-4 w-4" />
+                                Submit
+                              </Button>
+                            )}
                         </div>
                       </div>
                     </div>

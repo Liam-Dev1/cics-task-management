@@ -55,7 +55,7 @@ interface User {
   role: string
 }
 
-export default function TaskManagement() {
+export default function AdminTaskViewWrapper() {
   const [showNewTask, setShowNewTask] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -90,6 +90,32 @@ export default function TaskManagement() {
   }, [])
 
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
+
+  // Load expandedTasks from localStorage on component mount
+  useEffect(() => {
+    const savedExpandedTasks = localStorage.getItem("expandedTasksInitial") || localStorage.getItem("expandedTasks")
+    if (savedExpandedTasks) {
+      try {
+        setExpandedTasks(JSON.parse(savedExpandedTasks))
+      } catch (error) {
+        console.error("Error parsing saved expanded tasks:", error)
+      }
+    }
+  }, [])
+
+  // Save expandedTasks to localStorage whenever it changes
+  useEffect(() => {
+    if (Object.keys(expandedTasks).length > 0) {
+      localStorage.setItem("expandedTasks", JSON.stringify(expandedTasks))
+    }
+  }, [expandedTasks])
+
+  const toggleTaskExpansion = (taskId: string) => {
+    setExpandedTasks((prev) => ({
+      ...prev,
+      [taskId]: !prev[taskId], // Toggle the expanded state of the task
+    }))
+  }
 
   const searchParams = useSearchParams()
   const taskIdFromUrl = searchParams.get("taskId")
@@ -170,12 +196,16 @@ export default function TaskManagement() {
 
         setTasks(fetchedTasks)
 
-        // Initialize expanded state for all tasks
-        const initialExpandedState: Record<string, boolean> = {}
-        fetchedTasks.forEach((task) => {
-          initialExpandedState[task.id] = false
+        // Preserve expanded states for existing tasks and initialize new ones to false
+        setExpandedTasks((prevExpandedState) => {
+          const updatedExpandedState = { ...prevExpandedState }
+          fetchedTasks.forEach((task) => {
+            if (updatedExpandedState[task.id] === undefined) {
+              updatedExpandedState[task.id] = false
+            }
+          })
+          return updatedExpandedState
         })
-        setExpandedTasks(initialExpandedState)
       } catch (error) {
         console.error("Error fetching tasks:", error)
         showNotification("Failed to load tasks. Please try again.", "error")
@@ -190,37 +220,37 @@ export default function TaskManagement() {
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
     if (taskIdFromUrl && tasks.length > 0) {
-      const expand = searchParams.get("expand") === "true";
+      const expand = searchParams.get("expand") === "true"
 
       // Make sure the task exists
-      const taskExists = tasks.some((task) => task.id === taskIdFromUrl);
+      const taskExists = tasks.some((task) => task.id === taskIdFromUrl)
 
       if (taskExists) {
         // Scroll to the task with a slight delay to ensure rendering is complete
         setTimeout(() => {
-          const taskElement = document.getElementById(`task-${taskIdFromUrl}`);
+          const taskElement = document.getElementById(`task-${taskIdFromUrl}`)
           if (taskElement) {
             // Scroll to the task
-            taskElement.scrollIntoView({ behavior: "smooth", block: "center" });
+            taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
 
             // Highlight the task briefly to make it more noticeable
-            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70");
+            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
             setTimeout(() => {
-              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70");
-            }, 2000);
+              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            }, 2000)
 
             // Expand the task dropdown if expand=true
             if (expand) {
               setExpandedTasks((prev) => ({
                 ...prev,
                 [taskIdFromUrl]: true,
-              }));
+              }))
             }
           }
-        }, 300);
+        }, 300)
       }
     }
-  }, [taskIdFromUrl, tasks, searchParams]);
+  }, [taskIdFromUrl, tasks, searchParams])
 
   // Filter tasks based on search query and active filter
   const matchesFilter = (task: Task) =>
@@ -256,13 +286,6 @@ export default function TaskManagement() {
         return 0
     }
   })
-
-  const toggleTaskExpansion = (taskId: string) => {
-    setExpandedTasks((prev) => ({
-      ...prev,
-      [taskId]: !prev[taskId],
-    }))
-  }
 
   // Input change handlers
   const handleInputChange = (
@@ -841,285 +864,283 @@ export default function TaskManagement() {
           )}
 
           {/* Existing Tasks */}
-          {!loading && sortedTasks.length > 0 ? (
-            sortedTasks.map((task) => (
-              <div key={task.id} id={`task-${task.id}`} className="bg-red-800 text-white p-4 rounded">
-                <div className="grid md:grid-cols-7 gap-4">
-                  {editingTask === task.id ? (
-                    <>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Task Name: </span>
-                        <Input
-                          name="name"
-                          value={task.name}
-                          onChange={(e) => handleInputChange(e, task.id)}
-                          className="bg-white text-black"
-                        />
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Assigned By: </span>
-                        <div>{task.assignedBy}</div>
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Assigned To: </span>
-                        <Select
-                          name="assignedTo"
-                          value={task.assignedTo}
-                          onValueChange={(value) => {
-                            const selectedUser = users.find((user) => user.name === value)
-                            if (selectedUser) {
-                              handleSelectChange("assignedTo", selectedUser.name, task.id)
-                              handleSelectChange("assignedToEmail", selectedUser.email, task.id)
-                              handleSelectChange("assignedToId", selectedUser.id, task.id)
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="bg-white text-black">
-                            <SelectValue placeholder="Select assignee" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {users.map((user) => (
-                              <SelectItem key={user.id} value={user.name}>
-                                {user.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Assigned On: </span>
-                        <div>{task.assignedOn}</div>
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Deadline: </span>
-                        <Input
-                          type="date"
-                          name="deadline"
-                          value={task.deadline}
-                          onChange={(e) => handleInputChange(e, task.id)}
-                          className="bg-white text-black"
-                        />
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Status: </span>
-                        <Select
-                          name="status"
-                          value={task.status}
-                          onValueChange={(value) => handleSelectChange("status", value, task.id)}
-                        >
-                          <SelectTrigger className="bg-white text-black">
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Pending">Pending</SelectItem>
-                            <SelectItem value="Verifying">Verifying</SelectItem>
-                            <SelectItem value="Completed On Time">Completed On Time</SelectItem>
-                            <SelectItem value="Completed Overdue">Completed Overdue</SelectItem>
-                            <SelectItem value="Reopened">Reopened</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Priority: </span>
-                        <Select
-                          name="priority"
-                          value={task.priority}
-                          onValueChange={(value) => handleSelectChange("priority", value, task.id)}
-                        >
-                          <SelectTrigger className="bg-white text-black">
-                            <SelectValue placeholder="Priority" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="Low">Low</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Task Name: </span>
-                        {task.name}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Assigned By: </span>
-                        {task.assignedBy}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Assigned To: </span>
-                        {task.assignedTo}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Assigned On: </span>
-                        {task.assignedOn}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Deadline: </span>
-                        {task.deadline}
-                      </div>
-                      <div className="md:col-span-1">
-                        <span className="md:hidden font-semibold">Status: </span>
-                        <Badge
-                          className={
-                            task.status === "Completed On Time"
-                              ? "bg-green-600"
-                              : task.status === "Completed Overdue"
-                                ? "bg-orange-600"
-                                : task.status === "Verifying"
-                                  ? "bg-yellow-600"
-                                  : task.status === "Reopened"
-                                    ? "bg-purple-600"
-                                    : "bg-blue-600"
-                          }
-                        >
-                          {task.status}
-                        </Badge>
-                      </div>
-                      <div className="md:col-span-1 flex justify-between items-center">
-                        <div>
+          {!loading && sortedTasks.length > 0
+            ? sortedTasks.map((task) => (
+                <div key={task.id} id={`task-${task.id}`} className="bg-red-800 text-white p-4 rounded">
+                  <div className="grid md:grid-cols-7 gap-4">
+                    {editingTask === task.id ? (
+                      <>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Task Name: </span>
+                          <Input
+                            name="name"
+                            value={task.name}
+                            onChange={(e) => handleInputChange(e, task.id)}
+                            className="bg-white text-black"
+                          />
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Assigned By: </span>
+                          <div>{task.assignedBy}</div>
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Assigned To: </span>
+                          <Select
+                            name="assignedTo"
+                            value={task.assignedTo}
+                            onValueChange={(value) => {
+                              const selectedUser = users.find((user) => user.name === value)
+                              if (selectedUser) {
+                                handleSelectChange("assignedTo", selectedUser.name, task.id)
+                                handleSelectChange("assignedToEmail", selectedUser.email, task.id)
+                                handleSelectChange("assignedToId", selectedUser.id, task.id)
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="bg-white text-black">
+                              <SelectValue placeholder="Select assignee" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {users.map((user) => (
+                                <SelectItem key={user.id} value={user.name}>
+                                  {user.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Assigned On: </span>
+                          <div>{task.assignedOn}</div>
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Deadline: </span>
+                          <Input
+                            type="date"
+                            name="deadline"
+                            value={task.deadline}
+                            onChange={(e) => handleInputChange(e, task.id)}
+                            className="bg-white text-black"
+                          />
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Status: </span>
+                          <Select
+                            name="status"
+                            value={task.status}
+                            onValueChange={(value) => handleSelectChange("status", value, task.id)}
+                          >
+                            <SelectTrigger className="bg-white text-black">
+                              <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Pending">Pending</SelectItem>
+                              <SelectItem value="Verifying">Verifying</SelectItem>
+                              <SelectItem value="Completed On Time">Completed On Time</SelectItem>
+                              <SelectItem value="Completed Overdue">Completed Overdue</SelectItem>
+                              <SelectItem value="Reopened">Reopened</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Priority: </span>
+                          <Select
+                            name="priority"
+                            value={task.priority}
+                            onValueChange={(value) => handleSelectChange("priority", value, task.id)}
+                          >
+                            <SelectTrigger className="bg-white text-black">
+                              <SelectValue placeholder="Priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="High">High</SelectItem>
+                              <SelectItem value="Medium">Medium</SelectItem>
+                              <SelectItem value="Low">Low</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Task Name: </span>
+                          {task.name}
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Assigned By: </span>
+                          {task.assignedBy}
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Assigned To: </span>
+                          {task.assignedTo}
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Assigned On: </span>
+                          {task.assignedOn}
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Deadline: </span>
+                          {task.deadline}
+                        </div>
+                        <div className="md:col-span-1">
+                          <span className="md:hidden font-semibold">Status: </span>
                           <Badge
                             className={
-                              task.priority === "High"
-                                ? "bg-red-600"
-                                : task.priority === "Medium"
+                              task.status === "Completed On Time"
+                                ? "bg-green-600"
+                                : task.status === "Completed Overdue"
                                   ? "bg-orange-600"
-                                  : "bg-green-600"
+                                  : task.status === "Verifying"
+                                    ? "bg-yellow-600"
+                                    : task.status === "Reopened"
+                                      ? "bg-purple-600"
+                                      : "bg-blue-600"
                             }
                           >
-                            {task.priority}
+                            {task.status}
                           </Badge>
                         </div>
-                        <button
-                          onClick={() => toggleTaskExpansion(task.id)}
-                          className="text-white hover:bg-red-700 rounded p-1"
-                          aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
-                        >
-                          {expandedTasks[task.id] ? <ChevronDown size={16} /> : <ChevronDown size={16} />}
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {expandedTasks[task.id] && (
-                  <div className="bg-white text-black p-4 rounded mt-2">
-                    {editingTask === task.id ? (
-                      <Textarea
-                        placeholder="Add Description Here"
-                        className="mt-2 mb-4"
-                        name="description"
-                        value={task.description}
-                        onChange={(e) => handleInputChange(e, task.id)}
-                      />
-                    ) : (
-                      <p className="my-2">{task.description}</p>
+                        <div className="md:col-span-1 flex justify-between items-center">
+                          <div>
+                            <span className="md:hidden font-semibold">Priority: </span>
+                            <Badge
+                              className={
+                                task.priority === "High"
+                                  ? "bg-red-600"
+                                  : task.priority === "Medium"
+                                    ? "bg-orange-600"
+                                    : "bg-green-600"
+                              }
+                            >
+                              {task.priority}
+                            </Badge>
+                          </div>
+                          <button
+                            onClick={() => toggleTaskExpansion(task.id)}
+                            className="text-white hover:bg-red-700 rounded p-1"
+                            aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
+                          >
+                            <ChevronDown size={16} />
+                          </button>
+                        </div>
+                      </>
                     )}
-                    <div className="flex flex-wrap justify-between mt-4">
-                      <div className="space-x-2 mb-2">
-                        {task.files &&
-                          task.files.map((file, index) => (
-                            <Button
-                              key={index}
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => window.open(file.url, "_blank")}
-                            >
-                              {file.name}
-                            </Button>
-                          ))}
-                      </div>
-                      <div className="flex flex-row space-x-2">
-                        {editingTask === task.id ? (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleAttachFile(task.id)}
-                              className="flex items-center gap-1"
-                              disabled={uploadingFile}
-                            >
-                              {uploadingFile && uploadingTaskId === task.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-800"></div>
-                              ) : (
-                                <Upload className="h-4 w-4" />
-                              )}
-                              Attach Files
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSaveEdit(task.id)}
-                              className="flex items-center gap-1"
-                            >
-                              <Save className="h-4 w-4" />
-                              Save
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleCancelEdit}
-                              className="flex items-center gap-1"
-                            >
-                              <X className="h-4 w-4" />
-                              Cancel
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditTask(task.id)}
-                              className="flex items-center gap-1"
-                            >
-                              Edit Task
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleVerifyCompletion(task.id)}
-                              disabled={task.status === "Completed On Time" || task.status === "Completed Overdue"}
-                              className="flex items-center gap-1"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              Verify
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleReopenTask(task.id)}
-                              disabled={task.status !== "Completed On Time" && task.status !== "Completed Overdue"}
-                              className="flex items-center gap-1"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                              Reopen
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewTask(task.id)}
-                              className="flex items-center gap-1"
-                            >
-                              View Task
-                            </Button>
-                          </>
-                        )}
+                  </div>
+
+                  {expandedTasks[task.id] && (
+                    <div className="bg-white text-black p-4 rounded mt-2">
+                      {editingTask === task.id ? (
+                        <Textarea
+                          placeholder="Add Description Here"
+                          className="mt-2 mb-4"
+                          name="description"
+                          value={task.description}
+                          onChange={(e) => handleInputChange(e, task.id)}
+                        />
+                      ) : (
+                        <p className="my-2">{task.description}</p>
+                      )}
+                      <div className="flex flex-wrap justify-between mt-4">
+                        <div className="space-x-2 mb-2">
+                          {task.files &&
+                            task.files.map((file, index) => (
+                              <Button
+                                key={index}
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => window.open(file.url, "_blank")}
+                              >
+                                {file.name}
+                              </Button>
+                            ))}
+                        </div>
+                        <div className="flex flex-row space-x-2">
+                          {editingTask === task.id ? (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAttachFile(task.id)}
+                                className="flex items-center gap-1"
+                                disabled={uploadingFile}
+                              >
+                                {uploadingFile && uploadingTaskId === task.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-800"></div>
+                                ) : (
+                                  <Upload className="h-4 w-4" />
+                                )}
+                                Attach Files
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSaveEdit(task.id)}
+                                className="flex items-center gap-1"
+                              >
+                                <Save className="h-4 w-4" />
+                                Save
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCancelEdit}
+                                className="flex items-center gap-1"
+                              >
+                                <X className="h-4 w-4" />
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditTask(task.id)}
+                                className="flex items-center gap-1"
+                              >
+                                Edit Task
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleVerifyCompletion(task.id)}
+                                disabled={task.status === "Completed On Time" || task.status === "Completed Overdue"}
+                                className="flex items-center gap-1"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                Verify
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleReopenTask(task.id)}
+                                disabled={task.status !== "Completed On Time" && task.status !== "Completed Overdue"}
+                                className="flex items-center gap-1"
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                                Reopen
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewTask(task.id)}
+                                className="flex items-center gap-1"
+                              >
+                                View Task
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))
-          ) : (
-            !loading && (
-              <div className="text-center py-8 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No tasks match your current filters</p>
-              </div>
-            )
-          )}
+                  )}
+                </div>
+              ))
+            : !loading && (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">No tasks match your current filters</p>
+                </div>
+              )}
         </div>
       </div>
     </div>

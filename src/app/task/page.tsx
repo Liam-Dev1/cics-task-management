@@ -9,7 +9,7 @@ import { onAuthStateChanged } from "firebase/auth"
 import { Sidebar as AdminSidebar } from "@/components/sidebar-admin"
 import { Sidebar as UserSidebar } from "@/components/sidebar-user"
 
-// Import the wrapper components from the same directory
+// Import the wrapper components
 import AdminTaskViewWrapper from "./admintaskview"
 import UserTaskViewWrapper from "./usertaskview"
 
@@ -50,15 +50,14 @@ export default function TaskPage() {
     fetchUserRole()
   }, [user, loading])
 
+  // Redirect to login if not authenticated
   useEffect(() => {
-    // Set up the onAuthStateChanged observer
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.push("/login")
       }
     })
 
-    // Clean up the observer when the component unmounts
     return () => unsubscribe()
   }, [router])
 
@@ -84,9 +83,8 @@ export default function TaskPage() {
     }
   }, [taskId, userRole])
 
-  // Add a useEffect to handle URL search parameters for task search
+  // Handle URL search parameters for task search
   useEffect(() => {
-    // Check if there's a search parameter in the URL
     const searchParam = searchParams.get("search")
     if (searchParam && userRole) {
       // Find the task element by search term
@@ -110,15 +108,31 @@ export default function TaskPage() {
     }
   }, [searchParams, userRole])
 
-  // Add a useEffect to handle URL filter parameters
+  // Handle URL filter parameters
   useEffect(() => {
-    // Check if there's a filter parameter in the URL
     const filterParam = searchParams.get("filter")
     if (filterParam) {
       // Store the filter in localStorage so task views can access it
       localStorage.setItem("activeTaskFilter", filterParam)
     }
   }, [searchParams])
+
+  // Add the following useEffect to save expandedTasks to localStorage whenever it changes
+  // This should be added near the other useEffect hooks in the TaskPage component
+
+  useEffect(() => {
+    // Load expanded tasks state from localStorage on initial render
+    const savedExpandedTasks = localStorage.getItem("expandedTasks")
+    if (savedExpandedTasks) {
+      try {
+        const parsedExpandedTasks = JSON.parse(savedExpandedTasks)
+        // We'll pass this to the task view components
+        localStorage.setItem("expandedTasksInitial", savedExpandedTasks)
+      } catch (error) {
+        console.error("Error parsing saved expanded tasks:", error)
+      }
+    }
+  }, [])
 
   // Handle sidebar minimize/maximize
   const handleSidebarMinimize = (minimized: boolean) => {
