@@ -69,10 +69,15 @@ export default function TaskPage() {
       setTimeout(() => {
         const taskElement = document.getElementById(`task-${taskId}`)
         if (taskElement) {
+          // Scroll to the task
           taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
-          taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+
+          // Add highlight class
+          taskElement.classList.add("highlight-task")
+
+          // Remove highlight class after 2 seconds
           setTimeout(() => {
-            taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            taskElement.classList.remove("highlight-task")
           }, 2000)
         }
       }, 500) // Give it time to render

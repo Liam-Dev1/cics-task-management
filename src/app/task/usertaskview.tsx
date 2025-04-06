@@ -104,7 +104,7 @@ export default function TasksPage() {
         // Initialize expanded state for all tasks
         const initialExpandedState: Record<string, boolean> = {}
         fetchedTasks.forEach((task) => {
-          initialExpandedState[task.id] = true
+          initialExpandedState[task.id] = false
         })
         setExpandedTasks(initialExpandedState)
       } catch (error) {
