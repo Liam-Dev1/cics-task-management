@@ -222,32 +222,27 @@ export default function TaskManagement() {
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
     if (taskIdFromUrl && tasks.length > 0) {
-      // Make sure the task exists
-      const taskExists = tasks.some((task) => task.id === taskIdFromUrl)
-
+      const taskExists = tasks.some((task) => task.id === taskIdFromUrl);
+  
       if (taskExists) {
-        // Scroll to the task with a slight delay to ensure rendering is complete
         setTimeout(() => {
-          const taskElement = document.getElementById(`task-${taskIdFromUrl}`)
+          const taskElement = document.getElementById(`task-${taskIdFromUrl}`);
           if (taskElement) {
-            // Scroll to the task
-            taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
-
-            // Highlight the task briefly to make it more noticeable
-            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            taskElement.scrollIntoView({ behavior: "smooth", block: "center" });
+  
+            // Add the glow effect
+            taskElement.classList.add("glow");
             setTimeout(() => {
-              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
-            }, 2000)
-
-            // If expand parameter is true, expand the task
-            if (expandFromUrl === "true") {
-              setExpandedTasks((prev) => ({
-                ...prev,
-                [taskIdFromUrl]: true,
-              }))
-            }
+              taskElement.classList.remove("glow");
+            }, 2000); // Remove the glow after 2 seconds
+  
+            // Expand the task
+            setExpandedTasks((prev) => ({
+              ...prev,
+              [taskIdFromUrl]: true,
+            }));
           }
-        }, 300)
+        }, 300);
       }
     }
   }, [taskIdFromUrl, expandFromUrl, tasks])
