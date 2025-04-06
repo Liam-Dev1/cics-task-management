@@ -837,7 +837,6 @@ export default function TaskManagement() {
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button>Generate Reports</Button>
         </div>
 
         {/* Tasks List */}
