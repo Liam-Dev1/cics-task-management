@@ -6,10 +6,10 @@ import { auth, db } from "@/lib/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
-import { Sidebar as AdminSidebar } from "@/components/sidebar-admin"
-import { Sidebar as UserSidebar } from "@/components/sidebar-user"
 import AdminView from "./admin-view"
 import UserView from "./user-view"
+import { Sidebar as AdminSidebar } from "@/components/sidebar-admin"
+import { Sidebar as UserSidebar } from "@/components/sidebar-user"
 
 export default function HelpPage() {
   const [user, loading] = useAuthState(auth)

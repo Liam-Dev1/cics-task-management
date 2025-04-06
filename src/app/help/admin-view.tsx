@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sidebar } from "@/components/sidebar-admin"
 import { db } from "@/lib/firebase/firebase.config"
 import {
   collection,
@@ -132,7 +131,6 @@ const supportTicketsCollection = collection(db, "help", "support", "tickets")
 
 export default function AdminView() {
   const [activeTab, setActiveTab] = useState<TabType>("faq")
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [openDialog, setOpenDialog] = useState<{ type: string; id?: string } | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState("")
@@ -749,114 +747,198 @@ export default function AdminView() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
+    <div className="flex-1 p-8 bg-white">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-5xl font-bold text-gray-800 flex items-center">
+          Help and Support
+          <span className="ml-4 text-[#8B0000] text-3xl font-bold">Admin</span>
+        </h1>
+      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-8 bg-white">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-5xl font-bold text-gray-800 flex items-center">
-            Help and Support
-            <span className="ml-4 text-[#8B0000] text-3xl font-bold">Admin</span>
-          </h1>
+      {/* Search and Navigation */}
+      <div className="flex flex-wrap gap-2 mb-8">
+        <div className="relative w-full sm:w-auto sm:min-w-[300px] mb-4">
+          <Input
+            type="search"
+            placeholder="Search"
+            className="pr-10 bg-gray-100 border-gray-300 rounded"
+            value={searchQuery}
+            onChange={handleSearchChange}
+          />
+          <Button variant="ghost" size="icon" className="absolute right-0 top-0 h-full">
+            <Search className="h-4 w-4" />
+          </Button>
         </div>
 
-        {/* Search and Navigation */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          <div className="relative w-full sm:w-auto sm:min-w-[300px] mb-4">
-            <Input
-              type="search"
-              placeholder="Search"
-              className="pr-10 bg-gray-100 border-gray-300 rounded"
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
-            <Button variant="ghost" size="icon" className="absolute right-0 top-0 h-full">
-              <Search className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="flex gap-2 w-full">
+          <Button
+            variant={activeTab === "faq" ? "default" : "outline"}
+            className={
+              activeTab === "faq"
+                ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
+                : "bg-[#333333] text-white hover:bg-[#444444]"
+            }
+            onClick={() => setActiveTab("faq")}
+          >
+            FAQ
+          </Button>
 
-          <div className="flex gap-2 w-full">
+          <Button
+            variant={activeTab === "manual" ? "default" : "outline"}
+            className={
+              activeTab === "manual"
+                ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
+                : "bg-[#333333] text-white hover:bg-[#444444]"
+            }
+            onClick={() => setActiveTab("manual")}
+          >
+            Manual
+          </Button>
+
+          <Button
+            variant={activeTab === "contact" ? "default" : "outline"}
+            className={
+              activeTab === "contact"
+                ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
+                : "bg-[#333333] text-white hover:bg-[#444444]"
+            }
+            onClick={() => setActiveTab("contact")}
+          >
+            Contact Support
+          </Button>
+
+          {/* Only show Edit Mode button when not in Contact Support tab */}
+          {activeTab !== "contact" && (
             <Button
-              variant={activeTab === "faq" ? "default" : "outline"}
-              className={
-                activeTab === "faq"
-                  ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
-                  : "bg-[#333333] text-white hover:bg-[#444444]"
-              }
-              onClick={() => setActiveTab("faq")}
+              variant="default"
+              className="bg-[#8B0000] hover:bg-[#6B0000] text-white ml-auto"
+              onClick={() => setEditMode(!editMode)}
             >
-              FAQ
+              {editMode ? "Exit Edit Mode" : "Edit Mode"}
             </Button>
+          )}
+        </div>
+      </div>
 
-            <Button
-              variant={activeTab === "manual" ? "default" : "outline"}
-              className={
-                activeTab === "manual"
-                  ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
-                  : "bg-[#333333] text-white hover:bg-[#444444]"
-              }
-              onClick={() => setActiveTab("manual")}
-            >
-              Manual
-            </Button>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B0000]"></div>
+        </div>
+      )}
 
-            <Button
-              variant={activeTab === "contact" ? "default" : "outline"}
-              className={
-                activeTab === "contact"
-                  ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
-                  : "bg-[#333333] text-white hover:bg-[#444444]"
-              }
-              onClick={() => setActiveTab("contact")}
-            >
-              Contact Support
-            </Button>
-
-            {/* Only show Edit Mode button when not in Contact Support tab */}
-            {activeTab !== "contact" && (
-              <Button
-                variant="default"
-                className="bg-[#8B0000] hover:bg-[#6B0000] text-white ml-auto"
-                onClick={() => setEditMode(!editMode)}
-              >
-                {editMode ? "Exit Edit Mode" : "Edit Mode"}
+      {/* Content Area */}
+      {!isLoading && activeTab === "manual" && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold">Manual</h2>
+            {editMode && (
+              <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={() => handleOpenDialog("addSection")}>
+                <Plus className="h-4 w-4 mr-2" /> Add Section
               </Button>
             )}
           </div>
-        </div>
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B0000]"></div>
+          <div className="space-y-6">
+            {filteredManualSections.map((section) => (
+              <section key={section.id}>
+                <div className="flex items-center mb-2">
+                  <h3 className="text-xl font-bold">{section.title}</h3>
+                  {editMode && (
+                    <div className="ml-2 flex space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-800"
+                        onClick={() => handleOpenDialog("editSection", section.id)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-800"
+                        onClick={() => handleDeleteSection(section.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <ul className="list-disc pl-8 space-y-1">
+                  {section.items.map((item, index) => (
+                    <li key={`${section.id}-${index}`} className="flex items-center">
+                      <span>{item}</span>
+                      {editMode && (
+                        <div className="ml-2 flex space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-600 hover:text-blue-800 h-6 w-6 p-0"
+                            onClick={() => handleOpenDialog("editItem", `${section.id}-${index}`)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-800 h-6 w-6 p-0"
+                            onClick={() => handleDeleteItem(section.id, index)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                  {editMode && (
+                    <li>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-800 p-0"
+                        onClick={() => handleAddItem(section.id)}
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Add Item
+                      </Button>
+                    </li>
+                  )}
+                </ul>
+              </section>
+            ))}
+            {filteredManualSections.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No manual sections found matching your search criteria.</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Content Area */}
-        {!isLoading && activeTab === "manual" && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold">Manual</h2>
-              {editMode && (
-                <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={() => handleOpenDialog("addSection")}>
-                  <Plus className="h-4 w-4 mr-2" /> Add Section
-                </Button>
-              )}
-            </div>
+      {!isLoading && activeTab === "faq" && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold">FAQ</h2>
+            {editMode && (
+              <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={() => handleOpenDialog("addFaq")}>
+                <Plus className="h-4 w-4 mr-2" /> Add FAQ
+              </Button>
+            )}
+          </div>
 
-            <div className="space-y-6">
-              {filteredManualSections.map((section) => (
-                <section key={section.id}>
-                  <div className="flex items-center mb-2">
-                    <h3 className="text-xl font-bold">{section.title}</h3>
+          <div className="space-y-6">
+            {filteredFaqEntries.length > 0 ? (
+              filteredFaqEntries.map((faq) => (
+                <div key={faq.id}>
+                  <div className="flex items-center">
+                    <h3 className="text-xl font-bold">Q: {faq.question}</h3>
                     {editMode && (
                       <div className="ml-2 flex space-x-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           className="text-blue-600 hover:text-blue-800"
-                          onClick={() => handleOpenDialog("editSection", section.id)}
+                          onClick={() => handleOpenDialog("editFaq", faq.id)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -864,446 +946,357 @@ export default function AdminView() {
                           variant="ghost"
                           size="sm"
                           className="text-red-600 hover:text-red-800"
-                          onClick={() => handleDeleteSection(section.id)}
+                          onClick={() => handleDeleteFaq(faq.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     )}
                   </div>
-                  <ul className="list-disc pl-8 space-y-1">
-                    {section.items.map((item, index) => (
-                      <li key={`${section.id}-${index}`} className="flex items-center">
-                        <span>{item}</span>
-                        {editMode && (
-                          <div className="ml-2 flex space-x-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-blue-600 hover:text-blue-800 h-6 w-6 p-0"
-                              onClick={() => handleOpenDialog("editItem", `${section.id}-${index}`)}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:text-red-800 h-6 w-6 p-0"
-                              onClick={() => handleDeleteItem(section.id, index)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                    {editMode && (
-                      <li>
+                  <p className="mt-2">A: {faq.answer}</p>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No FAQs found matching your search criteria.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!isLoading && activeTab === "contact" && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold">Support Tickets</h2>
+            <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={() => handleOpenDialog("addTicket")}>
+              <Plus className="h-4 w-4 mr-2" /> Add New Ticket
+            </Button>
+          </div>
+
+          <div className="border rounded-md overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Subject
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredSupportTickets.map((ticket, index) => (
+                  <tr key={index}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.user}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.subject}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          ticket.status === "Resolved"
+                            ? "bg-green-100 text-green-800"
+                            : ticket.status === "New"
+                              ? "bg-blue-100 text-blue-800"
+                              : ticket.status === "In Progress"
+                                ? "bg-purple-100 text-purple-800"
+                                : ticket.status === "Closed"
+                                  ? "bg-gray-100 text-gray-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {ticket.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-blue-600 hover:text-blue-800 p-0"
-                          onClick={() => handleAddItem(section.id)}
+                          className="text-blue-600 hover:text-blue-800"
+                          onClick={() => handleOpenDialog("viewTicket", ticket.id)}
                         >
-                          <Plus className="h-3 w-3 mr-1" /> Add Item
+                          View
                         </Button>
-                      </li>
-                    )}
-                  </ul>
-                </section>
-              ))}
-              {filteredManualSections.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No manual sections found matching your search criteria.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {!isLoading && activeTab === "faq" && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold">FAQ</h2>
-              {editMode && (
-                <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={() => handleOpenDialog("addFaq")}>
-                  <Plus className="h-4 w-4 mr-2" /> Add FAQ
-                </Button>
-              )}
-            </div>
-
-            <div className="space-y-6">
-              {filteredFaqEntries.length > 0 ? (
-                filteredFaqEntries.map((faq) => (
-                  <div key={faq.id}>
-                    <div className="flex items-center">
-                      <h3 className="text-xl font-bold">Q: {faq.question}</h3>
-                      {editMode && (
-                        <div className="ml-2 flex space-x-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-800"
-                            onClick={() => handleOpenDialog("editFaq", faq.id)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-800"
-                            onClick={() => handleDeleteFaq(faq.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    <p className="mt-2">A: {faq.answer}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No FAQs found matching your search criteria.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {!isLoading && activeTab === "contact" && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold">Support Tickets</h2>
-              <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={() => handleOpenDialog("addTicket")}>
-                <Plus className="h-4 w-4 mr-2" /> Add New Ticket
-              </Button>
-            </div>
-
-            <div className="border rounded-md overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Subject
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredSupportTickets.map((ticket, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.user}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.subject}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            ticket.status === "Resolved"
-                              ? "bg-green-100 text-green-800"
-                              : ticket.status === "New"
-                                ? "bg-blue-100 text-blue-800"
-                                : ticket.status === "In Progress"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : ticket.status === "Closed"
-                                    ? "bg-gray-100 text-gray-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                          }`}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-green-600 hover:text-green-800"
+                          onClick={() => handleOpenDialog("editTicket", ticket.id)}
                         >
-                          {ticket.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.date}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-800"
-                            onClick={() => handleOpenDialog("viewTicket", ticket.id)}
-                          >
-                            View
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-green-600 hover:text-green-800"
-                            onClick={() => handleOpenDialog("editTicket", ticket.id)}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-800"
-                            onClick={() => handleDeleteTicket(ticket.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredSupportTickets.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No support tickets found matching your search criteria.</p>
-                </div>
-              )}
-            </div>
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-800"
+                          onClick={() => handleDeleteTicket(ticket.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredSupportTickets.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No support tickets found matching your search criteria.</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Edit Dialogs */}
-        <Dialog open={!!openDialog} onOpenChange={(open) => !open && handleCloseDialog()}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>
-                {openDialog?.type === "editSection" && "Edit Section"}
-                {openDialog?.type === "editItem" && "Edit Item"}
-                {openDialog?.type === "editFaq" && "Edit FAQ"}
-                {openDialog?.type === "addSection" && "Add New Section"}
-                {openDialog?.type === "addFaq" && "Add New FAQ"}
-                {openDialog?.type === "addItem" && "Add New Item"}
-                {openDialog?.type === "addTicket" && "Add New Support Ticket"}
-                {openDialog?.type === "editTicket" && "Edit Support Ticket"}
-                {openDialog?.type === "viewTicket" && "View Support Ticket"}
-              </DialogTitle>
-            </DialogHeader>
+      {/* Edit Dialogs */}
+      <Dialog open={!!openDialog} onOpenChange={(open) => !open && handleCloseDialog()}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {openDialog?.type === "editSection" && "Edit Section"}
+              {openDialog?.type === "editItem" && "Edit Item"}
+              {openDialog?.type === "editFaq" && "Edit FAQ"}
+              {openDialog?.type === "addSection" && "Add New Section"}
+              {openDialog?.type === "addFaq" && "Add New FAQ"}
+              {openDialog?.type === "addItem" && "Add New Item"}
+              {openDialog?.type === "addTicket" && "Add New Support Ticket"}
+              {openDialog?.type === "editTicket" && "Edit Support Ticket"}
+              {openDialog?.type === "viewTicket" && "View Support Ticket"}
+            </DialogTitle>
+          </DialogHeader>
 
-            {(openDialog?.type === "editSection" || openDialog?.type === "addSection") && (
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label htmlFor="title" className="text-sm font-medium">
-                    Section Title
-                  </label>
-                  <Input
-                    id="title"
-                    value={editForm.title}
-                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  />
-                </div>
+          {(openDialog?.type === "editSection" || openDialog?.type === "addSection") && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="title" className="text-sm font-medium">
+                  Section Title
+                </label>
+                <Input
+                  id="title"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                />
               </div>
-            )}
+            </div>
+          )}
 
-            {(openDialog?.type === "editItem" || openDialog?.type === "addItem") && (
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label htmlFor="content" className="text-sm font-medium">
-                    Item Content
-                  </label>
-                  <Input
-                    id="content"
-                    value={editForm.content}
-                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                  />
-                </div>
+          {(openDialog?.type === "editItem" || openDialog?.type === "addItem") && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="content" className="text-sm font-medium">
+                  Item Content
+                </label>
+                <Input
+                  id="content"
+                  value={editForm.content}
+                  onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                />
               </div>
-            )}
+            </div>
+          )}
 
-            {(openDialog?.type === "editFaq" || openDialog?.type === "addFaq") && (
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label htmlFor="question" className="text-sm font-medium">
-                    Question
-                  </label>
-                  <Input
-                    id="question"
-                    value={editForm.question}
-                    onChange={(e) => setEditForm({ ...editForm, question: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="answer" className="text-sm font-medium">
-                    Answer
-                  </label>
-                  <Textarea
-                    id="answer"
-                    rows={4}
-                    value={editForm.answer}
-                    onChange={(e) => setEditForm({ ...editForm, answer: e.target.value })}
-                  />
-                </div>
+          {(openDialog?.type === "editFaq" || openDialog?.type === "addFaq") && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="question" className="text-sm font-medium">
+                  Question
+                </label>
+                <Input
+                  id="question"
+                  value={editForm.question}
+                  onChange={(e) => setEditForm({ ...editForm, question: e.target.value })}
+                />
               </div>
-            )}
-
-            {openDialog?.type === "addTicket" && (
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label htmlFor="ticketUser" className="text-sm font-medium">
-                    User Email
-                  </label>
-                  <Input
-                    id="ticketUser"
-                    type="email"
-                    value={editForm.ticketUser}
-                    onChange={(e) => setEditForm({ ...editForm, ticketUser: e.target.value })}
-                    list="userEmails"
-                  />
-                  <datalist id="userEmails">
-                    <option value="liamkeith.mariano.cics@ust.edu.ph" />
-                    <option value="lebronjames@gmail.com" />
-                    <option value="john.doe@example.com" />
-                  </datalist>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="ticketSubject" className="text-sm font-medium">
-                    Subject
-                  </label>
-                  <Input
-                    id="ticketSubject"
-                    value={editForm.ticketSubject}
-                    onChange={(e) => setEditForm({ ...editForm, ticketSubject: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="ticketStatus" className="text-sm font-medium">
-                    Status
-                  </label>
-                  <Input id="ticketStatus" value="New" disabled className="bg-gray-100" />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="ticketDescription" className="text-sm font-medium">
-                    Description
-                  </label>
-                  <Textarea
-                    id="ticketDescription"
-                    rows={4}
-                    value={editForm.ticketDescription}
-                    onChange={(e) => setEditForm({ ...editForm, ticketDescription: e.target.value })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <label htmlFor="answer" className="text-sm font-medium">
+                  Answer
+                </label>
+                <Textarea
+                  id="answer"
+                  rows={4}
+                  value={editForm.answer}
+                  onChange={(e) => setEditForm({ ...editForm, answer: e.target.value })}
+                />
               </div>
-            )}
+            </div>
+          )}
 
-            {openDialog?.type === "editTicket" && (
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label htmlFor="ticketUser" className="text-sm font-medium">
-                    User Email
-                  </label>
-                  <Input
-                    id="ticketUser"
-                    type="email"
-                    value={editForm.ticketUser}
-                    onChange={(e) => setEditForm({ ...editForm, ticketUser: e.target.value })}
-                    list="userEmails"
-                  />
-                  <datalist id="userEmails">
-                    <option value="liamkeith.mariano.cics@ust.edu.ph" />
-                    <option value="lebronjames@gmail.com" />
-                    <option value="john.doe@example.com" />
-                  </datalist>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="ticketSubject" className="text-sm font-medium">
-                    Subject
-                  </label>
-                  <Input
-                    id="ticketSubject"
-                    value={editForm.ticketSubject}
-                    onChange={(e) => setEditForm({ ...editForm, ticketSubject: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="ticketStatus" className="text-sm font-medium">
-                    Status
-                  </label>
-                  <Select
-                    value={editForm.ticketStatus}
-                    onValueChange={(value) => setEditForm({ ...editForm, ticketStatus: value as TicketStatus })}
+          {openDialog?.type === "addTicket" && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="ticketUser" className="text-sm font-medium">
+                  User Email
+                </label>
+                <Input
+                  id="ticketUser"
+                  type="email"
+                  value={editForm.ticketUser}
+                  onChange={(e) => setEditForm({ ...editForm, ticketUser: e.target.value })}
+                  list="userEmails"
+                />
+                <datalist id="userEmails">
+                  <option value="liamkeith.mariano.cics@ust.edu.ph" />
+                  <option value="lebronjames@gmail.com" />
+                  <option value="john.doe@example.com" />
+                </datalist>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="ticketSubject" className="text-sm font-medium">
+                  Subject
+                </label>
+                <Input
+                  id="ticketSubject"
+                  value={editForm.ticketSubject}
+                  onChange={(e) => setEditForm({ ...editForm, ticketSubject: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="ticketStatus" className="text-sm font-medium">
+                  Status
+                </label>
+                <Input id="ticketStatus" value="New" disabled className="bg-gray-100" />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="ticketDescription" className="text-sm font-medium">
+                  Description
+                </label>
+                <Textarea
+                  id="ticketDescription"
+                  rows={4}
+                  value={editForm.ticketDescription}
+                  onChange={(e) => setEditForm({ ...editForm, ticketDescription: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+
+          {openDialog?.type === "editTicket" && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="ticketUser" className="text-sm font-medium">
+                  User Email
+                </label>
+                <Input
+                  id="ticketUser"
+                  type="email"
+                  value={editForm.ticketUser}
+                  onChange={(e) => setEditForm({ ...editForm, ticketUser: e.target.value })}
+                  list="userEmails"
+                />
+                <datalist id="userEmails">
+                  <option value="liamkeith.mariano.cics@ust.edu.ph" />
+                  <option value="lebronjames@gmail.com" />
+                  <option value="john.doe@example.com" />
+                </datalist>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="ticketSubject" className="text-sm font-medium">
+                  Subject
+                </label>
+                <Input
+                  id="ticketSubject"
+                  value={editForm.ticketSubject}
+                  onChange={(e) => setEditForm({ ...editForm, ticketSubject: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="ticketStatus" className="text-sm font-medium">
+                  Status
+                </label>
+                <Select
+                  value={editForm.ticketStatus}
+                  onValueChange={(value) => setEditForm({ ...editForm, ticketStatus: value as TicketStatus })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="New">New</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Resolved">Resolved</SelectItem>
+                    <SelectItem value="Closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="ticketDescription" className="text-sm font-medium">
+                  Description
+                </label>
+                <Textarea
+                  id="ticketDescription"
+                  rows={4}
+                  value={editForm.ticketDescription}
+                  onChange={(e) => setEditForm({ ...editForm, ticketDescription: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+
+          {openDialog?.type === "viewTicket" && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">User Email</label>
+                <p className="p-2 bg-gray-50 rounded-md">{editForm.ticketUser}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Subject</label>
+                <p className="p-2 bg-gray-50 rounded-md">{editForm.ticketSubject}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Status</label>
+                <p className="p-2 bg-gray-50 rounded-md">
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      editForm.ticketStatus === "Resolved"
+                        ? "bg-green-100 text-green-800"
+                        : editForm.ticketStatus === "New"
+                          ? "bg-blue-100 text-blue-800"
+                          : editForm.ticketStatus === "In Progress"
+                            ? "bg-purple-100 text-purple-800"
+                            : editForm.ticketStatus === "Closed"
+                              ? "bg-gray-100 text-gray-800"
+                              : "bg-yellow-100 text-yellow-800"
+                    }`}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="New">New</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Resolved">Resolved</SelectItem>
-                      <SelectItem value="Closed">Closed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="ticketDescription" className="text-sm font-medium">
-                    Description
-                  </label>
-                  <Textarea
-                    id="ticketDescription"
-                    rows={4}
-                    value={editForm.ticketDescription}
-                    onChange={(e) => setEditForm({ ...editForm, ticketDescription: e.target.value })}
-                  />
-                </div>
+                    {editForm.ticketStatus}
+                  </span>
+                </p>
               </div>
-            )}
-
-            {openDialog?.type === "viewTicket" && (
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">User Email</label>
-                  <p className="p-2 bg-gray-50 rounded-md">{editForm.ticketUser}</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Subject</label>
-                  <p className="p-2 bg-gray-50 rounded-md">{editForm.ticketSubject}</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Status</label>
-                  <p className="p-2 bg-gray-50 rounded-md">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        editForm.ticketStatus === "Resolved"
-                          ? "bg-green-100 text-green-800"
-                          : editForm.ticketStatus === "New"
-                            ? "bg-blue-100 text-blue-800"
-                            : editForm.ticketStatus === "In Progress"
-                              ? "bg-purple-100 text-purple-800"
-                              : editForm.ticketStatus === "Closed"
-                                ? "bg-gray-100 text-gray-800"
-                                : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {editForm.ticketStatus}
-                    </span>
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Description</label>
-                  <p className="p-2 bg-gray-50 rounded-md whitespace-pre-wrap">{editForm.ticketDescription}</p>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <p className="p-2 bg-gray-50 rounded-md whitespace-pre-wrap">{editForm.ticketDescription}</p>
               </div>
-            )}
+            </div>
+          )}
 
-            <DialogFooter>
-              <Button variant="outline" onClick={handleCloseDialog}>
-                {openDialog?.type === "viewTicket" ? "Close" : "Cancel"}
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseDialog}>
+              {openDialog?.type === "viewTicket" ? "Close" : "Cancel"}
+            </Button>
+            {openDialog?.type !== "viewTicket" && (
+              <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={handleSave}>
+                Save
               </Button>
-              {openDialog?.type !== "viewTicket" && (
-                <Button className="bg-[#8B0000] hover:bg-[#6B0000]" onClick={handleSave}>
-                  Save
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
