@@ -100,11 +100,6 @@ export default function TaskPage() {
     return () => unsubscribe()
   }, [router])
 
-  // Handle sidebar minimize/maximize
-  const handleSidebarMinimize = (minimized: boolean) => {
-    setIsSidebarMinimized(minimized)
-  }
-
   // If not logged in, redirect to login
   if (!loading && !user) {
     return (
@@ -124,14 +119,16 @@ export default function TaskPage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar with fixed position */}
-      <div className="fixed top-0 left-0 h-screen w-64 bg-white shadow-md z-10">
-        <SidebarComponent onMinimize={handleSidebarMinimize} />
-      </div>
+      {/* Sidebar with onMinimize prop */}
+      <SidebarComponent onMinimize={setIsSidebarMinimized} />
 
-      {/* Main content area with margin to account for the fixed sidebar */}
+      {/* Main content area with dynamic margin based on sidebar state */}
       <div
-        className={`flex-1 ml-64 transition-all duration-300`}
+        className="flex-1 transition-all duration-300"
+        style={{
+          marginLeft: isSidebarMinimized ? "4rem" : "16rem",
+          width: `calc(100% - ${isSidebarMinimized ? "4rem" : "16rem"})`,
+        }}
       >
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
@@ -147,4 +144,3 @@ export default function TaskPage() {
     </div>
   )
 }
-

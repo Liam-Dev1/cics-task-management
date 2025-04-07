@@ -27,4 +27,3 @@ export default function AdminTaskWrapper({ taskId }: AdminTaskWrapperProps) {
 
   return <AdminTaskView />;
 }
-

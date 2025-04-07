@@ -16,8 +16,10 @@ export default function AdminRecieverPage() {
   const [editingUser, setEditingUser] = useState<User | undefined>(undefined)
   const [isAddingUser, setIsAddingUser] = useState(false)
   const [user, loading] = useAuthState(auth)
+  const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
   const router = useRouter()
 
+  // Fetch users from Firestore
   useEffect(() => {
     const fetchUsers = async () => {
       if (user) {
@@ -34,15 +36,45 @@ export default function AdminRecieverPage() {
     fetchUsers()
   }, [user])
 
+  // Check if sidebar should be minimized based on orientation
   useEffect(() => {
-    // Set up the onAuthStateChanged observer
+    const checkOrientation = () => {
+      if (typeof window !== "undefined") {
+        const isPortrait = window.matchMedia("(orientation: portrait)").matches
+        setIsSidebarMinimized(isPortrait)
+      }
+    }
+
+    // Initial check
+    checkOrientation()
+
+    // Set up listener for orientation changes
+    const mediaQuery = window.matchMedia("(orientation: portrait)")
+    const handleOrientationChange = () => checkOrientation()
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleOrientationChange)
+    } else {
+      window.addEventListener("resize", handleOrientationChange)
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", handleOrientationChange)
+      } else {
+        window.removeEventListener("resize", handleOrientationChange)
+      }
+    }
+  }, [])
+
+  // Authentication check
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.push("/login")
       }
     })
 
-    // Clean up the observer when the component unmounts
     return () => unsubscribe()
   }, [router])
 
@@ -124,38 +156,59 @@ export default function AdminRecieverPage() {
   }
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
+        <div className="text-xl ml-3">Loading users...</div>
+      </div>
+    )
   }
 
   if (!user) {
-    return <div>You must be logged in to access this page.</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl">You must be logged in to access this page.</div>
+      </div>
+    )
   }
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex-1 p-4 bg-white">
-        <h1 className="text-2xl font-bold mb-4">User Management</h1>
-        <UserList
-          users={users}
-          onEdit={setEditingUser}
-          onDelete={handleDeleteUser}
-          onAddNew={() => setIsAddingUser(true)}
-          onToggleActive={handleToggleActive}
-          onChangeRole={handleChangeRole}
-          currentUserRole={user?.role || ""}
-        />
-        <AddEditUserForm
-          user={editingUser}
-          onSave={editingUser ? handleEditUser : handleAddUser}
-          onCancel={() => {
-            setIsAddingUser(false)
-            setEditingUser(undefined)
-          }}
-          isOpen={isAddingUser || !!editingUser}
-          currentUserRole={user?.role || ""}
-        />
+      {/* Sidebar with onMinimize prop */}
+      <Sidebar onMinimize={setIsSidebarMinimized} />
+
+      {/* Main content area with dynamic margin based on sidebar state */}
+      <div
+        className="flex-1 transition-all duration-300"
+        style={{
+          marginLeft: isSidebarMinimized ? "4rem" : "16rem",
+          width: `calc(100% - ${isSidebarMinimized ? "4rem" : "16rem"})`,
+        }}
+      >
+        <div className="p-6">
+          <h1 className="text-3xl font-bold mb-6">User Management</h1>
+          <UserList
+            users={users}
+            onEdit={setEditingUser}
+            onDelete={handleDeleteUser}
+            onAddNew={() => setIsAddingUser(true)}
+            onToggleActive={handleToggleActive}
+            onChangeRole={handleChangeRole}
+            currentUserRole={user?.role || ""}
+          />
+          <AddEditUserForm
+            user={editingUser}
+            onSave={editingUser ? handleEditUser : handleAddUser}
+            onCancel={() => {
+              setIsAddingUser(false)
+              setEditingUser(undefined)
+            }}
+            isOpen={isAddingUser || !!editingUser}
+            currentUserRole={user?.role || ""}
+          />
+        </div>
       </div>
     </div>
   )
 }
+

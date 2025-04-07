@@ -27,4 +27,3 @@ export default function UserTaskWrapper({ taskId }: UserTaskWrapperProps) {
 
   return <UserTaskView />;
 }
-
