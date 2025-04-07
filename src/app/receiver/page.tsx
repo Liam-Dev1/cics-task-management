@@ -5,28 +5,44 @@ import { useRouter } from "next/navigation"
 import UserList from "./user-list"
 import AddEditUserForm from "./add-edit-user-form"
 import { Sidebar } from "@/components/sidebar-admin"
-import type { User } from "../../lib/types"
 import { db, auth } from "@/lib/firebase/firebase.config"
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { createUserWithEmailAndPassword, onAuthStateChanged } from "firebase/auth"
 
+// Define the User type directly here to resolve the import error
+interface User {
+  id: string
+  name: string
+  email: string
+  role: "user" | "admin" | "super admin"
+  isActive: boolean
+  jobTitle?: string
+}
+
 export default function AdminRecieverPage() {
   const [users, setUsers] = useState<User[]>([])
   const [editingUser, setEditingUser] = useState<User | undefined>(undefined)
   const [isAddingUser, setIsAddingUser] = useState(false)
-  const [user, loading] = useAuthState(auth)
+  const [currentUser, loading] = useAuthState(auth) // Renamed from 'user' to 'currentUser' to avoid confusion
+  const [currentUserRole, setCurrentUserRole] = useState<string>("") // Store the current user's role separately
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
   const router = useRouter()
 
-  // Fetch users from Firestore
+  // Fetch users from Firestore and determine current user's role
   useEffect(() => {
     const fetchUsers = async () => {
-      if (user) {
+      if (currentUser) {
         try {
           const querySnapshot = await getDocs(collection(db, "users"))
           const usersData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as User)
           setUsers(usersData)
+
+          // Find the current user's role
+          const currentUserData = usersData.find((u) => u.id === currentUser.uid)
+          if (currentUserData) {
+            setCurrentUserRole(currentUserData.role)
+          }
         } catch (error) {
           console.error("Error fetching users:", error)
         }
@@ -34,7 +50,7 @@ export default function AdminRecieverPage() {
     }
 
     fetchUsers()
-  }, [user])
+  }, [currentUser])
 
   // Check if sidebar should be minimized based on orientation
   useEffect(() => {
@@ -79,7 +95,7 @@ export default function AdminRecieverPage() {
   }, [router])
 
   const handleAddUser = async (newUser: User) => {
-    if (!user) return
+    if (!currentUser) return
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, newUser.email, "defaultPassword")
@@ -99,7 +115,7 @@ export default function AdminRecieverPage() {
   }
 
   const handleEditUser = async (updatedUser: User) => {
-    if (!user) return
+    if (!currentUser) return
 
     try {
       const userRef = doc(db, "users", updatedUser.id)
@@ -114,7 +130,7 @@ export default function AdminRecieverPage() {
   }
 
   const handleDeleteUser = async (id: string) => {
-    if (!user) return
+    if (!currentUser) return
 
     try {
       await deleteDoc(doc(db, "users", id))
@@ -126,7 +142,7 @@ export default function AdminRecieverPage() {
   }
 
   const handleToggleActive = async (id: string) => {
-    if (!user) return
+    if (!currentUser) return
 
     try {
       const userToUpdate = users.find((u) => u.id === id)
@@ -143,7 +159,7 @@ export default function AdminRecieverPage() {
   }
 
   const handleChangeRole = async (id: string, role: "user" | "admin" | "super admin") => {
-    if (!user) return
+    if (!currentUser) return
 
     try {
       const userRef = doc(db, "users", id)
@@ -164,7 +180,7 @@ export default function AdminRecieverPage() {
     )
   }
 
-  if (!user) {
+  if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-xl">You must be logged in to access this page.</div>
@@ -194,7 +210,7 @@ export default function AdminRecieverPage() {
             onAddNew={() => setIsAddingUser(true)}
             onToggleActive={handleToggleActive}
             onChangeRole={handleChangeRole}
-            currentUserRole={user?.role || ""}
+            currentUserRole={currentUserRole}
           />
           <AddEditUserForm
             user={editingUser}
@@ -204,7 +220,7 @@ export default function AdminRecieverPage() {
               setEditingUser(undefined)
             }}
             isOpen={isAddingUser || !!editingUser}
-            currentUserRole={user?.role || ""}
+            currentUserRole={currentUserRole}
           />
         </div>
       </div>
