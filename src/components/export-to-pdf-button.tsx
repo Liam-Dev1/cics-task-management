@@ -18,6 +18,7 @@ interface ExportToPdfButtonProps {
   timeFrames: string[]
   onTimeFrameChange: (timeFrame: string) => void
   onTabChange: (tab: string) => void
+  logoUrl?: string // Optional logo URL
 }
 
 export function ExportToPdfButton({
@@ -29,6 +30,7 @@ export function ExportToPdfButton({
   timeFrames,
   onTimeFrameChange,
   onTabChange,
+  logoUrl = "/images/CICSTASKMGMT_LOGO_NG.png", // Default to CICS logo if available
 }: ExportToPdfButtonProps) {
   const [isExporting, setIsExporting] = useState(false)
 
@@ -49,24 +51,80 @@ export function ExportToPdfButton({
       // We'll set the width dynamically based on the section we're capturing
       document.body.style.overflow = "hidden"
 
-      const pdf = new jsPDF("p", "mm", "a4")
+      const pdf = new jsPDF({
+        orientation: "p",
+        unit: "mm", 
+        format: "a4",
+        compress: true // Enable PDF compression
+      })
       const dateRange = `${format(fromDate, "MMM d, yyyy")} - ${format(toDate, "MMM d, yyyy")}`
       const fileName = `Task_Report_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`
 
       // Page dimensions
       const pageWidth = 210 // A4 width in mm
       const pageHeight = 297 // A4 height in mm
-      const margin = 10
-      const contentWidth = pageWidth - margin * 2
+
+      // Different margins for sides vs top/bottom
+      const sideMargin = 10 // Original side margin
+      const topBottomMargin = 5 // Reduced top/bottom margin
+
+      const contentWidth = pageWidth - sideMargin * 2
+
+      // Calculate x position to center content
+      const xPos = sideMargin // Side margin is already accounted for in contentWidth
+
+      // Add logo if available
+      let currentY = topBottomMargin + 5 // Start a bit lower to accommodate the logo
+
+      try {
+        // Create an image element to load the logo
+        const logoImg = new Image()
+        logoImg.crossOrigin = "Anonymous" // Handle CORS if needed
+
+        // Wait for the logo to load
+        await new Promise((resolve, reject) => {
+          logoImg.onload = resolve
+          logoImg.onerror = reject
+          logoImg.src = logoUrl
+        })
+
+        // Calculate logo dimensions (max height 15mm, maintain aspect ratio)
+        const logoMaxHeight = 15// mm
+        const logoAspectRatio = logoImg.width / logoImg.height
+        const logoHeight = Math.min(logoMaxHeight, 20) // mm, capped at 20mm
+        const logoWidth = logoHeight * logoAspectRatio
+
+        // Center the logo horizontally
+        const logoX = (pageWidth - logoWidth) / 2
+
+        // Add the logo to the PDF
+        const logoCanvas = document.createElement("canvas")
+        logoCanvas.width = logoImg.width
+        logoCanvas.height = logoImg.height
+        const logoCtx = logoCanvas.getContext("2d")
+        logoCtx.drawImage(logoImg, 0, 0, logoImg.width, logoImg.height)
+
+        const logoDataUrl = logoCanvas.toDataURL("image/png")
+        pdf.addImage(logoDataUrl, "PNG", logoX, currentY, logoWidth, logoHeight)
+
+        // Update currentY to position text below the logo with increased bottom margin
+        currentY += logoHeight + 10 // Increased from 5 to 10mm for more space
+      } catch (error) {
+        console.error("Error loading logo:", error)
+        // If logo fails to load, just continue without it
+        currentY = 15 // Default position if no logo
+      }
 
       // Add title
       pdf.setFontSize(18)
-      pdf.text("Task Management Report", 105, 15, { align: "center" })
+      pdf.setFont("helvetica", "bold")
+      pdf.text("Performance Report", 105, currentY, { align: "center" })
+      currentY += 7
       pdf.setFontSize(12)
-      pdf.text(dateRange, 105, 22, { align: "center" })
+      pdf.text(dateRange, 105, currentY, { align: "center" })
+      currentY += 10
       pdf.setFontSize(10)
-
-      let currentY = 30
+      pdf.setFont("helvetica", "normal")
 
       // First capture the stats section with MD styling
       onTabChange("pieCharts")
@@ -190,18 +248,18 @@ export function ExportToPdfButton({
       const statsElement = reportRef.current.querySelector(".bg-gray-300")
       if (statsElement) {
         const statsCanvas = await html2canvas(statsElement as HTMLElement, {
-          scale: 2,
+          scale: 1.25, // Reduced from 2
           logging: false,
           useCORS: true,
           allowTaint: true,
           width: 768, // Force md screen width
         })
 
-        const statsImgData = statsCanvas.toDataURL("image/png")
+        const statsImgData = statsCanvas.toDataURL("image/jpeg", 0.7) // Use JPEG with 70% quality
         const statsImgWidth = contentWidth
         const statsImgHeight = (statsCanvas.height * statsImgWidth) / statsCanvas.width
 
-        pdf.addImage(statsImgData, "PNG", margin, currentY, statsImgWidth, statsImgHeight)
+        pdf.addImage(statsImgData, "JPEG", xPos, currentY, statsImgWidth, statsImgHeight)
         currentY += statsImgHeight + 10
       }
 
@@ -226,12 +284,39 @@ export function ExportToPdfButton({
       // Force extra large screen layout for the charts
       const pieChartsSection = reportRef.current.querySelector('[data-tab="pieCharts"]')
       if (pieChartsSection) {
+        // Add temporary bottom padding to prevent cutoff
+        const originalPadding = (pieChartsSection as HTMLElement).style.paddingBottom
+        ;(pieChartsSection as HTMLElement).style.paddingBottom = "20px"
+        elementsToModify.push({
+          element: pieChartsSection as HTMLElement,
+          isStyle: true,
+          restore: () => {
+            (pieChartsSection as HTMLElement).style.paddingBottom = originalPadding
+          }
+        })
+        
         const pieChartGrids = pieChartsSection.querySelectorAll(".grid")
         pieChartGrids.forEach((grid) => {
           if (grid.className.includes("grid-cols-2") || grid.className.includes("grid-cols-1")) {
             const originalClass = grid.className
             grid.className = "grid grid-cols-2 gap-6 mb-6" // Force 2-column layout for 2xl
             elementsToModify.push({ element: grid, originalClass })
+            
+            // Add bottom margin to each chart container
+            const chartContainers = grid.querySelectorAll("div")
+            chartContainers.forEach(container => {
+              if (container.querySelector("svg")) {
+                const originalMargin = container.style.marginBottom
+                container.style.marginBottom = "15px"
+                elementsToModify.push({
+                  element: container,
+                  isStyle: true,
+                  restore: () => {
+                    container.style.marginBottom = originalMargin
+                  }
+                })
+              }
+            })
           }
         })
       }
@@ -242,24 +327,26 @@ export function ExportToPdfButton({
       // Export pie charts with 2XL styling
       if (pieChartsSection) {
         const pieCanvas = await html2canvas(pieChartsSection as HTMLElement, {
-          scale: 2,
+          scale: 1.25, // Reduced from 2
           logging: false,
           useCORS: true,
           allowTaint: true,
           width: 1536, // Force 2xl screen width
+          // Add a small height buffer to ensure everything is captured
+          height: (pieChartsSection as HTMLElement).offsetHeight + 10,
         })
 
         // Check if we need a new page
-        if (currentY + (pieCanvas.height * contentWidth) / pieCanvas.width > pageHeight - margin) {
+        if (currentY + (pieCanvas.height * contentWidth) / pieCanvas.width > pageHeight - topBottomMargin) {
           pdf.addPage()
-          currentY = margin
+          currentY = topBottomMargin
         }
 
-        const pieImgData = pieCanvas.toDataURL("image/png")
-        const pieImgWidth = contentWidth
+        const pieImgData = pieCanvas.toDataURL("image/jpeg", 0.8) // Increased quality to 80%
+        const pieImgWidth = contentWidth * 0.98 // Slightly reduce width to maintain aspect ratio
         const pieImgHeight = (pieCanvas.height * pieImgWidth) / pieCanvas.width
 
-        pdf.addImage(pieImgData, "PNG", margin, currentY, pieImgWidth, pieImgHeight)
+        pdf.addImage(pieImgData, "JPEG", xPos + (contentWidth - pieImgWidth) / 2, currentY, pieImgWidth, pieImgHeight)
         currentY += pieImgHeight + 10
       }
 
@@ -269,10 +356,14 @@ export function ExportToPdfButton({
         { tab: "barCharts", title: "Task Completion Status" },
       ]
 
-      // Initialize variables for 2-per-page layout
+      // Initialize variables for 4-per-page layout
       let chartsOnCurrentPage = 0
-      currentY = margin
+      currentY = topBottomMargin // Use topBottomMargin instead of generic margin
       pdf.addPage() // Start with a fresh page for the charts
+
+      // Count total charts to process
+      const totalCharts = chartTypes.length * timeFrames.length
+      let processedCharts = 0
 
       // Process each chart type
       for (const chartType of chartTypes) {
@@ -288,43 +379,45 @@ export function ExportToPdfButton({
 
           const chartElement = reportRef.current.querySelector(`[data-tab="${chartType.tab}"]`)
           if (chartElement) {
+            processedCharts++
+            const isLastChart = processedCharts === totalCharts
+
             const canvas = await html2canvas(chartElement as HTMLElement, {
-              scale: 2,
+              scale: 1.25, // Reduced from 2
               logging: false,
               useCORS: true,
               allowTaint: true,
               width: 1536, // Force 2xl screen width
             })
 
-            // Calculate image dimensions
+            // Calculate image dimensions - reduced height to fit 4 per page
             const imgWidth = contentWidth
-            const imgHeight = Math.min((canvas.height * imgWidth) / canvas.width, 120) // Limit height to fit 2 per page
+            const imgHeight = Math.min((canvas.height * imgWidth) / canvas.width, 65) // Reduced height to fit 4 per page
 
             // Check if we need a new page
-            if (chartsOnCurrentPage === 2 || currentY + imgHeight + 15 > pageHeight - margin) {
+            if (chartsOnCurrentPage === 4 || currentY + imgHeight > pageHeight - topBottomMargin) {
               pdf.addPage()
-              currentY = margin
+              currentY = topBottomMargin
               chartsOnCurrentPage = 0
             }
 
-            // Add timeframe title
-            pdf.setFontSize(14)
-            pdf.text(`${chartType.title} (${timeFrame})`, 105, currentY + 7, { align: "center" })
-            currentY += 15
-            pdf.setFontSize(10)
+            // Remove the title section that was here previously
+            // Charts already have titles embedded from the website
 
             // Add the chart image
-            const imgData = canvas.toDataURL("image/png")
-            pdf.addImage(imgData, "PNG", margin, currentY, imgWidth, imgHeight)
+            const imgData = canvas.toDataURL("image/jpeg", 0.7) // Use JPEG with 70% quality
+            pdf.addImage(imgData, "JPEG", xPos, currentY, imgWidth, imgHeight)
 
             // Update position for next chart
-            currentY += imgHeight + 15
+            currentY += imgHeight + 8 // Reduced spacing
+
+            // Increment the charts counter
             chartsOnCurrentPage++
 
-            // If we've added 2 charts, prepare for a new page
-            if (chartsOnCurrentPage === 2) {
+            // Only add a new page if this isn't the last chart and we've reached 4 charts
+            if (!isLastChart && chartsOnCurrentPage === 4) {
               pdf.addPage()
-              currentY = margin
+              currentY = topBottomMargin
               chartsOnCurrentPage = 0
             }
           }

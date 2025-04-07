@@ -16,7 +16,7 @@ export function LoadingOverlay({ isVisible, message = "Exporting PDF..." }: Load
         <Loader2 className="h-12 w-12 text-[#8B2332] animate-spin mb-4" />
         <h3 className="text-xl font-semibold mb-2">{message}</h3>
         <p className="text-gray-600 text-center">
-          Please wait while we generate your report. This may take a few moments.
+          Please do not change windows while the file is generating
         </p>
       </div>
     </div>
