@@ -11,7 +11,7 @@ interface ProfileProps {
   userName: string | null
   userEmail: string | null
   userRole: string | null
-  profilePhoto: string | null
+  profilePhoto: string | null | ((url: string) => void)
 }
 
 export default function Profile({ users, userName, userEmail, userRole, profilePhoto }: ProfileProps) {
@@ -33,7 +33,9 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
       await uploadBytes(fileRef, file)
 
       const downloadURL = await getDownloadURL(fileRef)
-      setProfilePhoto(downloadURL) // Update profile photo URL
+      if (typeof profilePhoto === "function") {
+        profilePhoto(downloadURL) // Update profile photo URL
+      }
 
       alert("Profile photo updated successfully!")
     } catch (error) {
@@ -57,7 +59,7 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
           <div className="flex items-center">
             <div className="pr-1">
               <img
-                src={profilePhoto || "https://placehold.co/200"}
+                src={typeof profilePhoto === "string" ? profilePhoto : "https://placehold.co/200"}
                 className="rounded-full border border-white w-40 h-40 object-cover"
                 alt="Profile"
               />

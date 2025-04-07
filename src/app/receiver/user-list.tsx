@@ -6,28 +6,56 @@ import { Search, Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { User } from "@/lib/types"
 
-interface UserListProps {
-  users: User[];
-  onEdit: (user: User) => void;
-  onDelete: (id: string) => void;
-  onToggleActive: (id: string) => void;
-  onChangeRole: (id: string, role: "user" | "admin" | "super admin") => void;
-  onAddNew: () => void;
-  currentUserRole: string;
+// Define the User interface here to match the one in the page component
+interface User {
+  id: string
+  name: string
+  email: string
+  role: "user" | "admin" | "super admin"
+  isActive: boolean
+  jobTitle?: string
 }
 
-export default function UserList({ users, onEdit, onDelete, onToggleActive, onChangeRole, onAddNew, currentUserRole }: UserListProps) {
+interface UserListProps {
+  users: User[]
+  onEdit: (user: User) => void
+  onDelete: (id: string) => void
+  onToggleActive: (id: string) => void
+  onChangeRole: (id: string, role: "user" | "admin" | "super admin") => void
+  onAddNew: () => void
+  currentUserRole: string
+}
+
+export default function UserList({
+  users,
+  onEdit,
+  onDelete,
+  onToggleActive,
+  onChangeRole,
+  onAddNew,
+  currentUserRole,
+}: UserListProps) {
   const [searchTerm, setSearchTerm] = useState("")
 
   const filteredUsers = users.filter(
     (user) =>
       (user.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-      (user.role?.toLowerCase() || "").includes(searchTerm.toLowerCase())
-  );
-  
+      (user.role?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (user.jobTitle?.toLowerCase() || "").includes(searchTerm.toLowerCase()),
+  )
+
+  // Function to get role badge styling
+  const getRoleBadgeStyle = (role: string) => {
+    switch (role) {
+      case "super admin":
+        return "bg-purple-100 text-purple-800 border-purple-400"
+      case "admin":
+        return "bg-blue-100 text-blue-800 border-blue-400"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-400"
+    }
+  }
 
   return (
     <div className="bg-white rounded border border-gray-200">
@@ -36,7 +64,7 @@ export default function UserList({ users, onEdit, onDelete, onToggleActive, onCh
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
           <Input
             type="text"
-            placeholder="Search by name or role..."
+            placeholder="Search by name, role, or job title..."
             className="pl-10 border-gray-300 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -56,6 +84,7 @@ export default function UserList({ users, onEdit, onDelete, onToggleActive, onCh
             <tr className="bg-gray-100 text-left text-xs font-semibold uppercase tracking-wider">
               <th className="px-4 py-2">Profile</th>
               <th className="px-4 py-2">Name</th>
+              <th className="px-4 py-2">Job Title</th>
               <th className="px-4 py-2">Role</th>
               <th className="px-4 py-2 text-center">Status</th>
               <th className="px-4 py-2 text-center">Actions</th>
@@ -64,7 +93,7 @@ export default function UserList({ users, onEdit, onDelete, onToggleActive, onCh
           <tbody className="text-gray-700">
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-2 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-2 text-center text-gray-500">
                   No users found
                 </td>
               </tr>
@@ -74,26 +103,17 @@ export default function UserList({ users, onEdit, onDelete, onToggleActive, onCh
                   <td className="px-4 py-2">
                     <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden">
                       <div className="w-full h-full flex items-center justify-center text-gray-600">
-                      {user.name ? user.name.charAt(0) : "?"}
+                        {user.name ? user.name.charAt(0) : "?"}
+                      </div>
                     </div>
-                   </div>
                   </td>
                   <td className="px-4 py-2 font-medium">{user.name}</td>
+                  <td className="px-4 py-2">{user.jobTitle || "Not specified"}</td>
                   <td className="px-4 py-2">
-                    <Select
-                      value={user.role}
-                      onValueChange={(value) => onChangeRole(user.id, value as "user" | "admin" | "super admin")}
-                      disabled={currentUserRole !== "super admin"} // Only super admin can change roles
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="super admin">Super Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {/* Replace dropdown with a badge */}
+                    <Badge variant="outline" className={getRoleBadgeStyle(user.role)}>
+                      {user.role}
+                    </Badge>
                   </td>
                   <td className="px-4 py-2 text-center">
                     <Badge
@@ -148,3 +168,4 @@ export default function UserList({ users, onEdit, onDelete, onToggleActive, onCh
     </div>
   )
 }
+

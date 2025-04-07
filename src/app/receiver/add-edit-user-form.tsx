@@ -1,70 +1,88 @@
 // add-edit-user-form.tsx
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { User } from "@/lib/types"
+
+// Define the User interface here to match the one in the page component
+interface User {
+  id: string
+  name: string
+  email: string
+  role: "user" | "admin" | "super admin"
+  isActive: boolean
+  jobTitle?: string
+}
 
 interface AddEditUserFormProps {
-  user?: User; // Ensure this is typed correctly
-  onSave: (user: User) => void;
-  onCancel: () => void;
-  isOpen: boolean;
-  currentUserRole: string;
+  user?: User
+  onSave: (user: User) => void
+  onCancel: () => void
+  isOpen: boolean
+  currentUserRole: string
 }
 
 export default function AddEditUserForm({ user, onSave, onCancel, isOpen, currentUserRole }: AddEditUserFormProps) {
+  // Update the formData state to include jobTitle
   const [formData, setFormData] = useState<{
-    name: string; // Full name field
-    email: string;
-    role: "user" | "admin" | "super admin";
+    name: string
+    email: string
+    role: "user" | "admin" | "super admin"
+    jobTitle: string // Add job title field
   }>({
-    name: "", // Full name field
+    name: "",
     email: "",
-    role: "user", // Default role is "user"
-  });
+    role: "user",
+    jobTitle: "", // Initialize job title
+  })
 
-  // Initialize form data when the user prop changes
+  // Update the useEffect to include jobTitle when user prop changes
   useEffect(() => {
     if (user) {
       setFormData({
-        name: user.name, // Set full name
+        name: user.name,
         email: user.email,
         role: user.role,
-      });
+        jobTitle: user.jobTitle || "", // Set job title from user data
+      })
     } else {
       setFormData({
-        name: "", // Reset full name
+        name: "",
         email: "",
         role: "user",
-      });
+        jobTitle: "", // Reset job title
+      })
     }
-  }, [user]);
+  }, [user])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
+  // Update the handleSubmit function to include jobTitle in the new user object
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    e.preventDefault()
     const newUser: User = {
-      id: user?.id || Date.now().toString(), // Generate a new id if user is undefined
-      name: formData.name.trim(), // Use the full name
+      id: user?.id || Date.now().toString(),
+      name: formData.name.trim(),
       email: formData.email,
       role: formData.role,
-      isActive: user?.isActive || true, // Default to true if user is undefined
-    };
-    onSave(newUser);
-  };
+      jobTitle: formData.jobTitle.trim(), // Include job title
+      isActive: user?.isActive || true,
+    }
+    onSave(newUser)
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onCancel}>
@@ -86,6 +104,18 @@ export default function AddEditUserForm({ user, onSave, onCancel, isOpen, curren
             />
           </div>
 
+          {/* Job Title Field */}
+          <div className="space-y-2">
+            <Label htmlFor="jobTitle">Job Title</Label>
+            <Input
+              id="jobTitle"
+              name="jobTitle"
+              value={formData.jobTitle}
+              onChange={handleChange}
+              placeholder="Enter job title"
+            />
+          </div>
+
           {/* Email Field */}
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
@@ -103,10 +133,7 @@ export default function AddEditUserForm({ user, onSave, onCancel, isOpen, curren
           {/* Role Field */}
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Select
-              value={formData.role}
-              onValueChange={(value) => handleSelectChange("role", value)}
-            >
+            <Select value={formData.role} onValueChange={(value) => handleSelectChange("role", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
@@ -130,5 +157,6 @@ export default function AddEditUserForm({ user, onSave, onCancel, isOpen, curren
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
+
