@@ -20,16 +20,16 @@ export default function TaskPage() {
   const searchParams = useSearchParams()
   const taskId = searchParams.get("taskId")
   const filterParam = searchParams.get("filter")
-  
+
   // Get the admin view mode from session storage
-  const [adminViewMode, setAdminViewMode] = useState<string | null>(null);
-  
+  const [adminViewMode, setAdminViewMode] = useState<string | null>(null)
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedMode = sessionStorage.getItem('adminViewMode');
-      setAdminViewMode(storedMode);
+    if (typeof window !== "undefined") {
+      const storedMode = sessionStorage.getItem("adminViewMode")
+      setAdminViewMode(storedMode)
     }
-  }, []);
+  }, [])
 
   // Fetch the user's role from Firestore
   useEffect(() => {
@@ -100,6 +100,11 @@ export default function TaskPage() {
     return () => unsubscribe()
   }, [router])
 
+  // Handle sidebar minimize/maximize
+  const handleSidebarMinimize = (minimized: boolean) => {
+    setIsSidebarMinimized(minimized)
+  }
+
   // If not logged in, redirect to login
   if (!loading && !user) {
     return (
@@ -110,37 +115,32 @@ export default function TaskPage() {
   }
 
   // Determine which view to show based on user role and admin mode
-  const isAdmin = (userRole === "admin" || userRole === "super admin");
-  const isAdminInUserMode = isAdmin && adminViewMode === 'user';
-  const shouldShowAdminView = isAdmin && adminViewMode !== 'user';
-  
+  const isAdmin = userRole === "admin" || userRole === "super admin"
+  const isAdminInUserMode = isAdmin && adminViewMode === "user"
+  const shouldShowAdminView = isAdmin && adminViewMode !== "user"
+
   // Determine which sidebar to show
   const SidebarComponent = shouldShowAdminView ? AdminSidebar : UserSidebar
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar with onMinimize prop */}
-      <SidebarComponent onMinimize={setIsSidebarMinimized} />
+    <div className="flex min-h-screen overflow-hidden">
+      {/* Sidebar - fixed position */}
+      <div className="fixed h-screen">
+        <SidebarComponent />
+      </div>
 
-      {/* Main content area with dynamic margin based on sidebar state */}
-      <div
-        className="flex-1 transition-all duration-300"
-        style={{
-          marginLeft: isSidebarMinimized ? "4rem" : "16rem",
-          width: `calc(100% - ${isSidebarMinimized ? "4rem" : "16rem"})`,
-        }}
-      >
+      {/* Main content area with left margin to account for fixed sidebar */}
+      <div className="flex-1 ml-64">
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
             <div className="text-xl ml-3">Loading tasks...</div>
           </div>
         ) : (
-          <>
-            {shouldShowAdminView ? <AdminTaskViewWrapper /> : <UserTaskViewWrapper />}
-          </>
+          <>{shouldShowAdminView ? <AdminTaskViewWrapper /> : <UserTaskViewWrapper />}</>
         )}
       </div>
     </div>
   )
 }
+

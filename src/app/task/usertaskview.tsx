@@ -65,7 +65,7 @@ export default function UserTaskViewWrapper() {
   }, [searchParams])
 
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
-  
+
   // Check for expandable task from URL
   const taskIdFromUrl = searchParams.get("taskId")
   const expandFromUrl = searchParams.get("expand") === "true"
@@ -80,12 +80,12 @@ export default function UserTaskViewWrapper() {
         console.error("Error parsing saved expanded tasks:", error)
       }
     }
-    
+
     // If there's a taskId in the URL and expand=true, make sure that task is expanded
     if (taskIdFromUrl && expandFromUrl) {
-      setExpandedTasks(prev => ({
+      setExpandedTasks((prev) => ({
         ...prev,
-        [taskIdFromUrl]: true
+        [taskIdFromUrl]: true,
       }))
     }
   }, [taskIdFromUrl, expandFromUrl])
@@ -126,11 +126,7 @@ export default function UserTaskViewWrapper() {
 
         // Query tasks assigned to this user by ID
         const tasksCollection = collection(db, "tasks")
-        const tasksQuery = query(
-          tasksCollection, 
-          where("assignedToId", "==", userId), 
-          orderBy("assignedOn", "desc")
-        )
+        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"))
 
         const querySnapshot = await getDocs(tasksQuery)
 
@@ -335,9 +331,9 @@ export default function UserTaskViewWrapper() {
             taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
 
             // Highlight the task briefly to make it more noticeable
-            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            taskElement.classList.add("glow")
             setTimeout(() => {
-              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+              taskElement.classList.remove("glow")
             }, 2000)
           }
         }, 300)
