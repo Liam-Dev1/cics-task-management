@@ -123,14 +123,12 @@ export default function TaskPage() {
   const SidebarComponent = shouldShowAdminView ? AdminSidebar : UserSidebar
 
   return (
-    <div className="flex min-h-screen overflow-hidden">
-      {/* Sidebar - fixed position */}
-      <div className="fixed h-screen">
-        <SidebarComponent />
-      </div>
+    <div className="flex min-h-screen">
+      {/* Sidebar - no longer passing onMinimize prop */}
+      <SidebarComponent />
 
-      {/* Main content area with left margin to account for fixed sidebar */}
-      <div className="flex-1 ml-64">
+      {/* Main content area - no longer using dynamic margin */}
+      <div className="flex-1">
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
