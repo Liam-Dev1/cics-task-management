@@ -415,8 +415,6 @@ export default function AdminDashboard() {
                       <div className="text-4xl font-bold">{stats.totalTasks}</div>
                       <div className="text-sm mt-2">Total Tasks</div>
                       <div className="flex justify-between mt-2 text-sm">
-                        <span>Pending: {stats.pendingTasks}</span>
-                        <span>Completed: {stats.completedTasks}</span>
                       </div>
                     </div>
                     <BarChart2 className="h-12 w-12 opacity-70" />
