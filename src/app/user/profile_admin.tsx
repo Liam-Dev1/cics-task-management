@@ -73,7 +73,7 @@ export default function ProfileAdmin({
             className="w-64 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center justify-center"
             onClick={setIsAdminMode}
           >
-            {isAdminMode ? "Switch to Task Receiver View" : "Switch to Admin View"}
+            {isAdminMode ? "Switch to Task Receiver View" : "Switch to Admin Vie"}
           </Button>
         </div>
       </div>
