@@ -122,6 +122,7 @@ export default function DashboardPage() {
         className="flex-1 transition-all duration-300"
         style={{
           marginLeft: isSidebarMinimized ? "4rem" : "16rem",
+          width: `calc(100% - ${isSidebarMinimized ? "4rem" : "16rem"})`,
         }}
       >
         {loading || isRoleLoading ? (
@@ -142,4 +143,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-

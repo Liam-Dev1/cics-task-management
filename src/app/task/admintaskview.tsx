@@ -90,6 +90,7 @@ export default function TaskManagement() {
   type SortValue = string | null
   const [activeSort, setActiveSort] = useState<SortValue>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [selectedReceiver, setSelectedReceiver] = useState<string | null>(null)
 
   // Recurring task state
   const [showRecurringModal, setShowRecurringModal] = useState(false)
@@ -120,6 +121,7 @@ export default function TaskManagement() {
 
   const searchParams = useSearchParams()
   const taskIdFromUrl = searchParams.get("taskId")
+  const expandFromUrl = searchParams.get("expand")
 
   // Show notification
   const showNotification = (message: string, type: "success" | "error") => {
@@ -199,7 +201,12 @@ export default function TaskManagement() {
         // Initialize expanded state for all tasks
         const initialExpandedState: Record<string, boolean> = {}
         fetchedTasks.forEach((task) => {
-          initialExpandedState[task.id] = true
+          // If there's a taskId in the URL and expand=true, expand that task
+          if (taskIdFromUrl && expandFromUrl === "true" && task.id === taskIdFromUrl) {
+            initialExpandedState[task.id] = true
+          } else {
+            initialExpandedState[task.id] = false
+          }
         })
         setExpandedTasks(initialExpandedState)
       } catch (error) {
@@ -211,43 +218,63 @@ export default function TaskManagement() {
     }
 
     fetchTasks()
-  }, [])
+  }, [taskIdFromUrl, expandFromUrl])
 
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
     if (taskIdFromUrl && tasks.length > 0) {
-      // Make sure the task exists
-      const taskExists = tasks.some((task) => task.id === taskIdFromUrl)
-
+      const taskExists = tasks.some((task) => task.id === taskIdFromUrl);
+  
       if (taskExists) {
-        // Scroll to the task with a slight delay to ensure rendering is complete
         setTimeout(() => {
-          const taskElement = document.getElementById(`task-${taskIdFromUrl}`)
+          const taskElement = document.getElementById(`task-${taskIdFromUrl}`);
           if (taskElement) {
-            // Scroll to the task
-            taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
-
-            // Highlight the task briefly to make it more noticeable
-            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            taskElement.scrollIntoView({ behavior: "smooth", block: "center" });
+  
+            // Add the glow effect
+            taskElement.classList.add("glow");
             setTimeout(() => {
-              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
-            }, 2000)
+              taskElement.classList.remove("glow");
+            }, 2000); // Remove the glow after 2 seconds
+  
+            // Expand the task
+            setExpandedTasks((prev) => ({
+              ...prev,
+              [taskIdFromUrl]: true,
+            }));
           }
-        }, 300)
+        }, 300);
       }
     }
-  }, [taskIdFromUrl, tasks])
+  }, [taskIdFromUrl, expandFromUrl, tasks])
+
+  // Update the useEffect that reads URL parameters to also check for the filter parameter
+  useEffect(() => {
+    const filterFromUrl = searchParams.get("filter")
+    if (filterFromUrl) {
+      setActiveFilter(filterFromUrl)
+    }
+  }, [searchParams])
 
   // Filter tasks based on search query and active filter
-  const matchesFilter = (task: Task) =>
-    !activeFilter ||
-    (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
-      task.status === activeFilter) ||
-    (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter)
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesSearch && matchesFilter(task)
-  })
+    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter =
+      !activeFilter ||
+      (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
+        task.status === activeFilter) ||
+      (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter) ||
+      (activeFilter === "Completed" && (task.status === "Completed On Time" || task.status === "Completed Overdue")) ||
+      (activeFilter === "Overdue" &&
+        ((new Date(task.deadline) < new Date() &&
+          task.status !== "Completed On Time" &&
+          task.status !== "Completed Overdue") ||
+          task.status === "Completed Overdue"));
+
+    const matchesReceiver = !selectedReceiver || task.assignedTo === selectedReceiver;
+
+    return matchesSearch && matchesFilter && matchesReceiver;
+  });
 
   // Sort tasks based on active sort option
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -710,7 +737,7 @@ export default function TaskManagement() {
             />
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           </div>
-          <Select>
+          <Select onValueChange={(value) => setSelectedReceiver(value === "all" ? null : value)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Receiver" />
             </SelectTrigger>
@@ -786,6 +813,18 @@ export default function TaskManagement() {
               >
                 Low Priority
               </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Completed"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Completed" ? null : "Completed")}
+              >
+                All Completed Tasks
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === "Overdue"}
+                onCheckedChange={() => setActiveFilter(activeFilter === "Overdue" ? null : "Overdue")}
+              >
+                All Overdue Tasks
+              </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
@@ -809,7 +848,6 @@ export default function TaskManagement() {
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button>Generate Reports</Button>
         </div>
 
         {/* Tasks List */}
@@ -1304,4 +1342,3 @@ export default function TaskManagement() {
     </div>
   )
 }
-

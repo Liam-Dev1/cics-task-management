@@ -100,11 +100,6 @@ export default function TaskPage() {
     return () => unsubscribe()
   }, [router])
 
-  // Handle sidebar minimize/maximize
-  const handleSidebarMinimize = (minimized: boolean) => {
-    setIsSidebarMinimized(minimized)
-  }
-
   // If not logged in, redirect to login
   if (!loading && !user) {
     return (
@@ -125,13 +120,14 @@ export default function TaskPage() {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar with onMinimize prop */}
-      <SidebarComponent onMinimize={handleSidebarMinimize} />
+      <SidebarComponent onMinimize={setIsSidebarMinimized} />
 
       {/* Main content area with dynamic margin based on sidebar state */}
       <div
         className="flex-1 transition-all duration-300"
         style={{
           marginLeft: isSidebarMinimized ? "4rem" : "16rem",
+          width: `calc(100% - ${isSidebarMinimized ? "4rem" : "16rem"})`,
         }}
       >
         {loading || isRoleLoading ? (
@@ -148,4 +144,3 @@ export default function TaskPage() {
     </div>
   )
 }
-
