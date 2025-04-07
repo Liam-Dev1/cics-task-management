@@ -1,8 +1,9 @@
 "use client"
 
-import { Circle } from "lucide-react"
+import type React from "react"
+import { Bell } from "lucide-react"
 
-export interface Notification {
+interface Notification {
   id: string
   type: string
   message: string
@@ -12,64 +13,77 @@ export interface Notification {
   percentageComplete?: number
 }
 
-export interface NotificationsCardProps {
-  notifications?: Notification[]
-  loading?: boolean
-  onNotificationClick?: (taskId: string) => void
-  formatDate?: (date: string) => string
+interface NotificationsCardProps {
+  notifications: Notification[]
+  loading: boolean
+  onNotificationClick: (taskId: string) => void
+  formatDate: (date: string) => string
   className?: string
-  maxHeight?: string | number
+  maxHeight?: string
 }
 
-export default function NotificationsCard({
-  notifications = [],
-  loading = false,
+const NotificationsCard: React.FC<NotificationsCardProps> = ({
+  notifications,
+  loading,
   onNotificationClick,
-  formatDate = (date) => new Date(date).toLocaleDateString(),
+  formatDate,
   className = "",
-  maxHeight = "calc(100vh - 200px)",
-}: NotificationsCardProps) {
-  // Convert maxHeight to string with px if it's a number
-  const heightStyle = typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight
-
+  maxHeight = "500px",
+}) => {
   return (
-    <div className={`flex flex-col h-full ${className}`}>
-      <h2 className="text-lg font-semibold mb-4">Notifications</h2>
+    <div className={`flex flex-col ${className}`}>
+      <div className="flex items-center justify-between p-4 border-b">
+        <h2 className="text-xl font-semibold flex items-center">
+          <Bell className="mr-2 h-5 w-5" />
+          Notifications
+        </h2>
+        {notifications.length > 0 && (
+          <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{notifications.length}</span>
+        )}
+      </div>
 
-      {loading ? (
-        <div className="flex-1 flex justify-center items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#8B2332]"></div>
-        </div>
-      ) : notifications.length > 0 ? (
-        <div className="flex-1 overflow-y-auto pr-2" style={{ maxHeight: heightStyle }}>
-          <div className="space-y-2">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className="border border-gray-200 rounded-md p-3 hover:bg-gray-50 transition-colors cursor-pointer flex items-start gap-3"
-                onClick={() => notification.taskId && onNotificationClick?.(notification.taskId)}
-              >
-                <Circle
-                  className={`h-5 w-5 mt-0.5 fill-current ${
-                    notification.type.includes("High") || notification.type.includes("overdue")
-                      ? "text-red-500"
-                      : notification.type.includes("Medium")
-                        ? "text-orange-500"
-                        : "text-green-500"
-                  }`}
-                />
-                <div>
-                  <div className="font-medium text-sm">{notification.type.replace(" Priority", "")}</div>
-                  <div className="text-sm text-gray-600">{notification.message}</div>
-                </div>
-              </div>
-            ))}
+      <div className="flex-1 overflow-y-auto" style={{ maxHeight }}>
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#8B2332]"></div>
           </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex justify-center items-center text-gray-500">No notifications</div>
-      )}
+        ) : notifications.length > 0 ? (
+          <ul className="divide-y">
+            {notifications.map((notification) => (
+              <li
+                key={notification.id}
+                className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => notification.taskId && onNotificationClick(notification.taskId)}
+              >
+                <div className="flex gap-3">
+                  {/* Priority indicator - FIXED SIZE */}
+                  <div
+                    className={`flex-shrink-0 w-3 h-3 rounded-full mt-1.5 ${
+                      notification.type.includes("High")
+                        ? "bg-red-500"
+                        : notification.type.includes("Medium")
+                          ? "bg-orange-500"
+                          : "bg-blue-500"
+                    }`}
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{notification.type}</div>
+                    <div className="text-sm">{notification.message}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {notification.date ? `Due: ${formatDate(notification.date)}` : ""}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="flex justify-center items-center h-full text-gray-500">No notifications</div>
+        )}
+      </div>
     </div>
   )
 }
+
+export default NotificationsCard
 

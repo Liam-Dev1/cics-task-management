@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { ChevronDown, Search, Paperclip, Send } from "lucide-react"
+import { ChevronDown, Search, Paperclip, Send } from 'lucide-react'
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -27,6 +27,7 @@ interface Task {
   assignedTo: string // User's name for display
   assignedToEmail: string // User's email
   assignedToId: string // User's ID
+  assignedToJobTitle?: string // User's job title
   assignedOn: string
   deadline: string
   status: string
@@ -115,51 +116,73 @@ export default function UserTaskViewWrapper() {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        setLoading(true)
+        setLoading(true);
 
         // Get current user ID from auth
-        const userId = auth.currentUser?.uid
+        const userId = auth.currentUser?.uid;
         if (!userId) {
-          console.error("No user ID found")
-          return
+          console.error("No user ID found");
+          return;
         }
 
         // Query tasks assigned to this user by ID
-        const tasksCollection = collection(db, "tasks")
-        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"))
+        const tasksCollection = collection(db, "tasks");
+        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"));
 
-        const querySnapshot = await getDocs(tasksQuery)
+        const querySnapshot = await getDocs(tasksQuery);
 
-        const fetchedTasks: Task[] = []
+        const fetchedTasks: Task[] = [];
         querySnapshot.forEach((doc) => {
           fetchedTasks.push({
             id: doc.id,
             ...(doc.data() as Omit<Task, "id">),
-          })
-        })
+          });
+        });
 
-        setTasks(fetchedTasks)
+        // Fetch user data to ensure we have job titles
+        const usersCollection = collection(db, "users");
+        const usersSnapshot = await getDocs(usersCollection);
+        
+        const usersMap = new Map();
+        usersSnapshot.forEach((doc) => {
+          const userData = doc.data();
+          usersMap.set(doc.id, userData);
+        });
+        
+        // Update tasks with job titles if missing
+        const updatedTasks = fetchedTasks.map(task => {
+          if (!task.assignedToJobTitle && task.assignedToId && usersMap.has(task.assignedToId)) {
+            const userData = usersMap.get(task.assignedToId);
+            return {
+              ...task,
+              assignedToJobTitle: userData.jobTitle || ""
+            };
+          }
+          return task;
+        });
+
+        setTasks(updatedTasks);
 
         // Preserve expanded states for existing tasks and initialize new ones to false
         setExpandedTasks((prevExpandedState) => {
-          const updatedExpandedState = { ...prevExpandedState }
-          fetchedTasks.forEach((task) => {
+          const updatedExpandedState = { ...prevExpandedState };
+          updatedTasks.forEach((task) => {
             if (updatedExpandedState[task.id] === undefined) {
-              updatedExpandedState[task.id] = false
+              updatedExpandedState[task.id] = false;
             }
-          })
-          return updatedExpandedState
-        })
+          });
+          return updatedExpandedState;
+        });
       } catch (error) {
-        console.error("Error fetching tasks:", error)
-        showNotification("Failed to load tasks. Please try again.", "error")
+        console.error("Error fetching tasks:", error);
+        showNotification("Failed to load tasks. Please try again.", "error");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchTasks()
-  }, [])
+    fetchTasks();
+  }, []);
 
   // Filter tasks based on search query and active filter
   const filteredTasks = tasks.filter((task) => {
@@ -486,7 +509,7 @@ export default function UserTaskViewWrapper() {
                 <div key={task.id} id={`task-${task.id}`} className="bg-[#8B2332] text-white p-4 rounded">
                   <div className="grid md:grid-cols-7 gap-4">
                     <div className="md:col-span-1">
-                      <span className="md:hidden font-semibold">Task Name: </span>
+                      <span className="md:hidden font-semibold">Task Name: </span> 
                       {task.name}
                     </div>
                     <div className="md:col-span-1">
@@ -496,6 +519,7 @@ export default function UserTaskViewWrapper() {
                     <div className="md:col-span-1">
                       <span className="md:hidden font-semibold">Assigned to: </span>
                       {task.assignedTo}
+                      {task.assignedToJobTitle ? ` (${task.assignedToJobTitle})` : ""}
                     </div>
                     <div className="md:col-span-1">
                       <span className="md:hidden font-semibold">Assigned on: </span>

@@ -317,7 +317,9 @@ export default function AdminDashboard() {
   // Handle view task
   const handleViewTask = (taskId: string, filter: string | null = null) => {
     if (filter) {
-      router.push(`/task?taskId=${taskId}&expand=true&filter=${filter}`)
+      // Set the filter in localStorage before navigation
+      localStorage.setItem("activeTaskFilter", filter)
+      router.push(`/task?taskId=${taskId}&expand=true`)
     } else {
       router.push(`/task?taskId=${taskId}&expand=true`)
     }
@@ -330,22 +332,29 @@ export default function AdminDashboard() {
 
   // Navigate to task page with filter for verifying tasks
   const navigateToVerifyingTasks = () => {
-    // Navigate to task page with filter set to "Verifying"
-    router.push("/task?filter=Verifying")
+    // Set the filter in localStorage before navigation
+    localStorage.setItem("activeTaskFilter", "Verifying")
+    router.push("/task")
   }
 
   // Navigate to completed tasks
   const navigateToCompletedTasks = () => {
-    router.push("/task?filter=Completed On Time")
+    // Set the filter in localStorage before navigation
+    localStorage.setItem("activeTaskFilter", "Completed On Time")
+    router.push("/task")
   }
 
   // Navigate to overdue tasks
   const navigateToOverdueTasks = () => {
-    router.push("/task?filter=Completed Overdue")
+    // Set the filter in localStorage before navigation
+    localStorage.setItem("activeTaskFilter", "Completed Overdue")
+    router.push("/task")
   }
 
   // Add a new navigation function for total tasks
   const navigateToAllTasks = () => {
+    // Clear any existing filter
+    localStorage.removeItem("activeTaskFilter")
     router.push("/task")
   }
 
@@ -414,8 +423,7 @@ export default function AdminDashboard() {
                     <div>
                       <div className="text-4xl font-bold">{stats.totalTasks}</div>
                       <div className="text-sm mt-2">Total Tasks</div>
-                      <div className="flex justify-between mt-2 text-sm">
-                      </div>
+                      <div className="flex justify-between mt-2 text-sm"></div>
                     </div>
                     <BarChart2 className="h-12 w-12 opacity-70" />
                   </div>
@@ -617,3 +625,4 @@ export default function AdminDashboard() {
     </div>
   )
 }
+

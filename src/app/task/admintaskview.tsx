@@ -41,6 +41,7 @@ interface Task {
   assignedTo: string // User's name for display
   assignedToEmail: string // User's email
   assignedToId: string // User's ID
+  assignedToJobTitle?: string // User's job title
   assignedOn: string
   deadline: string
   status: string
@@ -64,6 +65,7 @@ interface User {
   name: string
   email: string
   role: string
+  jobTitle?: string
 }
 
 export default function TaskManagement() {
@@ -201,11 +203,33 @@ export default function TaskManagement() {
           })
         })
 
-        setTasks(fetchedTasks)
+        // Ensure all tasks have job titles by cross-referencing with users collection
+        const usersCollection = collection(db, "users")
+        const usersSnapshot = await getDocs(usersCollection)
+
+        const usersMap = new Map()
+        usersSnapshot.forEach((doc) => {
+          const userData = doc.data()
+          usersMap.set(doc.id, userData)
+        })
+
+        // Update tasks with job titles if missing
+        const updatedTasks = fetchedTasks.map((task) => {
+          if (!task.assignedToJobTitle && task.assignedToId && usersMap.has(task.assignedToId)) {
+            const userData = usersMap.get(task.assignedToId)
+            return {
+              ...task,
+              assignedToJobTitle: userData.jobTitle || "",
+            }
+          }
+          return task
+        })
+
+        setTasks(updatedTasks)
 
         // Initialize expanded state for all tasks
         const initialExpandedState: Record<string, boolean> = {}
-        fetchedTasks.forEach((task) => {
+        updatedTasks.forEach((task) => {
           // If there's a taskId in the URL and expand=true, expand that task
           if (taskIdFromUrl && expandFromUrl === "true" && task.id === taskIdFromUrl) {
             initialExpandedState[task.id] = true
@@ -281,11 +305,16 @@ export default function TaskManagement() {
 
   // For admin users, only show tasks they've assigned or tasks assigned to them
   const matchesAdminView = (task: Task) => {
-    // If user is not an admin or is a super admin, show all tasks
-    if (userRole !== "admin") return true
+    // If user is a super admin, show all tasks
+    if (userRole === "super admin") return true
 
-    // For admin role, only show tasks they've assigned or tasks assigned to them
-    return task.assignedBy === userName || task.assignedTo === userName
+    // For regular admin role, only show tasks they've assigned
+    if (userRole === "admin") {
+      return task.assignedBy === userName
+    }
+
+    // Default case
+    return true
   }
 
   // Update the filteredTasks function to include filtering by receiver
@@ -337,8 +366,28 @@ export default function TaskManagement() {
     }
   }
 
+  // Update the handleSelectChange function to also update the job title when changing assignee
   const handleSelectChange = (name: string, value: string, taskId: string) => {
-    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, [name]: value } : task)))
+    if (name === "assignedTo") {
+      const selectedUser = users.find((user) => user.name === value)
+      if (selectedUser) {
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  assignedTo: selectedUser.name,
+                  assignedToEmail: selectedUser.email,
+                  assignedToId: selectedUser.id,
+                  assignedToJobTitle: selectedUser.jobTitle || "",
+                }
+              : task,
+          ),
+        )
+      }
+    } else {
+      setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, [name]: value } : task)))
+    }
   }
 
   const handleNewTaskFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -507,6 +556,7 @@ export default function TaskManagement() {
         assignedTo: assignedToUser.name, // User's name for display
         assignedToEmail: assignedToUser.email, // User's email
         assignedToId: assignedToUser.id, // User's ID
+        assignedToJobTitle: assignedToUser.jobTitle || "", // User's job title
         assignedOn: new Date().toISOString().split("T")[0],
         deadline: (formData.get("deadline") as string) || "",
         status: (formData.get("status") as string) || "Pending",
@@ -744,7 +794,7 @@ export default function TaskManagement() {
 
         <h1 className="mb-6">
           <span className="text-5xl font-bold">Tasks</span>{" "}
-          <span className="text-3xl text-red-800 font-bold">Admin</span>
+          <span className="text-3xl text-[#8B2332] font-bold">Admin</span>
         </h1>
 
         {/* Hidden file input for existing tasks */}
@@ -792,7 +842,7 @@ export default function TaskManagement() {
           </Select>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" className={activeFilter ? "bg-red-100" : ""}>
+              <Button variant="secondary" className={activeFilter ? "bg-[#F5E6E8]" : ""}>
                 Filters
                 <ChevronDown className="ml-1 h-4 w-4" />
               </Button>
@@ -869,7 +919,7 @@ export default function TaskManagement() {
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" className={activeSort ? "bg-red-100" : ""}>
+              <Button variant="secondary" className={activeSort ? "bg-[#F5E6E8]" : ""}>
                 Sort
                 <ChevronDown className="ml-1 h-4 w-4" />
               </Button>
@@ -905,7 +955,7 @@ export default function TaskManagement() {
           {/* Add New Task Button */}
           <Button
             onClick={() => setShowNewTask(true)}
-            className="bg-red-800 hover:bg-red-900 text-white flex items-center gap-2"
+            className="bg-[#8B2332] hover:bg-[#9B3342] text-white flex items-center gap-2"
           >
             <Plus size={16} />
             Add New Task
@@ -955,6 +1005,7 @@ export default function TaskManagement() {
                             .map((userItem) => (
                               <SelectItem key={userItem.id} value={userItem.name}>
                                 {userItem.name}
+                                {userItem.jobTitle ? ` (${userItem.jobTitle})` : ""}
                               </SelectItem>
                             ))}
                         </SelectContent>
@@ -970,7 +1021,13 @@ export default function TaskManagement() {
                       <label htmlFor="deadline" className="block text-sm font-medium mb-1">
                         Deadline
                       </label>
-                      <Input id="deadline" type="date" name="deadline" required />
+                      <Input
+                        id="deadline"
+                        type="date"
+                        name="deadline"
+                        min={new Date().toISOString().split("T")[0]}
+                        required
+                      />
                     </div>
                     <div className="md:col-span-1">
                       <label htmlFor="status" className="block text-sm font-medium mb-1">
@@ -982,7 +1039,6 @@ export default function TaskManagement() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Pending">Pending</SelectItem>
-                          <SelectItem value="Verifying">Verifying</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1041,7 +1097,7 @@ export default function TaskManagement() {
                       disabled={uploadingFile}
                     >
                       {uploadingFile ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-800"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#8B2332]"></div>
                       ) : (
                         <Upload className="h-4 w-4" />
                       )}
@@ -1071,14 +1127,14 @@ export default function TaskManagement() {
           {/* Loading State */}
           {loading && (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-800"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332]"></div>
             </div>
           )}
 
           {/* Existing Tasks */}
           {!loading && sortedTasks.length > 0
             ? sortedTasks.map((task) => (
-                <div key={task.id} id={`task-${task.id}`} className="bg-red-800 text-white p-4 rounded">
+                <div key={task.id} id={`task-${task.id}`} className="bg-[#8B2332] text-white p-4 rounded">
                   <div className="grid md:grid-cols-7 gap-4">
                     {editingTask === task.id ? (
                       <>
@@ -1100,14 +1156,7 @@ export default function TaskManagement() {
                           <Select
                             name="assignedTo"
                             value={task.assignedTo}
-                            onValueChange={(value) => {
-                              const selectedUser = users.find((user) => user.name === value)
-                              if (selectedUser) {
-                                handleSelectChange("assignedTo", selectedUser.name, task.id)
-                                handleSelectChange("assignedToEmail", selectedUser.email, task.id)
-                                handleSelectChange("assignedToId", selectedUser.id, task.id)
-                              }
-                            }}
+                            onValueChange={(value) => handleSelectChange("assignedTo", value, task.id)}
                           >
                             <SelectTrigger className="bg-white text-black">
                               <SelectValue placeholder="Select assignee" />
@@ -1132,6 +1181,7 @@ export default function TaskManagement() {
                                 .map((userItem) => (
                                   <SelectItem key={userItem.id} value={userItem.name}>
                                     {userItem.name}
+                                    {userItem.jobTitle ? ` (${userItem.jobTitle})` : ""}
                                   </SelectItem>
                                 ))}
                             </SelectContent>
@@ -1201,6 +1251,7 @@ export default function TaskManagement() {
                         <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Assigned To: </span>
                           {task.assignedTo}
+                          {task.assignedToJobTitle ? ` (${task.assignedToJobTitle})` : ""}
                         </div>
                         <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Assigned On: </span>
@@ -1245,7 +1296,7 @@ export default function TaskManagement() {
                           </div>
                           <button
                             onClick={() => toggleTaskExpansion(task.id)}
-                            className="text-white hover:bg-red-700 rounded p-1"
+                            className="text-white hover:bg-[#9B3342] rounded p-1"
                             aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
                           >
                             {expandedTasks[task.id] ? <ChevronDown size={16} /> : <ChevronDown size={16} />}
@@ -1331,7 +1382,7 @@ export default function TaskManagement() {
                                 disabled={uploadingFile}
                               >
                                 {uploadingFile && uploadingTaskId === task.id ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-800"></div>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#8B2332]"></div>
                                 ) : (
                                   <Upload className="h-4 w-4" />
                                 )}
