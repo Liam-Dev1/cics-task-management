@@ -34,6 +34,7 @@ export default function TaskReportDashboard() {
   const [showGraphs, setShowGraphs] = useState(false);
   const [showReport, setShowReport] = useState(false);
   
+  
   const [currentFilters, setCurrentFilters] = useState({
     taskReceivers: [] as string[],
     fromDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
@@ -368,8 +369,8 @@ export default function TaskReportDashboard() {
   const handleResetFilters = () => {
     setCurrentFilters({
       taskReceivers: [],
-      fromDate: new Date(2024, 0, 1),
-      toDate: new Date(2024, 9, 10),
+      fromDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
+      toDate: new Date(),
       taskStatus: [],
       priority: [],
     })
@@ -652,25 +653,25 @@ export default function TaskReportDashboard() {
 
                         {/* Filters and Buttons */}
                         <div className="">
-                        <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-5 gap-x-4 gap-y-6 lg:gap-y-3 p-4 transition-all duration-500 ease-in-out">
+                          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-5 gap-x-4 gap-y-6 lg:gap-y-3 p-4 transition-all duration-500 ease-in-out">
                           <Button className="bg-[#8B2332] text-white rounded-md">
-                          {appliedFilters.taskReceivers.length === 0
-                            ? "All Receivers"
-                            : appliedFilters.taskReceivers.join(", ")}
+                            {appliedFilters.taskReceivers.length === allReceivers.length 
+                              ? "All Receivers"
+                              : appliedFilters.taskReceivers.join(", ")}
                           </Button>
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                          {`${format(appliedFilters.fromDate, "MM/dd/yyyy")} - ${format(appliedFilters.toDate, "MM/dd/yyyy")}`}
-                          </Button>
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                          {appliedFilters.taskStatus.length === 0
+                            <Button className="bg-[#8B2332] text-white rounded-md">
+                            {`${format(appliedFilters.fromDate, "MM/dd/yyyy")} - ${format(appliedFilters.toDate, "MM/dd/yyyy")}`}
+                            </Button>
+                            <Button className="bg-[#8B2332] text-white rounded-md">
+                            {appliedFilters.taskStatus.length === allTaskStatuses.length
                             ? "All Task Status"
                             : appliedFilters.taskStatus.join(", ")}
-                          </Button>
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                          {appliedFilters.priority.length === 0
+                            </Button>
+                            <Button className="bg-[#8B2332] text-white rounded-md">
+                            {appliedFilters.priority.length === allPriorities.length
                             ? "All Priorities"
                             : appliedFilters.priority.join(", ")}
-                          </Button>
+                            </Button>
 
                           {/* Action Buttons for medium and larger screens */}
                           <div className="hidden lg:grid grid-cols-2 gap-x-4 gap-y-4">
