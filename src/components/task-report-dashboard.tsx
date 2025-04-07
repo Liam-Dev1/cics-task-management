@@ -22,7 +22,6 @@ import { AverageCompletionTimeChart } from "@/components/average-completion-time
 import { TaskCompletionStatusChart } from "@/components/task-completion-status-chart"
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip"
 import { taskData } from "@/lib/task-data"
-import { Sidebar } from "@/components/sidebar-admin"
 import { ExportToPdfButton } from "@/components/export-to-pdf-button"
 import { LoadingOverlay } from "@/components/loading-overlay"
 import { LoadingOverlay2 } from "@/components/loading-overlay2"
@@ -395,7 +394,7 @@ export default function TaskReportDashboard() {
   return (
     <>
       <div className="flex h-screen overflow-hidden">
-        <Sidebar />
+
         <div className="flex-1 flex flex-col overflow-hidden">
           <h1 className="text-5xl font-bold mb-6 p-6">Reports</h1>
           <div className="flex-1 overflow-x-auto">

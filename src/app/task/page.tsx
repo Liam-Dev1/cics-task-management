@@ -100,11 +100,6 @@ export default function TaskPage() {
     return () => unsubscribe()
   }, [router])
 
-  // Handle sidebar minimize/maximize
-  const handleSidebarMinimize = (minimized: boolean) => {
-    setIsSidebarMinimized(minimized)
-  }
-
   // If not logged in, redirect to login
   if (!loading && !user) {
     return (
@@ -123,14 +118,18 @@ export default function TaskPage() {
   const SidebarComponent = shouldShowAdminView ? AdminSidebar : UserSidebar
 
   return (
-    <div className="flex min-h-screen overflow-hidden">
-      {/* Sidebar - fixed position */}
-      <div className="fixed h-screen">
-        <SidebarComponent />
-      </div>
+    <div className="flex min-h-screen">
+      {/* Sidebar with onMinimize prop */}
+      <SidebarComponent onMinimize={setIsSidebarMinimized} />
 
-      {/* Main content area with left margin to account for fixed sidebar */}
-      <div className="flex-1 ml-64">
+      {/* Main content area with dynamic margin based on sidebar state */}
+      <div
+        className="flex-1 transition-all duration-300"
+        style={{
+          marginLeft: isSidebarMinimized ? "4rem" : "16rem",
+          width: `calc(100% - ${isSidebarMinimized ? "4rem" : "16rem"})`,
+        }}
+      >
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
