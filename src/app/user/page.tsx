@@ -39,19 +39,19 @@ export default function UserPage() {
   // Check if admin is using receiver mode from session storage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedMode = sessionStorage.getItem("adminViewMode");
+      const storedMode = sessionStorage.getItem("adminViewMode")
       if (storedMode) {
-        setIsAdminMode(storedMode === "admin");
+        setIsAdminMode(storedMode === "admin")
       }
     }
-  }, []);
+  }, [])
 
   // Update session storage when admin mode changes
   useEffect(() => {
     if (userRole === "admin" || userRole === "super admin") {
-      sessionStorage.setItem("adminViewMode", isAdminMode ? "admin" : "user");
+      sessionStorage.setItem("adminViewMode", isAdminMode ? "admin" : "user")
     }
-  }, [isAdminMode, userRole]);
+  }, [isAdminMode, userRole])
 
   // Check if sidebar should be minimized based on orientation
   useEffect(() => {
@@ -141,8 +141,8 @@ export default function UserPage() {
 
   // Toggle admin mode
   const toggleAdminMode = () => {
-    setIsAdminMode(prev => !prev);
-  };
+    setIsAdminMode((prev) => !prev)
+  }
 
   // If not logged in, redirect to login
   if (!loading && !user) {
@@ -154,19 +154,21 @@ export default function UserPage() {
   }
 
   // Determine which component to show based on user role and admin mode
-  const isAdmin = (userRole === "admin" || userRole === "super admin");
-  const shouldShowAdminView = isAdmin && isAdminMode;
-  
+  const isAdmin = userRole === "admin" || userRole === "super admin"
+  const shouldShowAdminView = isAdmin && isAdminMode
+
   // Determine which sidebar to show based on current view mode
-  const SidebarComponent = shouldShowAdminView ? AdminSidebar : UserSidebar;
+  const SidebarComponent = shouldShowAdminView ? AdminSidebar : UserSidebar
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar is always visible */}
-      <SidebarComponent onMinimize={setIsSidebarMinimized} />
+    <div className="flex min-h-screen overflow-hidden">
+      {/* Sidebar - fixed position */}
+      <div className="fixed h-screen">
+        <SidebarComponent onMinimize={setIsSidebarMinimized} />
+      </div>
 
-      {/* Main content area with proper margin to account for fixed sidebar */}
-      <div className="flex-1 transition-all duration-300">
+      {/* Main content area with left margin to account for fixed sidebar */}
+      <div className="flex-1 ml-64">
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>

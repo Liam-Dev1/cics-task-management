@@ -132,9 +132,14 @@ export default function AdminRecieverPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex-1 p-4 bg-white">
+    <div className="flex min-h-screen overflow-hidden">
+      {/* Sidebar - fixed position */}
+      <div className="fixed h-screen">
+        <Sidebar />
+      </div>
+
+      {/* Main content area with left margin to account for fixed sidebar */}
+      <div className="flex-1 ml-64 p-4 bg-white">
         <h1 className="text-2xl font-bold mb-4">User Management</h1>
         <UserList
           users={users}
@@ -159,3 +164,4 @@ export default function AdminRecieverPage() {
     </div>
   )
 }
+

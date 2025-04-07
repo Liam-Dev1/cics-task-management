@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Clock, AlertCircle, CheckCircle, Users, BarChart2, XCircle } from "lucide-react"
-import { collection, getDocs, query, orderBy } from "firebase/firestore"
+import { collection, getDocs, query, orderBy, where } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { useRouter } from "next/navigation"
@@ -79,6 +79,20 @@ export default function AdminDashboard() {
       const tasksCollection = collection(db, "tasks")
       const usersCollection = collection(db, "users")
 
+      // Get current user data first to get the name
+      const usersRef = collection(db, "users")
+      const userQuery = query(usersRef, where("email", "==", user.email))
+      const userSnapshot = await getDocs(userQuery)
+
+      let currentUserName = ""
+      let currentUserRole = ""
+
+      if (!userSnapshot.empty) {
+        const userData = userSnapshot.docs[0].data()
+        currentUserName = userData.name || userData.displayName || user.displayName || "Admin User"
+        currentUserRole = userData.role || ""
+      }
+
       // Get all tasks
       const tasksQuery = query(tasksCollection, orderBy("deadline", "asc"))
       const tasksSnapshot = await getDocs(tasksQuery)
@@ -92,7 +106,17 @@ export default function AdminDashboard() {
         })
       })
 
-      setTasks(fetchedTasks)
+      // Filter tasks based on user role
+      let filteredTasks = fetchedTasks
+
+      // If user is admin (not super admin), only show tasks they've assigned or tasks assigned to them
+      if (currentUserRole === "admin") {
+        filteredTasks = fetchedTasks.filter(
+          (task) => task.assignedBy === currentUserName || task.assignedTo === currentUserName,
+        )
+      }
+
+      setTasks(filteredTasks)
 
       // Get all users except current user
       const usersQuery = query(usersCollection)
@@ -110,7 +134,7 @@ export default function AdminDashboard() {
       setUsers(fetchedUsers)
 
       // Process tasks for dashboard
-      processTasksForDashboard(fetchedTasks, fetchedUsers)
+      processTasksForDashboard(filteredTasks, fetchedUsers)
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
@@ -381,8 +405,7 @@ export default function AdminDashboard() {
                     <div>
                       <div className="text-4xl font-bold">{stats.totalTasks}</div>
                       <div className="text-sm mt-2">Total Tasks</div>
-                      <div className="flex justify-between mt-2 text-sm">
-                      </div>
+                      <div className="flex justify-between mt-2 text-sm"></div>
                     </div>
                     <BarChart2 className="h-12 w-12 opacity-70" />
                   </div>

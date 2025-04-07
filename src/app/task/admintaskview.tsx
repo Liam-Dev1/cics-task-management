@@ -160,15 +160,19 @@ export default function TaskManagement() {
     const fetchUsers = async () => {
       try {
         const usersRef = collection(db, "users")
-        const q = query(usersRef, where("role", "==", "user"))
-        const querySnapshot = await getDocs(q)
+        // Remove the role filter to get all users
+        const querySnapshot = await getDocs(usersRef)
 
         const fetchedUsers: User[] = []
         querySnapshot.forEach((doc) => {
-          fetchedUsers.push({
-            id: doc.id,
-            ...(doc.data() as Omit<User, "id">),
-          })
+          const userData = doc.data() as Omit<User, "id">
+          // Add the user to the list if they exist
+          if (userData.email) {
+            fetchedUsers.push({
+              id: doc.id,
+              ...(userData as Omit<User, "id">),
+            })
+          }
         })
 
         setUsers(fetchedUsers)
@@ -236,9 +240,9 @@ export default function TaskManagement() {
             taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
 
             // Highlight the task briefly to make it more noticeable
-            taskElement.classList.add("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+            taskElement.classList.add("glow")
             setTimeout(() => {
-              taskElement.classList.remove("ring-2", "ring-[#8B2332]", "ring-opacity-70")
+              taskElement.classList.remove("glow")
             }, 2000)
 
             // If expand parameter is true, expand the task
@@ -253,6 +257,14 @@ export default function TaskManagement() {
       }
     }
   }, [taskIdFromUrl, expandFromUrl, tasks])
+
+  // Add a new state for the selected receiver filter
+  const [selectedReceiver, setSelectedReceiver] = useState<string>("all")
+
+  // Update the handleSelectChange function to handle receiver selection
+  const handleReceiverChange = (value: string) => {
+    setSelectedReceiver(value)
+  }
 
   // Filter tasks based on search query and active filter
   const matchesFilter = (task: Task) =>
@@ -276,9 +288,11 @@ export default function TaskManagement() {
     return task.assignedBy === userName || task.assignedTo === userName
   }
 
+  // Update the filteredTasks function to include filtering by receiver
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesSearch && matchesFilter(task) && matchesAdminView(task)
+    const matchesReceiver = selectedReceiver === "all" || task.assignedTo === selectedReceiver
+    return matchesSearch && matchesFilter(task) && matchesAdminView(task) && matchesReceiver
   })
 
   // Sort tasks based on active sort option
@@ -748,17 +762,32 @@ export default function TaskManagement() {
             />
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           </div>
-          <Select>
+          {/* Update the Receiver dropdown in the Action Bar section */}
+          {/* Receiver dropdown with role-based filtering */}
+          <Select value={selectedReceiver} onValueChange={handleReceiverChange}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Receiver" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Receivers</SelectItem>
-              {users.map((user) => (
-                <SelectItem key={user.id} value={user.name}>
-                  {user.name}
-                </SelectItem>
-              ))}
+              {users
+                .filter((userItem) => {
+                  // Filter out the current user
+                  const isCurrentUser = userItem.email !== user?.email
+
+                  // For admin users, only show users with "user" role
+                  if (userRole === "admin") {
+                    return isCurrentUser && userItem.role === "user"
+                  }
+
+                  // For super admins, show all users except themselves
+                  return isCurrentUser
+                })
+                .map((userItem) => (
+                  <SelectItem key={userItem.id} value={userItem.name}>
+                    {userItem.name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           <DropdownMenu>
@@ -859,7 +888,6 @@ export default function TaskManagement() {
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button>Generate Reports</Button>
         </div>
 
         {/* Tasks List */}
@@ -908,11 +936,27 @@ export default function TaskManagement() {
                           <SelectValue placeholder="Select assignee" />
                         </SelectTrigger>
                         <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.name}>
-                              {user.name}
-                            </SelectItem>
-                          ))}
+                          {users
+                            .filter((userItem) => {
+                              // Filter out the current user
+                              const isCurrentUser = userItem.name === userName
+
+                              // If current user is an admin (not super admin), only allow assigning to users with "user" role
+                              const isCurrentUserAdmin = userRole === "admin"
+                              const isUserRoleUser = userItem.role === "user"
+
+                              if (isCurrentUserAdmin) {
+                                return !isCurrentUser && isUserRoleUser
+                              }
+
+                              // For super admins, allow assigning to anyone except themselves
+                              return !isCurrentUser
+                            })
+                            .map((userItem) => (
+                              <SelectItem key={userItem.id} value={userItem.name}>
+                                {userItem.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1069,11 +1113,27 @@ export default function TaskManagement() {
                               <SelectValue placeholder="Select assignee" />
                             </SelectTrigger>
                             <SelectContent>
-                              {users.map((user) => (
-                                <SelectItem key={user.id} value={user.name}>
-                                  {user.name}
-                                </SelectItem>
-                              ))}
+                              {users
+                                .filter((userItem) => {
+                                  // Filter out the current user
+                                  const isCurrentUser = userItem.name === userName
+
+                                  // If current user is an admin (not super admin), only allow assigning to users with "user" role
+                                  const isCurrentUserAdmin = userRole === "admin"
+                                  const isUserRoleUser = userItem.role === "user"
+
+                                  if (isCurrentUserAdmin) {
+                                    return !isCurrentUser && isUserRoleUser
+                                  }
+
+                                  // For super admins, allow assigning to anyone except themselves
+                                  return !isCurrentUser
+                                })
+                                .map((userItem) => (
+                                  <SelectItem key={userItem.id} value={userItem.name}>
+                                    {userItem.name}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </div>

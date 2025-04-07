@@ -101,7 +101,15 @@ export default function Dashboard() {
       })
 
       // Filter tasks assigned by the current user in memory
-      const userTasks = fetchedTasks.filter((task) => task.assignedBy === userName)
+      const userTasks = fetchedTasks.filter((task) => {
+        if (userRole === "admin") {
+          // For admin role, only show tasks they've assigned or tasks assigned to them
+          return task.assignedBy === userName || task.assignedTo === userName
+        } else {
+          // For other roles, just show tasks they've assigned
+          return task.assignedBy === userName
+        }
+      })
 
       // Debug log to check task statuses
       console.log("All tasks:", fetchedTasks.length)
