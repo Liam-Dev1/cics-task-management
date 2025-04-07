@@ -15,7 +15,7 @@ interface TaskCompletionBarChartProps {
 
 export function TaskCompletionBarChart({ data }: TaskCompletionBarChartProps) {
   return (
-    <div className="h-80 w-full">
+    <div className="h-100 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}

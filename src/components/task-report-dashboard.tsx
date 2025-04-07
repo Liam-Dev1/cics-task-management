@@ -622,25 +622,7 @@ export default function TaskReportDashboard() {
                         <div className="">
 
 
-                        {/* Action Buttons for small screens */}
-                        <div className="mt-4 flex flex-col gap-2 lg:hidden">
-                          <Button
-                          className="bg-gray-500 hover:bg-gray-600 text-white"
-                          onClick={() => setShowGraphs(!showGraphs)}
-                          >
-                          {showGraphs ? "Hide Graphs" : "View Graphs"}
-                          </Button>
-                          <ExportToPdfButton
-                          reportRef={reportRef}
-                          fromDate={appliedFilters.fromDate}
-                          toDate={appliedFilters.toDate}
-                          onExportStart={handleExportStart}
-                          onExportEnd={handleExportEnd}
-                          timeFrames={["weekly", "monthly", "quarterly", "yearly"]}
-                          onTimeFrameChange={handleExportTimeFrameChange}
-                          onTabChange={handleExportTabChange}
-                          />
-                        </div>
+
                         </div>
 
                         {/* Filters and Buttons */}
@@ -666,7 +648,7 @@ export default function TaskReportDashboard() {
                             </Button>
 
                           {/* Action Buttons for medium and larger screens */}
-                          <div className="hidden lg:grid grid-cols-2 gap-x-4 gap-y-4">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
                           <Button
                             className="bg-gray-500 hover:bg-gray-600 text-white"
                             onClick={() => setShowGraphs(!showGraphs)}
@@ -842,10 +824,10 @@ export default function TaskReportDashboard() {
                         {/* Pie Charts */}
                         {activeTab === "pieCharts" && (
                           <div className="max-w-[1600px] mx-auto" data-tab="pieCharts">
-                            <div className="grid grid-cols-2 gap-6 mb-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 transition-all duration-500 ease-in-out">
                               {/* Completed Tasks Breakdown */}
                               <div>
-                                <h3 className="text-lg font-semibold mb-2 text-center">Completed Tasks Breakdown</h3>
+                                <h3 className="text-lg font-semibold mb-2 text-center transition-all duration-500 ease-in-out">Completed Tasks Breakdown</h3>
                                 <TaskCompletionPieChart
                                   data={chartData.completedTasksBreakdown}
                                   title="On Time"
@@ -856,7 +838,7 @@ export default function TaskReportDashboard() {
 
                               {/* Overall Tasks Breakdown */}
                               <div>
-                                <h3 className="text-lg font-semibold mb-2 text-center">Overall Tasks Breakdown</h3>
+                                <h3 className="text-lg font-semibold mb-2 text-center transition-all duration-500 ease-in-out">Overall Tasks Breakdown</h3>
                                 <TaskCompletionPieChart
                                   data={chartData.overallTasksBreakdown}
                                   title="Completed"
@@ -864,13 +846,10 @@ export default function TaskReportDashboard() {
                                   subtitle2="Overdue"
                                 />
                               </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6 mb-6">
 
                               {/* Completion Timing Breakdown */}
                               <div>
-                                <h3 className="text-lg font-semibold mb-2 text-center">Completion Timing Breakdown</h3>
+                                <h3 className="text-lg font-semibold mb-2 text-center transition-all duration-500 ease-in-out">Completion Timing Breakdown</h3>
                                 <TaskCompletionPieChart
                                   data={chartData.completionTimingBreakdown}
                                   title="Early (≤30%)"
@@ -880,6 +859,10 @@ export default function TaskReportDashboard() {
                                 />
                               </div>
                             </div>
+                            
+                            
+
+
 
                             {/* Progress Bars */}
                             <div className="grid grid-cols-2 gap-6 mb-6">
@@ -926,18 +909,23 @@ export default function TaskReportDashboard() {
                             <h3 className="text-xl font-semibold mb-4">Task Completion Status ({timeFrame})</h3>
                             <TaskCompletionStatusChart data={chartData.taskCompletionStatusData[timeFrame]}>
                               <Tooltip
-                                formatter={(value, name) => [
-                                  value,
-                                  name === '                                  name === "onTime'
-                                    ? "Completed On/Before Time"
-                                    : "Missed Deadline",
-                                ]}
+                                formatter={(value, name, entry) => {
+                                  console.log("Tooltip data:", { value, name, entry });
+                                  // More flexible approach - check if the name contains certain strings
+                                  if (name === "onTime" || name.includes("onTime")) {
+                                    return [value, "Completed On/Before Time"];
+                                  } else {
+                                    return [value, "Missed Deadline"];
+                                  }
+                                }}
                                 labelFormatter={(label, payload) => {
                                   if (payload && payload[0] && payload[0].payload) {
-                                    const { startDate, endDate } = payload[0].payload
-                                    return `${format(new Date(startDate), "MMM d, yyyy")} - ${format(new Date(endDate), "MMM d, yyyy")}`
+                                    const data = payload[0].payload;
+                                    if (data.startDate && data.endDate) {
+                                      return `${format(new Date(data.startDate), "MMM d, yyyy")} - ${format(new Date(data.endDate), "MMM d, yyyy")}`;
+                                    }
                                   }
-                                  return label
+                                  return label;
                                 }}
                               />
                             </TaskCompletionStatusChart>

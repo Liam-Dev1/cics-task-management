@@ -23,6 +23,9 @@ export function TaskCompletionPieChart({
   subtitle2,
   isQuadChart = false,
 }: TaskCompletionPieChartProps) {
+  // Filter out zero values for the pie chart only
+  const filteredData = data.filter(item => item.value > 0);
+
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
     const RADIAN = Math.PI / 180
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5
@@ -36,13 +39,16 @@ export function TaskCompletionPieChart({
     )
   }
 
+  // Calculate total for percentage in tooltip
+  const dataTotal = filteredData.reduce((sum, item) => sum + item.value, 0);
+
   return (
     <div className="flex flex-col items-center">
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={data}
+              data={filteredData}
               cx="50%"
               cy="50%"
               labelLine={false}
@@ -53,21 +59,30 @@ export function TaskCompletionPieChart({
               paddingAngle={0}
               dataKey="value"
             >
-              {data.map((entry, index) => (
+              {filteredData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
             </Pie>
             <Tooltip
               formatter={(value) =>
-                `${value} (${((value / data.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`
+                `${value} (${((value / dataTotal) * 100).toFixed(1)}%)`
               }
             />
             <Legend
               layout="horizontal"
               verticalAlign="bottom"
               align="center"
+              payload={data.map((item, index) => ({
+                value: item.name,
+                type: 'square',
+                id: index,
+                color: item.color,
+                payload: item
+              }))}
               formatter={(value, entry, index) => (
-                <span style={{ color: data[index].color, fontWeight: 500 }}>{value}</span>
+                <span style={{ color: entry.color, fontWeight: 500 }}>
+                  {value}{entry.payload.value === 0 ? '' : ''}
+                </span>
               )}
             />
           </PieChart>

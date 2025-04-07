@@ -14,7 +14,7 @@ export interface TaskCompletionStatusChartProps {
 
 export function TaskCompletionStatusChart({ data, children }: TaskCompletionStatusChartProps) {
   return (
-    <div className="h-80 w-full">
+    <div className="h-96 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
@@ -27,7 +27,7 @@ export function TaskCompletionStatusChart({ data, children }: TaskCompletionStat
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" />
-          <YAxis />
+          <YAxis tickCount={10}/>
           {children || <Tooltip />}
           <Bar dataKey="onTime" name="Completed On/Before Time" fill="#8B2332" />
           <Bar dataKey="missedDeadline" name="Missed Deadline" fill="#4A5568" />

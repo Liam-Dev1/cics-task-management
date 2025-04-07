@@ -13,7 +13,7 @@ interface AverageCompletionTimeChartProps {
 
 export function AverageCompletionTimeChart({ data }: AverageCompletionTimeChartProps) {
   return (
-    <div className="h-80 w-full">
+    <div className="h-96 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
@@ -26,7 +26,7 @@ export function AverageCompletionTimeChart({ data }: AverageCompletionTimeChartP
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" />
-          <YAxis label={{ value: "Completion Time (%)", angle: -90, position: "insideLeft" }} domain={[0, 100]} />
+          <YAxis ticks={[0,10,20,30,40,50,60,70,80,90,100]} label={{ value: "Completion Time (%)", angle: -90, position: "insideLeft" }} domain={[0, 100]} />
           <Tooltip formatter={(value) => [`${value}%`, "Avg. Completion Time"]} />
           <Legend />
           <Line

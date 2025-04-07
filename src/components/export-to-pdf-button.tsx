@@ -299,7 +299,7 @@ export function ExportToPdfButton({
         pieChartGrids.forEach((grid) => {
           if (grid.className.includes("grid-cols-2") || grid.className.includes("grid-cols-1")) {
             const originalClass = grid.className
-            grid.className = "grid grid-cols-2 gap-6 mb-6" // Force 2-column layout for 2xl
+            grid.className = "grid grid-cols-3 gap-6 mb-6" // Force 2-column layout for 2xl
             elementsToModify.push({ element: grid, originalClass })
             
             // Add bottom margin to each chart container
