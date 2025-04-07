@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Sidebar } from "@/components/sidebar-admin"
 import { db } from "@/lib/firebase/firebase.config"
 import {
   collection,
@@ -619,8 +618,6 @@ export default function AdminView() {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
-
       {/* Main Content */}
       <div className="flex-1 p-8 bg-white">
         <div className="flex items-center justify-between mb-8">
@@ -898,7 +895,7 @@ export default function AdminView() {
                     id="title"
                     value={editForm.title}
                     onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  />
+                  />{" "}
                 </div>
               </div>
             )}

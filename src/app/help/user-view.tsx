@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Search } from "lucide-react"
+import { Search } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sidebar } from "@/components/sidebar-user"
@@ -190,10 +190,8 @@ export default function UserView() {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
-
-      {/* Main Content */}
-      <div className="flex-1 p-8 bg-white">
+    {/* Main Content */}
+    <div className="flex-1 p-8 bg-white">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-5xl font-bold text-gray-800">Help and Support</h1>
         </div>
@@ -336,4 +334,3 @@ export default function UserView() {
     </div>
   )
 }
-
