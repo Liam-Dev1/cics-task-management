@@ -1,9 +1,8 @@
-export type User = { 
+export interface User {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   role: "user" | "admin" | "super admin";
   isActive: boolean;
+  jobTitle?: string;
 }
-
