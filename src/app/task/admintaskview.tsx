@@ -80,6 +80,7 @@ export default function TaskManagement() {
   const newTaskFileInputRef = useRef<HTMLInputElement>(null)
   const [user] = useAuthState(auth)
   const [userName, setUserName] = useState<string>("Admin User")
+  const [userRole, setUserRole] = useState<string | null>(null)
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | null }>({
     message: "",
     type: null,
@@ -131,9 +132,9 @@ export default function TaskManagement() {
     }, 3000)
   }
 
-  // Fetch user's name from Firestore
+  // Fetch user's name and role from Firestore
   useEffect(() => {
-    const fetchUserName = async () => {
+    const fetchUserData = async () => {
       if (user?.email) {
         try {
           const usersRef = collection(db, "users")
@@ -143,14 +144,15 @@ export default function TaskManagement() {
           if (!querySnapshot.empty) {
             const userData = querySnapshot.docs[0].data()
             setUserName(userData.name || userData.displayName || user.displayName || "Admin User")
+            setUserRole(userData.role || null)
           }
         } catch (error) {
-          console.error("Error fetching user name:", error)
+          console.error("Error fetching user data:", error)
         }
       }
     }
 
-    fetchUserName()
+    fetchUserData()
   }, [user])
 
   // Fetch users with role "user" from Firestore
@@ -265,9 +267,18 @@ export default function TaskManagement() {
         task.status !== "Completed Overdue") ||
         task.status === "Completed Overdue"))
 
+  // For admin users, only show tasks they've assigned or tasks assigned to them
+  const matchesAdminView = (task: Task) => {
+    // If user is not an admin or is a super admin, show all tasks
+    if (userRole !== "admin") return true
+
+    // For admin role, only show tasks they've assigned or tasks assigned to them
+    return task.assignedBy === userName || task.assignedTo === userName
+  }
+
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesSearch && matchesFilter(task)
+    return matchesSearch && matchesFilter(task) && matchesAdminView(task)
   })
 
   // Sort tasks based on active sort option
@@ -476,7 +487,7 @@ export default function TaskManagement() {
       }
 
       // Create new task document in Firestore
-      const newTaskData = {
+      const newTaskData: any = {
         name: (formData.get("name") as string) || "",
         assignedBy: userName,
         assignedTo: assignedToUser.name, // User's name for display
@@ -488,14 +499,20 @@ export default function TaskManagement() {
         priority: (formData.get("priority") as string) || "Medium",
         description: (formData.get("description") as string) || "",
         files: [],
-        isRecurring: isRecurringTask,
-        recurrencePattern: isRecurringTask ? recurringSettings.recurrencePattern : undefined,
-        recurrenceInterval: isRecurringTask ? recurringSettings.recurrenceInterval : undefined,
-        recurrenceEndType: isRecurringTask ? recurringSettings.recurrenceEndType : undefined,
-        recurrenceCount: isRecurringTask ? recurringSettings.recurrenceCount : undefined,
-        recurrenceEndDate: isRecurringTask ? recurringSettings.recurrenceEndDate : undefined,
-        nextDeadlines: isRecurringTask ? recurringSettings.nextDeadlines : undefined,
-        childTaskIds: isRecurringTask ? [] : undefined,
+      }
+
+      // Only add recurring task properties if it's a recurring task
+      if (isRecurringTask) {
+        newTaskData.isRecurring = true
+        newTaskData.recurrencePattern = recurringSettings.recurrencePattern
+        newTaskData.recurrenceInterval = recurringSettings.recurrenceInterval
+        newTaskData.recurrenceEndType = recurringSettings.recurrenceEndType
+        newTaskData.recurrenceCount = recurringSettings.recurrenceCount
+        newTaskData.recurrenceEndDate = recurringSettings.recurrenceEndDate
+        newTaskData.nextDeadlines = recurringSettings.nextDeadlines
+        newTaskData.childTaskIds = []
+      } else {
+        newTaskData.isRecurring = false
       }
 
       const docRef = await addDoc(collection(db, "tasks"), newTaskData)
@@ -773,7 +790,7 @@ export default function TaskManagement() {
                   setActiveFilter(activeFilter === "Completed On Time" ? null : "Completed On Time")
                 }
               >
-                Completed On Time
+                Completed On Time On Time
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed Overdue"}

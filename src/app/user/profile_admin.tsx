@@ -1,6 +1,4 @@
 "use client"
-
-import type React from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useEffect } from "react"
@@ -15,37 +13,37 @@ interface ProfileProps {
   setIsAdminMode: () => void
 }
 
-export default function ProfileAdmin({ 
-  users, 
-  userName, 
-  userEmail, 
-  userRole, 
+export default function ProfileAdmin({
+  users,
+  userName,
+  userEmail,
+  userRole,
   profilePhoto: initialProfilePhoto,
   isAdminMode,
-  setIsAdminMode
+  setIsAdminMode,
 }: ProfileProps) {
-  const router = useRouter();
-  
+  const router = useRouter()
+
   // Determine the display role based on admin mode state
-  const displayRole = userRole ? 
-    isAdminMode 
-      ? userRole.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
-      : "Task Receiver (Admin)" 
-    : "Admin";
+  const displayRole = userRole
+    ? isAdminMode
+      ? userRole
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")
+      : "Task Receiver (Admin)"
+    : "Admin"
 
   // Redirect to appropriate page when mode changes
   useEffect(() => {
     // Get the current path
-    const currentPath = window.location.pathname;
-    
+    const currentPath = window.location.pathname
+
     // Check if we're on an admin-only page while in user mode
-    if (!isAdminMode && (
-      currentPath.includes('/receiver') || 
-      currentPath.includes('/reports')
-    )) {
-      router.push('/dashboard');
+    if (!isAdminMode && (currentPath.includes("/receiver") || currentPath.includes("/reports"))) {
+      router.push("/dashboard")
     }
-  }, [isAdminMode, router]);
+  }, [isAdminMode, router])
 
   return (
     <div className="flex-1 p-8 bg-gray-100 min-h-screen">
@@ -75,7 +73,7 @@ export default function ProfileAdmin({
             className="w-64 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center justify-center"
             onClick={setIsAdminMode}
           >
-            {isAdminMode ? "Switch to Task Receiver Mode" : "Switch to Admin Mode"}
+            {isAdminMode ? "Switch to Task Receiver View" : "Switch to Admin View"}
           </Button>
         </div>
       </div>
