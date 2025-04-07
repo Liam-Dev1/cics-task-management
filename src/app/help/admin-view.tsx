@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Sidebar } from "@/components/sidebar-admin"
 import { db } from "@/lib/firebase/firebase.config"
 import {
   collection,
@@ -229,32 +230,61 @@ export default function AdminView() {
     introText: "",
   })
 
+  // Helper function to check if text contains any of the search words
+  const textContainsSearchWords = (text: string, searchWords: string[]): boolean => {
+    if (!text) return false
+    const lowerText = text.toLowerCase()
+    return searchWords.some((word) => lowerText.includes(word))
+  }
+
   // Filtered FAQ entries based on search query
-  const filteredFaqEntries = faqEntries.filter(
-    (faq) =>
-      faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  const filteredFaqEntries = faqEntries.filter((faq) => {
+    if (!searchQuery) return true
+
+    const searchWords = searchQuery
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((word) => word.length > 0)
+    if (searchWords.length === 0) return true
+
+    return textContainsSearchWords(faq.question, searchWords) || textContainsSearchWords(faq.answer, searchWords)
+  })
 
   // Filtered manual sections based on search query
   const filteredManualSections = manualSections.filter((section) => {
-    const titleMatch = section.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const itemsMatch = section.items.some((item) => item.toLowerCase().includes(searchQuery.toLowerCase()))
+    if (!searchQuery) return true
+
+    const searchWords = searchQuery
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((word) => word.length > 0)
+    if (searchWords.length === 0) return true
+
+    const titleMatch = textContainsSearchWords(section.title, searchWords)
+    const itemsMatch = section.items.some((item) => textContainsSearchWords(item, searchWords))
+
     return titleMatch || itemsMatch
   })
 
-  // Add this function after the filteredManualSections definition
-  // Filter contact info based on search query
-  const filteredContactInfo = searchQuery
-    ? contactInfo.introText.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contactInfo.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contactInfo.emailDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contactInfo.responseTime.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contactInfo.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contactInfo.phoneHours.toLowerCase().includes(searchQuery.toLowerCase())
-      ? contactInfo
-      : null
-    : contactInfo
+  // Check if contact info matches search query
+  const hasContactMatch = (): boolean => {
+    if (!searchQuery) return true
+
+    const searchWords = searchQuery
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((word) => word.length > 0)
+    if (searchWords.length === 0) return true
+
+    return (
+      textContainsSearchWords(contactInfo.introText, searchWords) ||
+      textContainsSearchWords(contactInfo.email, searchWords) ||
+      textContainsSearchWords(contactInfo.emailDescription, searchWords) ||
+      textContainsSearchWords(contactInfo.responseTime, searchWords) ||
+      textContainsSearchWords(contactInfo.phone, searchWords) ||
+      textContainsSearchWords(contactInfo.phoneHours, searchWords)
+    )
+  }
 
   // Get the document ID for a section
   const getDocumentId = (sectionId: string): string => {
@@ -618,6 +648,8 @@ export default function AdminView() {
 
   return (
     <div className="flex min-h-screen">
+      <Sidebar />
+
       {/* Main Content */}
       <div className="flex-1 p-8 bg-white">
         <div className="flex items-center justify-between mb-8">
@@ -647,7 +679,7 @@ export default function AdminView() {
               variant={activeTab === "faq" ? "default" : "outline"}
               className={
                 activeTab === "faq"
-                  ? "bg-[#8B0000] hover:bg-[#6B0000] text-white"
+                  ? "bg-[#8B0080] hover:bg-[#6B0000] text-white"
                   : "bg-[#333333] text-white hover:bg-[#444444]"
               }
               onClick={() => setActiveTab("faq")}
@@ -846,27 +878,121 @@ export default function AdminView() {
               </Button>
             </div>
 
-            {filteredContactInfo ? (
-              <div className="prose max-w-none">
-                <p className="text-lg">{filteredContactInfo.introText}</p>
+            <div className="prose max-w-none">
+              {(!searchQuery ||
+                textContainsSearchWords(
+                  contactInfo.introText,
+                  searchQuery
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .filter((word) => word.length > 0),
+                )) && <p className="text-lg">{contactInfo.introText}</p>}
 
-                <h3 className="text-xl font-bold mt-6">1. Email Support</h3>
-                <ul className="pl-8 list-disc">
-                  <li>{filteredContactInfo.emailDescription}</li>
-                  <li>Response Time: {filteredContactInfo.responseTime}</li>
-                </ul>
+              {/* Email Support Section */}
+              {(!searchQuery ||
+                textContainsSearchWords(
+                  "Email Support",
+                  searchQuery
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .filter((word) => word.length > 0),
+                ) ||
+                textContainsSearchWords(
+                  contactInfo.email,
+                  searchQuery
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .filter((word) => word.length > 0),
+                ) ||
+                textContainsSearchWords(
+                  contactInfo.emailDescription,
+                  searchQuery
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .filter((word) => word.length > 0),
+                ) ||
+                textContainsSearchWords(
+                  contactInfo.responseTime,
+                  searchQuery
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .filter((word) => word.length > 0),
+                )) && (
+                <>
+                  <h3 className="text-xl font-bold mt-6">1. Email Support</h3>
+                  <ul className="pl-8 list-disc">
+                    {(!searchQuery ||
+                      textContainsSearchWords(
+                        contactInfo.emailDescription,
+                        searchQuery
+                          .toLowerCase()
+                          .split(/\s+/)
+                          .filter((word) => word.length > 0),
+                      )) && <li>{contactInfo.emailDescription}</li>}
+                    {(!searchQuery ||
+                      textContainsSearchWords(
+                        contactInfo.responseTime,
+                        searchQuery
+                          .toLowerCase()
+                          .split(/\s+/)
+                          .filter((word) => word.length > 0),
+                      )) && <li>Response Time: {contactInfo.responseTime}</li>}
+                  </ul>
+                </>
+              )}
 
-                <h3 className="text-xl font-bold mt-6">2. Phone Support</h3>
-                <ul className="pl-8 list-disc">
-                  <li>Call our support line at {filteredContactInfo.phone}.</li>
-                  <li>{filteredContactInfo.phoneHours}</li>
-                </ul>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No contact information found matching your search criteria.</p>
-              </div>
-            )}
+              {/* Phone Support Section */}
+              {(!searchQuery ||
+                textContainsSearchWords(
+                  "Phone Support",
+                  searchQuery
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .filter((word) => word.length > 0),
+                ) ||
+                textContainsSearchWords(
+                  contactInfo.phone,
+                  searchQuery
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .filter((word) => word.length > 0),
+                ) ||
+                textContainsSearchWords(
+                  contactInfo.phoneHours,
+                  searchQuery
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .filter((word) => word.length > 0),
+                )) && (
+                <>
+                  <h3 className="text-xl font-bold mt-6">2. Phone Support</h3>
+                  <ul className="pl-8 list-disc">
+                    {(!searchQuery ||
+                      textContainsSearchWords(
+                        contactInfo.phone,
+                        searchQuery
+                          .toLowerCase()
+                          .split(/\s+/)
+                          .filter((word) => word.length > 0),
+                      )) && <li>Call our support line at {contactInfo.phone}.</li>}
+                    {(!searchQuery ||
+                      textContainsSearchWords(
+                        contactInfo.phoneHours,
+                        searchQuery
+                          .toLowerCase()
+                          .split(/\s+/)
+                          .filter((word) => word.length > 0),
+                      )) && <li>{contactInfo.phoneHours}</li>}
+                  </ul>
+                </>
+              )}
+
+              {searchQuery && !hasContactMatch() && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No contact information found matching your search criteria.</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -895,7 +1021,7 @@ export default function AdminView() {
                     id="title"
                     value={editForm.title}
                     onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  />{" "}
+                  />
                 </div>
               </div>
             )}
