@@ -125,12 +125,16 @@ export default function TaskPage() {
   return (
     <div className="flex min-h-screen overflow-hidden">
       {/* Sidebar - fixed position */}
-      <div className="fixed h-screen">
-        <SidebarComponent />
+      <div className="fixed h-screen z-10">
+        <SidebarComponent onMinimize={handleSidebarMinimize} isMinimized={isSidebarMinimized} />
       </div>
 
-      {/* Main content area with left margin to account for fixed sidebar */}
-      <div className="flex-1 ml-64">
+      {/* Main content area with dynamic margin based on sidebar state */}
+      <div
+        className={`flex-1 transition-all duration-200 ease-in-out ${
+          isSidebarMinimized ? "ml-16" : "ml-64"
+        } md:ml-auto md:w-[calc(100%-16rem)] md:pl-64`}
+      >
         {loading || isRoleLoading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8B2332] mb-4"></div>
