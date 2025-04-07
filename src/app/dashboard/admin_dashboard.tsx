@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Clock, AlertCircle, CheckCircle, Users, BarChart2, XCircle } from "lucide-react"
-import { collection, getDocs, query, orderBy } from "firebase/firestore"
+import { collection, getDocs, query, orderBy, where } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase/firebase.config"
 import { useAuthState } from "react-firebase-hooks/auth"
 import { useRouter } from "next/navigation"
@@ -67,6 +67,8 @@ export default function AdminDashboard() {
     completedPercentage: 0,
     overduePercentage: 0,
   })
+  // Add userRole state at the top of the component with other state variables
+  const [userRole, setUserRole] = useState<string>("admin")
 
   const router = useRouter()
 
@@ -79,8 +81,33 @@ export default function AdminDashboard() {
       const tasksCollection = collection(db, "tasks")
       const usersCollection = collection(db, "users")
 
-      // Get all tasks
-      const tasksQuery = query(tasksCollection, orderBy("deadline", "asc"))
+      // Get current user's role and name
+      const userQuery = query(collection(db, "users"), where("email", "==", user.email))
+      const userSnapshot = await getDocs(userQuery)
+
+      let currentUserRole = "user"
+      let currentUserName = ""
+
+      if (!userSnapshot.empty) {
+        const userData = userSnapshot.docs[0].data()
+        currentUserRole = userData.role || "user"
+        currentUserName = userData.name || userData.displayName || user.displayName || "User"
+        setUserRole(currentUserRole)
+      }
+
+      // Get tasks based on role
+      let tasksQuery
+      if (currentUserRole === "super admin") {
+        // Super admin can see all tasks
+        tasksQuery = query(tasksCollection, orderBy("deadline", "asc"))
+      } else if (currentUserRole === "admin") {
+        // Admin can only see tasks they assigned
+        tasksQuery = query(tasksCollection, where("assignedBy", "==", currentUserName), orderBy("deadline", "asc"))
+      } else {
+        // Regular users would see their assigned tasks (handled in user dashboard)
+        tasksQuery = query(tasksCollection, orderBy("deadline", "asc"))
+      }
+
       const tasksSnapshot = await getDocs(tasksQuery)
 
       const fetchedTasks: Task[] = []
@@ -331,7 +358,9 @@ export default function AdminDashboard() {
           <div className="mb-6">
             <h1 className="mb-2">
               <span className="text-5xl font-bold">Dashboard</span>{" "}
-              <span className="text-3xl text-red-800 font-bold">Admin</span>
+              <span className="text-3xl text-red-800 font-bold">
+                {userRole === "super admin" ? "Super Admin" : userRole === "admin" ? "Admin" : "User"}
+              </span>
             </h1>
           </div>
 
@@ -386,6 +415,8 @@ export default function AdminDashboard() {
                       <div className="text-4xl font-bold">{stats.totalTasks}</div>
                       <div className="text-sm mt-2">Total Tasks</div>
                       <div className="flex justify-between mt-2 text-sm">
+                        <span>Pending: {stats.pendingTasks}</span>
+                        <span>Completed: {stats.completedTasks}</span>
                       </div>
                     </div>
                     <BarChart2 className="h-12 w-12 opacity-70" />

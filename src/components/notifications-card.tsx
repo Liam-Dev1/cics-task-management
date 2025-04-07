@@ -1,7 +1,5 @@
 "use client"
 
-import { Circle } from "lucide-react"
-
 export interface Notification {
   id: string
   type: string
@@ -49,15 +47,15 @@ export default function NotificationsCard({
                 className="border border-gray-200 rounded-md p-3 hover:bg-gray-50 transition-colors cursor-pointer flex items-start gap-3"
                 onClick={() => notification.taskId && onNotificationClick?.(notification.taskId)}
               >
-                <Circle
-                  className={`h-5 w-5 mt-0.5 fill-current ${
+                <div
+                  className={`h-3 w-3 rounded-full flex-shrink-0 mt-1 ${
                     notification.type.includes("High") || notification.type.includes("overdue")
-                      ? "text-red-500"
+                      ? "bg-red-500"
                       : notification.type.includes("Medium")
-                        ? "text-orange-500"
-                        : "text-green-500"
+                        ? "bg-orange-500"
+                        : "bg-green-500"
                   }`}
-                />
+                ></div>
                 <div>
                   <div className="font-medium text-sm">{notification.type.replace(" Priority", "")}</div>
                   <div className="text-sm text-gray-600">{notification.message}</div>
