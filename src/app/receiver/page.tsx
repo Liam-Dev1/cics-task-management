@@ -8,7 +8,8 @@ import { Sidebar } from "@/components/sidebar-admin"
 import { db, auth } from "@/lib/firebase/firebase.config"
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
 import { useAuthState } from "react-firebase-hooks/auth"
-import { createUserWithEmailAndPassword, onAuthStateChanged } from "firebase/auth"
+import { onAuthStateChanged } from "firebase/auth"
+import { FirebaseError } from "firebase/app" // Import FirebaseError from the correct module
 
 // Define the User type directly here to resolve the import error
 interface User {
@@ -98,19 +99,44 @@ export default function AdminRecieverPage() {
     if (!currentUser) return
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, newUser.email, "defaultPassword")
-      const firebaseUser = userCredential.user
+      // Instead of creating a Firebase Auth user, just create a Firestore document
+      // Generate a unique ID for the user
+      const userId = `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`
 
-      await setDoc(doc(db, "users", firebaseUser.uid), {
+      // Create the user document in Firestore
+      await setDoc(doc(db, "users", userId), {
         ...newUser,
-        id: firebaseUser.uid,
+        id: userId,
+        isActive: true, // Ensure isActive is set
       })
 
-      setUsers([...users, { ...newUser, id: firebaseUser.uid }])
+      // Update the local state
+      setUsers([...users, { ...newUser, id: userId, isActive: true }])
       setIsAddingUser(false)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error adding user:", error)
-      alert("Failed to add user.")
+      let errorMessage = "Failed to add user."
+
+      if (error instanceof FirebaseError) {
+        // Provide more specific error messages based on Firebase error codes
+        switch (error.code) {
+          case "auth/email-already-in-use":
+            errorMessage = "This email is already in use."
+            break
+          case "auth/invalid-email":
+            errorMessage = "The email address is not valid."
+            break
+          case "auth/weak-password":
+            errorMessage = "The password is too weak."
+            break
+          default:
+            errorMessage = `Error: ${error.message}`
+        }
+      } else if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`
+      }
+
+      alert(errorMessage)
     }
   }
 
@@ -123,7 +149,7 @@ export default function AdminRecieverPage() {
       await updateDoc(userRef, userData)
       setUsers(users.map((u) => (u.id === updatedUser.id ? updatedUser : u)))
       setEditingUser(undefined)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error editing user:", error)
       alert("Failed to edit user.")
     }
@@ -135,7 +161,7 @@ export default function AdminRecieverPage() {
     try {
       await deleteDoc(doc(db, "users", id))
       setUsers(users.filter((u) => u.id !== id))
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error deleting user:", error)
       alert("Failed to delete user.")
     }
@@ -152,7 +178,7 @@ export default function AdminRecieverPage() {
         await updateDoc(userRef, { isActive: newActiveStatus })
         setUsers(users.map((u) => (u.id === id ? { ...u, isActive: newActiveStatus } : u)))
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error toggling user active status:", error)
       alert("Failed to update user status.")
     }
@@ -165,7 +191,7 @@ export default function AdminRecieverPage() {
       const userRef = doc(db, "users", id)
       await updateDoc(userRef, { role })
       setUsers(users.map((u) => (u.id === id ? { ...u, role } : u)))
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error changing user role:", error)
       alert("Failed to update user role.")
     }
