@@ -45,7 +45,7 @@ export function ExportToPdfButton({
     const originalOverflow = document.body.style.overflow
 
     // Store elements that will be modified to restore later
-    const elementsToModify = []
+    const elementsToModify: { element: HTMLElement; originalClass?: string; originalDisplay?: string; isStyle?: boolean; restore?: () => void }[] = []
 
     try {
       // We'll set the width dynamically based on the section we're capturing
@@ -102,7 +102,11 @@ export function ExportToPdfButton({
         logoCanvas.width = logoImg.width
         logoCanvas.height = logoImg.height
         const logoCtx = logoCanvas.getContext("2d")
-        logoCtx.drawImage(logoImg, 0, 0, logoImg.width, logoImg.height)
+        if (logoCtx) {
+          logoCtx.drawImage(logoImg, 0, 0, logoImg.width, logoImg.height)
+        } else {
+          throw new Error("Failed to get 2D context for logo canvas")
+        }
 
         const logoDataUrl = logoCanvas.toDataURL("image/png")
         pdf.addImage(logoDataUrl, "PNG", logoX, currentY, logoWidth, logoHeight)
@@ -152,14 +156,14 @@ export function ExportToPdfButton({
           ) {
             // Force 1-column layout for stats grid (md typically has 1 column)
             grid.className = "grid grid-cols-1 gap-y-1 p-4"
-            elementsToModify.push({ element: grid, originalClass })
+            elementsToModify.push({ element: grid as HTMLElement, originalClass })
           }
 
           // Special handling for the filters grid
           if (grid.className.includes("grid-cols-1") && grid.className.includes("md:grid-cols")) {
             // Force 1-column layout for filters grid (md typically has 1 column)
             grid.className = "grid grid-cols-1 gap-y-4 p-4"
-            elementsToModify.push({ element: grid, originalClass })
+            elementsToModify.push({ element: grid as HTMLElement, originalClass })
           }
         })
 
@@ -230,7 +234,7 @@ export function ExportToPdfButton({
               parent.style.display = "none"
               elementsToModify.push({
                 element: parent,
-                originalParentDisplay,
+                originalDisplay,
                 isStyle: true,
                 restore: () => {
                   parent.style.display = originalParentDisplay
@@ -300,7 +304,7 @@ export function ExportToPdfButton({
           if (grid.className.includes("grid-cols-2") || grid.className.includes("grid-cols-1")) {
             const originalClass = grid.className
             grid.className = "grid grid-cols-2 gap-6 mb-6" // Force 2-column layout for 2xl
-            elementsToModify.push({ element: grid, originalClass })
+            elementsToModify.push({ element: grid as HTMLElement, originalClass })
             
             // Add bottom margin to each chart container
             const chartContainers = grid.querySelectorAll("div")

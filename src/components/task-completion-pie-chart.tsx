@@ -23,7 +23,15 @@ export function TaskCompletionPieChart({
   subtitle2,
   isQuadChart = false,
 }: TaskCompletionPieChartProps) {
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: {
+    cx: number
+    cy: number
+    midAngle: number
+    innerRadius: number
+    outerRadius: number
+    percent: number
+    index: number
+  }) => {
     const RADIAN = Math.PI / 180
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5
     const x = cx + radius * Math.cos(-midAngle * RADIAN)
@@ -59,7 +67,7 @@ export function TaskCompletionPieChart({
             </Pie>
             <Tooltip
               formatter={(value) =>
-                `${value} (${((value / data.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`
+                `${Number(value)} (${((Number(value) / data.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`
               }
             />
             <Legend

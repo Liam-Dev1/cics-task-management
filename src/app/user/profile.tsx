@@ -17,6 +17,7 @@ interface ProfileProps {
 export default function Profile({ users, userName, userEmail, userRole, profilePhoto }: ProfileProps) {
   const [isAdmin, setIsAdmin] = useState(userRole === "Admin" || userRole === "Super Admin")
   const [isUploading, setIsUploading] = useState(false)
+  const [currentProfilePhoto, setProfilePhoto] = useState(profilePhoto)
 
   const handleRoleSwitch = () => {
     setIsAdmin(!isAdmin)
@@ -57,7 +58,7 @@ export default function Profile({ users, userName, userEmail, userRole, profileP
           <div className="flex items-center">
             <div className="pr-1">
               <img
-                src={profilePhoto || "https://placehold.co/200"}
+                src={currentProfilePhoto || "https://placehold.co/200"}
                 className="rounded-full border border-white w-40 h-40 object-cover"
                 alt="Profile"
               />
