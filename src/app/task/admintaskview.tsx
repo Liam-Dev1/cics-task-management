@@ -80,6 +80,7 @@ export default function TaskManagement() {
   const newTaskFileInputRef = useRef<HTMLInputElement>(null)
   const [user] = useAuthState(auth)
   const [userName, setUserName] = useState<string>("Admin User")
+  const [userRole, setUserRole] = useState<string | null>(null)
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | null }>({
     message: "",
     type: null,
@@ -90,7 +91,6 @@ export default function TaskManagement() {
   type SortValue = string | null
   const [activeSort, setActiveSort] = useState<SortValue>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
-  const [selectedReceiver, setSelectedReceiver] = useState<string | null>(null)
 
   // Recurring task state
   const [showRecurringModal, setShowRecurringModal] = useState(false)
@@ -132,9 +132,9 @@ export default function TaskManagement() {
     }, 3000)
   }
 
-  // Fetch user's name from Firestore
+  // Fetch user's name and role from Firestore
   useEffect(() => {
-    const fetchUserName = async () => {
+    const fetchUserData = async () => {
       if (user?.email) {
         try {
           const usersRef = collection(db, "users")
@@ -144,14 +144,15 @@ export default function TaskManagement() {
           if (!querySnapshot.empty) {
             const userData = querySnapshot.docs[0].data()
             setUserName(userData.name || userData.displayName || user.displayName || "Admin User")
+            setUserRole(userData.role || null)
           }
         } catch (error) {
-          console.error("Error fetching user name:", error)
+          console.error("Error fetching user data:", error)
         }
       }
     }
 
-    fetchUserName()
+    fetchUserData()
   }, [user])
 
   // Fetch users with role "user" from Firestore
@@ -159,15 +160,19 @@ export default function TaskManagement() {
     const fetchUsers = async () => {
       try {
         const usersRef = collection(db, "users")
-        const q = query(usersRef, where("role", "==", "user"))
-        const querySnapshot = await getDocs(q)
+        // Remove the role filter to get all users
+        const querySnapshot = await getDocs(usersRef)
 
         const fetchedUsers: User[] = []
         querySnapshot.forEach((doc) => {
-          fetchedUsers.push({
-            id: doc.id,
-            ...(doc.data() as Omit<User, "id">),
-          })
+          const userData = doc.data() as Omit<User, "id">
+          // Add the user to the list if they exist
+          if (userData.email) {
+            fetchedUsers.push({
+              id: doc.id,
+              ...(userData as Omit<User, "id">),
+            })
+          }
         })
 
         setUsers(fetchedUsers)
@@ -223,58 +228,72 @@ export default function TaskManagement() {
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
     if (taskIdFromUrl && tasks.length > 0) {
-      const taskExists = tasks.some((task) => task.id === taskIdFromUrl);
-  
+      // Make sure the task exists
+      const taskExists = tasks.some((task) => task.id === taskIdFromUrl)
+
       if (taskExists) {
+        // Scroll to the task with a slight delay to ensure rendering is complete
         setTimeout(() => {
-          const taskElement = document.getElementById(`task-${taskIdFromUrl}`);
+          const taskElement = document.getElementById(`task-${taskIdFromUrl}`)
           if (taskElement) {
-            taskElement.scrollIntoView({ behavior: "smooth", block: "center" });
-  
-            // Add the glow effect
-            taskElement.classList.add("glow");
+            // Scroll to the task
+            taskElement.scrollIntoView({ behavior: "smooth", block: "center" })
+
+            // Highlight the task briefly to make it more noticeable
+            taskElement.classList.add("glow")
             setTimeout(() => {
-              taskElement.classList.remove("glow");
-            }, 2000); // Remove the glow after 2 seconds
-  
-            // Expand the task
-            setExpandedTasks((prev) => ({
-              ...prev,
-              [taskIdFromUrl]: true,
-            }));
+              taskElement.classList.remove("glow")
+            }, 2000)
+
+            // If expand parameter is true, expand the task
+            if (expandFromUrl === "true") {
+              setExpandedTasks((prev) => ({
+                ...prev,
+                [taskIdFromUrl]: true,
+              }))
+            }
           }
-        }, 300);
+        }, 300)
       }
     }
   }, [taskIdFromUrl, expandFromUrl, tasks])
 
-  // Update the useEffect that reads URL parameters to also check for the filter parameter
-  useEffect(() => {
-    const filterFromUrl = searchParams.get("filter")
-    if (filterFromUrl) {
-      setActiveFilter(filterFromUrl)
-    }
-  }, [searchParams])
+  // Add a new state for the selected receiver filter
+  const [selectedReceiver, setSelectedReceiver] = useState<string>("all")
+
+  // Update the handleSelectChange function to handle receiver selection
+  const handleReceiverChange = (value: string) => {
+    setSelectedReceiver(value)
+  }
 
   // Filter tasks based on search query and active filter
+  const matchesFilter = (task: Task) =>
+    !activeFilter ||
+    (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
+      task.status === activeFilter) ||
+    (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter) ||
+    (activeFilter === "Completed" && (task.status === "Completed On Time" || task.status === "Completed Overdue")) ||
+    (activeFilter === "Overdue" &&
+      ((new Date(task.deadline) < new Date() &&
+        task.status !== "Completed On Time" &&
+        task.status !== "Completed Overdue") ||
+        task.status === "Completed Overdue"))
+
+  // For admin users, only show tasks they've assigned or tasks assigned to them
+  const matchesAdminView = (task: Task) => {
+    // If user is not an admin or is a super admin, show all tasks
+    if (userRole !== "admin") return true
+
+    // For admin role, only show tasks they've assigned or tasks assigned to them
+    return task.assignedBy === userName || task.assignedTo === userName
+  }
+
+  // Update the filteredTasks function to include filtering by receiver
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter =
-      !activeFilter ||
-      (["Pending", "Verifying", "Completed On Time", "Completed Overdue", "Reopened"].includes(activeFilter) &&
-        task.status === activeFilter) ||
-      (["High", "Medium", "Low"].includes(activeFilter) && task.priority === activeFilter) ||
-      (activeFilter === "Completed" && (task.status === "Completed On Time" || task.status === "Completed Overdue")) ||
-      (activeFilter === "Overdue" &&
-        ((new Date(task.deadline) < new Date() &&
-          task.status !== "Completed On Time" &&
-          task.status !== "Completed Overdue") ||
-          task.status === "Completed Overdue"));
-
-    const matchesReceiver = !selectedReceiver || task.assignedTo === selectedReceiver;
-
-    return matchesSearch && matchesFilter && matchesReceiver;
-  });
+    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesReceiver = selectedReceiver === "all" || task.assignedTo === selectedReceiver
+    return matchesSearch && matchesFilter(task) && matchesAdminView(task) && matchesReceiver
+  })
 
   // Sort tasks based on active sort option
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -482,7 +501,7 @@ export default function TaskManagement() {
       }
 
       // Create new task document in Firestore
-      const newTaskData = {
+      const newTaskData: any = {
         name: (formData.get("name") as string) || "",
         assignedBy: userName,
         assignedTo: assignedToUser.name, // User's name for display
@@ -494,14 +513,20 @@ export default function TaskManagement() {
         priority: (formData.get("priority") as string) || "Medium",
         description: (formData.get("description") as string) || "",
         files: [],
-        isRecurring: isRecurringTask,
-        recurrencePattern: isRecurringTask ? recurringSettings.recurrencePattern : undefined,
-        recurrenceInterval: isRecurringTask ? recurringSettings.recurrenceInterval : undefined,
-        recurrenceEndType: isRecurringTask ? recurringSettings.recurrenceEndType : undefined,
-        recurrenceCount: isRecurringTask ? recurringSettings.recurrenceCount : undefined,
-        recurrenceEndDate: isRecurringTask ? recurringSettings.recurrenceEndDate : undefined,
-        nextDeadlines: isRecurringTask ? recurringSettings.nextDeadlines : undefined,
-        childTaskIds: isRecurringTask ? [] : undefined,
+      }
+
+      // Only add recurring task properties if it's a recurring task
+      if (isRecurringTask) {
+        newTaskData.isRecurring = true
+        newTaskData.recurrencePattern = recurringSettings.recurrencePattern
+        newTaskData.recurrenceInterval = recurringSettings.recurrenceInterval
+        newTaskData.recurrenceEndType = recurringSettings.recurrenceEndType
+        newTaskData.recurrenceCount = recurringSettings.recurrenceCount
+        newTaskData.recurrenceEndDate = recurringSettings.recurrenceEndDate
+        newTaskData.nextDeadlines = recurringSettings.nextDeadlines
+        newTaskData.childTaskIds = []
+      } else {
+        newTaskData.isRecurring = false
       }
 
       const docRef = await addDoc(collection(db, "tasks"), newTaskData)
@@ -737,17 +762,32 @@ export default function TaskManagement() {
             />
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           </div>
-          <Select onValueChange={(value) => setSelectedReceiver(value === "all" ? null : value)}>
+          {/* Update the Receiver dropdown in the Action Bar section */}
+          {/* Receiver dropdown with role-based filtering */}
+          <Select value={selectedReceiver} onValueChange={handleReceiverChange}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Receiver" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Receivers</SelectItem>
-              {users.map((user) => (
-                <SelectItem key={user.id} value={user.name}>
-                  {user.name}
-                </SelectItem>
-              ))}
+              {users
+                .filter((userItem) => {
+                  // Filter out the current user
+                  const isCurrentUser = userItem.email !== user?.email
+
+                  // For admin users, only show users with "user" role
+                  if (userRole === "admin") {
+                    return isCurrentUser && userItem.role === "user"
+                  }
+
+                  // For super admins, show all users except themselves
+                  return isCurrentUser
+                })
+                .map((userItem) => (
+                  <SelectItem key={userItem.id} value={userItem.name}>
+                    {userItem.name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           <DropdownMenu>
@@ -779,7 +819,7 @@ export default function TaskManagement() {
                   setActiveFilter(activeFilter === "Completed On Time" ? null : "Completed On Time")
                 }
               >
-                Completed On Time
+                Completed On Time On Time
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed Overdue"}
@@ -896,11 +936,27 @@ export default function TaskManagement() {
                           <SelectValue placeholder="Select assignee" />
                         </SelectTrigger>
                         <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.name}>
-                              {user.name}
-                            </SelectItem>
-                          ))}
+                          {users
+                            .filter((userItem) => {
+                              // Filter out the current user
+                              const isCurrentUser = userItem.name === userName
+
+                              // If current user is an admin (not super admin), only allow assigning to users with "user" role
+                              const isCurrentUserAdmin = userRole === "admin"
+                              const isUserRoleUser = userItem.role === "user"
+
+                              if (isCurrentUserAdmin) {
+                                return !isCurrentUser && isUserRoleUser
+                              }
+
+                              // For super admins, allow assigning to anyone except themselves
+                              return !isCurrentUser
+                            })
+                            .map((userItem) => (
+                              <SelectItem key={userItem.id} value={userItem.name}>
+                                {userItem.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1057,11 +1113,27 @@ export default function TaskManagement() {
                               <SelectValue placeholder="Select assignee" />
                             </SelectTrigger>
                             <SelectContent>
-                              {users.map((user) => (
-                                <SelectItem key={user.id} value={user.name}>
-                                  {user.name}
-                                </SelectItem>
-                              ))}
+                              {users
+                                .filter((userItem) => {
+                                  // Filter out the current user
+                                  const isCurrentUser = userItem.name === userName
+
+                                  // If current user is an admin (not super admin), only allow assigning to users with "user" role
+                                  const isCurrentUserAdmin = userRole === "admin"
+                                  const isUserRoleUser = userItem.role === "user"
+
+                                  if (isCurrentUserAdmin) {
+                                    return !isCurrentUser && isUserRoleUser
+                                  }
+
+                                  // For super admins, allow assigning to anyone except themselves
+                                  return !isCurrentUser
+                                })
+                                .map((userItem) => (
+                                  <SelectItem key={userItem.id} value={userItem.name}>
+                                    {userItem.name}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -1342,3 +1414,4 @@ export default function TaskManagement() {
     </div>
   )
 }
+
