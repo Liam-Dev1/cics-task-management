@@ -27,6 +27,9 @@ import { ExportToPdfButton } from "@/components/export-to-pdf-button"
 import { LoadingOverlay } from "@/components/loading-overlay"
 import { LoadingOverlay2 } from "@/components/loading-overlay2"
 
+
+
+
 export default function TaskReportDashboard() {
   const [loading, setLoading] = useState(true);
   const [timeFrame, setTimeFrame] = useState<"weekly" | "monthly" | "quarterly" | "yearly">("monthly");
@@ -86,7 +89,6 @@ export default function TaskReportDashboard() {
       (task) => task.status === "Completed" && task.completionTime > 100,
     ).length
     const notCompleted = tasksAssigned - completedTasks
-    const reopenedTasks = filteredTasks.filter((task) => task.reopened).length
     const avgCompletionTime =
       filteredTasks.filter((task) => task.completionTime !== null).reduce((sum, task) => sum + task.completionTime, 0) /
         completedTasks || 0
@@ -100,7 +102,6 @@ export default function TaskReportDashboard() {
       completedOnTime,
       completedLate,
       notCompleted,
-      reopenedTasks,
       avgCompletionTime: Math.round(avgCompletionTime),
       avgCompletionRate: Math.round(avgCompletionRate),
     }
@@ -119,10 +120,7 @@ export default function TaskReportDashboard() {
       { name: "Overdue", value: stats.overdueTasks, color: "#1E1E1E" },
     ]
 
-    const taskReopenedPercentage = [
-      { name: "Reopened", value: stats.reopenedTasks, color: "#8B2332" },
-      { name: "Not Reopened", value: stats.tasksAssigned - stats.reopenedTasks, color: "#4A5568" },
-    ]
+
 
     const completionTimingBreakdown = [
       {
@@ -328,7 +326,6 @@ export default function TaskReportDashboard() {
     return {
       completedTasksBreakdown,
       overallTasksBreakdown,
-      taskReopenedPercentage,
       completionTimingBreakdown,
       averageCompletionTimeData: {
         weekly: getAverageCompletionTimeData("weekly"),
@@ -623,12 +620,8 @@ export default function TaskReportDashboard() {
                       <div className="flex-1">
                       <div className="grid grid-cols-[auto,1fr] items-center">
                         {/* Avatar */}
-                        <div className="mr-4 p-4">
-                        <div className="w-32 h-32 md:w-36 md:h-36 bg-gray-500 rounded-md overflow-hidden flex items-center justify-center 2xl:w-48 2xl:h-48 transition-all duration-500 ease-in-out">
-                          <div className="w-full h-full bg-[#4A5568] flex items-center justify-center">
-                          {/* Silhouette placeholder */}
-                          </div>
-                        </div>
+                        <div className="">
+
 
                         {/* Action Buttons for small screens */}
                         <div className="mt-4 flex flex-col gap-2 lg:hidden">
@@ -730,10 +723,7 @@ export default function TaskReportDashboard() {
                           <span className="font-semibold">Tasks Completed on time:</span>
                           <span>{stats.completedOnTime}</span>
                           </div>
-                          <div className="flex justify-between">
-                          <span className="font-semibold">Reopened Tasks:</span>
-                          <span>{stats.reopenedTasks}</span>
-                          </div>
+
                         </div>
                         </div>
                       </div>
@@ -776,10 +766,7 @@ export default function TaskReportDashboard() {
                         <span className="font-semibold">Tasks Completed on time:</span>
                         <span>{stats.completedOnTime}</span>
                         </div>
-                        <div className="flex justify-between">
-                        <span className="font-semibold">Reopened Tasks:</span>
-                        <span>{stats.reopenedTasks}</span>
-                        </div>
+
                       </div>
                       </div>
                     </div>
@@ -881,16 +868,6 @@ export default function TaskReportDashboard() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-6 mb-6">
-                              {/* Tasks Reopened Percentage */}
-                              <div>
-                                <h3 className="text-lg font-semibold mb-2 text-center">Tasks Reopened Percentage</h3>
-                                <TaskCompletionPieChart
-                                  data={chartData.taskReopenedPercentage}
-                                  title="Reopened"
-                                  subtitle1="Not Reopened"
-                                  subtitle2=""
-                                />
-                              </div>
 
                               {/* Completion Timing Breakdown */}
                               <div>

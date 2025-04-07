@@ -89,7 +89,7 @@ export function ExportToPdfButton({
         })
 
         // Calculate logo dimensions (max height 15mm, maintain aspect ratio)
-        const logoMaxHeight = 20 // mm
+        const logoMaxHeight = 15// mm
         const logoAspectRatio = logoImg.width / logoImg.height
         const logoHeight = Math.min(logoMaxHeight, 20) // mm, capped at 20mm
         const logoWidth = logoHeight * logoAspectRatio
@@ -284,12 +284,39 @@ export function ExportToPdfButton({
       // Force extra large screen layout for the charts
       const pieChartsSection = reportRef.current.querySelector('[data-tab="pieCharts"]')
       if (pieChartsSection) {
+        // Add temporary bottom padding to prevent cutoff
+        const originalPadding = (pieChartsSection as HTMLElement).style.paddingBottom
+        ;(pieChartsSection as HTMLElement).style.paddingBottom = "20px"
+        elementsToModify.push({
+          element: pieChartsSection as HTMLElement,
+          isStyle: true,
+          restore: () => {
+            (pieChartsSection as HTMLElement).style.paddingBottom = originalPadding
+          }
+        })
+        
         const pieChartGrids = pieChartsSection.querySelectorAll(".grid")
         pieChartGrids.forEach((grid) => {
           if (grid.className.includes("grid-cols-2") || grid.className.includes("grid-cols-1")) {
             const originalClass = grid.className
             grid.className = "grid grid-cols-2 gap-6 mb-6" // Force 2-column layout for 2xl
             elementsToModify.push({ element: grid, originalClass })
+            
+            // Add bottom margin to each chart container
+            const chartContainers = grid.querySelectorAll("div")
+            chartContainers.forEach(container => {
+              if (container.querySelector("svg")) {
+                const originalMargin = container.style.marginBottom
+                container.style.marginBottom = "15px"
+                elementsToModify.push({
+                  element: container,
+                  isStyle: true,
+                  restore: () => {
+                    container.style.marginBottom = originalMargin
+                  }
+                })
+              }
+            })
           }
         })
       }
@@ -305,6 +332,8 @@ export function ExportToPdfButton({
           useCORS: true,
           allowTaint: true,
           width: 1536, // Force 2xl screen width
+          // Add a small height buffer to ensure everything is captured
+          height: (pieChartsSection as HTMLElement).offsetHeight + 10,
         })
 
         // Check if we need a new page
@@ -313,11 +342,11 @@ export function ExportToPdfButton({
           currentY = topBottomMargin
         }
 
-        const pieImgData = pieCanvas.toDataURL("image/jpeg", 0.7) // Use JPEG with 70% quality
-        const pieImgWidth = contentWidth
+        const pieImgData = pieCanvas.toDataURL("image/jpeg", 0.8) // Increased quality to 80%
+        const pieImgWidth = contentWidth * 0.98 // Slightly reduce width to maintain aspect ratio
         const pieImgHeight = (pieCanvas.height * pieImgWidth) / pieCanvas.width
 
-        pdf.addImage(pieImgData, "JPEG", xPos, currentY, pieImgWidth, pieImgHeight)
+        pdf.addImage(pieImgData, "JPEG", xPos + (contentWidth - pieImgWidth) / 2, currentY, pieImgWidth, pieImgHeight)
         currentY += pieImgHeight + 10
       }
 
