@@ -1,37 +1,36 @@
-"use client"
+import type { ReactNode } from "react"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-
-type BarChartData = {
-  name: string
-  onTime: number
-  missedDeadline: number
+export interface TaskCompletionStatusChartProps {
+  data: Array<{
+    name: string
+    onTime: number
+    missedDeadline: number
+    startDate?: string
+    endDate?: string
+  }>
+  children?: ReactNode
 }
 
-interface TaskCompletionStatusChartProps {
-  data: BarChartData[]
-}
-
-export function TaskCompletionStatusChart({ data }: TaskCompletionStatusChartProps) {
+export function TaskCompletionStatusChart({ data, children }: TaskCompletionStatusChartProps) {
   return (
     <div className="h-80 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
           margin={{
-            top: 20,
+            top: 10,
             right: 30,
-            left: 20,
-            bottom: 5,
+            left: 0,
+            bottom: 0,
           }}
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" />
-          <YAxis label={{ value: "Number of Tasks", angle: -90, position: "insideLeft" }} />
-          <Tooltip />
-          <Legend />
+          <YAxis />
+          {children || <Tooltip />}
           <Bar dataKey="onTime" name="Completed On/Before Time" fill="#8B2332" />
-          <Bar dataKey="missedDeadline" name="Missed Deadline" fill="#1E1E1E" />
+          <Bar dataKey="missedDeadline" name="Missed Deadline" fill="#4A5568" />
         </BarChart>
       </ResponsiveContainer>
     </div>

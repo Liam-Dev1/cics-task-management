@@ -1,10 +1,7 @@
 "use client"
-
-import { Sidebar } from "@/components/ui/sidebar"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { app } from "@/lib/firebase/firebase.config" // Ensure this is correctly configured
+import { useEffect } from "react"
 
 interface ProfileProps {
   users: any[]
@@ -12,90 +9,75 @@ interface ProfileProps {
   userEmail: string | null
   userRole: string | null
   profilePhoto: string | null
+  isAdminMode: boolean
+  setIsAdminMode: () => void
 }
 
-export default function Profile({ users, userName, userEmail, userRole, profilePhoto }: ProfileProps) {
-  const [isAdmin, setIsAdmin] = useState(userRole === "Admin" || userRole === "Super Admin")
-  const [isUploading, setIsUploading] = useState(false)
+export default function ProfileAdmin({
+  users,
+  userName,
+  userEmail,
+  userRole,
+  profilePhoto: initialProfilePhoto,
+  isAdminMode,
+  setIsAdminMode,
+}: ProfileProps) {
+  const router = useRouter()
 
-  const handleRoleSwitch = () => {
-    setIsAdmin(!isAdmin)
-  }
+  // Determine the display role based on admin mode state
+  const displayRole = userRole
+    ? isAdminMode
+      ? userRole
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")
+      : "Task Receiver (Admin)"
+    : "Admin"
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  // Redirect to appropriate page when mode changes
+  useEffect(() => {
+    // Get the current path
+    const currentPath = window.location.pathname
 
-    setIsUploading(true)
-    try {
-      const storage = getStorage(app)
-      const storageRef = ref(storage, `profile-photos/${file.name}`)
-      await uploadBytes(storageRef, file)
-      const downloadURL = await getDownloadURL(storageRef)
-
-      setProfilePhoto(downloadURL)
-    } catch (error) {
-      console.error("Error uploading file:", error)
-      alert("Failed to upload profile photo. Please try again.")
-    } finally {
-      setIsUploading(false)
+    // Check if we're on an admin-only page while in user mode
+    if (!isAdminMode && (currentPath.includes("/receiver") || currentPath.includes("/reports"))) {
+      router.push("/dashboard")
     }
-  }
+  }, [isAdminMode, router])
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex-1 bg-gray-100 p-8">
-        <div className="flex items-baseline gap-4 mb-4">
-          <h1 className="text-5xl font-bold text-[#333333]">User Profile</h1>
-          {isAdmin && <span className="text-4xl font-bold text-[#8B2332]">Admin</span>}
+    <div className="flex-1 p-8 bg-gray-100 min-h-screen">
+      <div className="flex items-baseline gap-4 mb-4">
+        <h1 className="text-5xl font-bold text-[#333333]">User Profile</h1>
+        {isAdminMode && <span className="text-4xl font-bold text-[#8B2332]">Admin</span>}
+      </div>
+
+      <div className="p-3 m-5">
+        <div className="flex items-center">
+          <div className="pr-1">
+            <img
+              src={initialProfilePhoto || "https://placehold.co/200"}
+              className="rounded-full border border-white w-40 h-40 object-cover"
+              alt="Profile"
+            />
+          </div>
+          <div className="pl-5">
+            <span className="text-4xl font-bold text-[#8B2332]">{userName}</span>
+            <h1 className="text-5xl font-bold text-[#333333]">{displayRole}</h1>
+            <h5 className="text-xl font-bold">{userEmail}</h5>
+          </div>
         </div>
 
-        <div className="p-3 m-5">
-          <div className="flex items-center">
-            <div className="pr-1">
-              <img
-                src={profilePhoto || "https://placehold.co/200"}
-                className="rounded-full border border-white w-40 h-40 object-cover"
-                alt="Profile"
-              />
-            </div>
-            <div className="pl-5">
-              <span className="text-4xl font-bold text-[#8B2332]">{userName}</span>
-              <h1 className="text-5xl font-bold text-[#333333]">{userRole}</h1>
-              <h5 className="text-xl font-bold">{userEmail}</h5>
-            </div>
-          </div>
-
-          <div className="p-6 flex flex-col sm:flex-row gap-4">
-            {/* Hidden file input */}
-            <input
-              type="file"
-              id="profile-photo-upload"
-              accept="image/*"
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-            />
-
-            {/* Label acts as a button */}
-            <label htmlFor="profile-photo-upload" className="cursor-pointer">
-              <Button
-                className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center"
-                disabled={isUploading}
-              >
-                {isUploading ? "Uploading..." : "Edit Profile Picture"}
-              </Button>
-            </label>
-
-            <Button
-              className="w-60 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center"
-              onClick={handleRoleSwitch}
-            >
-              {isAdmin ? "Switch to Task Receiver Menu" : "Switch to Admin Menu"}
-            </Button>
-          </div>
+        <div className="p-6 flex flex-col sm:flex-row gap-4">
+          <Button
+            className="w-64 bg-[#8B2332] hover:bg-[#9f393b] text-white flex items-center justify-center"
+            onClick={setIsAdminMode}
+          >
+            {isAdminMode ? "Switch to Task Receiver View" : "Switch to Admin View"}
+          </Button>
         </div>
       </div>
     </div>
   )
 }
+
