@@ -9,6 +9,7 @@ type LineChartData = {
 
 interface AverageCompletionTimeChartProps {
   data: LineChartData[]
+  children?: React.ReactNode; // Add this line
 }
 
 export function AverageCompletionTimeChart({ data }: AverageCompletionTimeChartProps) {

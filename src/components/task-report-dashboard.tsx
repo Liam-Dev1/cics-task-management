@@ -20,7 +20,9 @@ import { TaskCompletionPieChart } from "@/components/task-completion-pie-chart"
 import { ProgressBar } from "@/components/progress-bar"
 import { AverageCompletionTimeChart } from "@/components/average-completion-time-chart"
 import { TaskCompletionStatusChart } from "@/components/task-completion-status-chart"
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { Tooltip } from "recharts"; // Import Tooltip from the charting library
+
 import { taskData } from "@/lib/task-data"
 import { ExportToPdfButton } from "@/components/export-to-pdf-button"
 import { LoadingOverlay } from "@/components/loading-overlay"
@@ -82,15 +84,18 @@ export default function TaskReportDashboard() {
     const pendingTasks = filteredTasks.filter((task) => task.status === "Pending").length
     const overdueTasks = filteredTasks.filter((task) => task.status === "Overdue").length
     const completedOnTime = filteredTasks.filter(
-      (task) => task.status === "Completed" && task.completionTime <= 100,
-    ).length
+      (task) => task.status === "Completed" && task.completionTime !== null && task.completionTime <= 100,
+    ).length;
+    
     const completedLate = filteredTasks.filter(
-      (task) => task.status === "Completed" && task.completionTime > 100,
-    ).length
+      (task) => task.status === "Completed" && task.completionTime !== null && task.completionTime > 100,
+    ).length;
     const notCompleted = tasksAssigned - completedTasks
     const avgCompletionTime =
-      filteredTasks.filter((task) => task.completionTime !== null).reduce((sum, task) => sum + task.completionTime, 0) /
-        completedTasks || 0
+    filteredTasks
+      .filter((task) => task.completionTime !== null)
+      .reduce((sum, task) => sum + (task.completionTime || 0), 0) /
+      completedTasks || 0;
     const avgCompletionRate = (completedTasks / tasksAssigned) * 100 || 0
 
     return {
@@ -167,7 +172,9 @@ export default function TaskReportDashboard() {
           tasksInPeriod.reduce((sum, task) => sum + (task.completionTime || 0), 0) / tasksInPeriod.length || 0
 
         const monthName = date.toLocaleString("default", { month: "short" })
-        const weekNumber = Math.floor((date - startDate) / (7 * 24 * 60 * 60 * 1000)) + 1
+        const weekNumber = Math.floor(
+          ((date as Date).getTime() - (startDate as Date).getTime()) / (7 * 24 * 60 * 60 * 1000)
+        ) + 1;
         data.push({
           name: `Week ${weekNumber} (${monthName})`,
           value: Math.round(avgCompletionTime),
@@ -179,58 +186,58 @@ export default function TaskReportDashboard() {
       return data
     }
 
-    const getAverageCompletionTimeData = (timeFrame) => {
+    const getAverageCompletionTimeData = (timeFrame: "weekly" | "monthly" | "quarterly" | "yearly") => {
       if (timeFrame === "weekly") {
-        return getWeeklyData(appliedFilters.fromDate, appliedFilters.toDate)
+        return getWeeklyData(appliedFilters.fromDate, appliedFilters.toDate);
       }
-
-      const data = []
-      const fromDate = appliedFilters.fromDate
-      const toDate = appliedFilters.toDate
-      let startDate, endDate, increment, format
-
+    
+      const data = [];
+      const fromDate = appliedFilters.fromDate;
+      const toDate = appliedFilters.toDate;
+      let startDate, endDate, increment, format;
+    
       switch (timeFrame) {
         case "monthly":
-          startDate = startOfMonth(fromDate)
-          endDate = endOfMonth(toDate)
-          increment = 1
-          format = (date) => date.toLocaleString("default", { month: "short", year: "numeric" })
-          break
+          startDate = startOfMonth(fromDate);
+          endDate = endOfMonth(toDate);
+          increment = 1;
+          format = (date: Date) => date.toLocaleString("default", { month: "short", year: "numeric" });
+          break;
         case "quarterly":
-          startDate = startOfQuarter(fromDate)
-          endDate = endOfQuarter(toDate)
-          increment = 3
-          format = (date) => `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`
-          break
+          startDate = startOfQuarter(fromDate);
+          endDate = endOfQuarter(toDate);
+          increment = 3;
+          format = (date: Date) => `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
+          break;
         case "yearly":
-          startDate = startOfYear(fromDate)
-          endDate = endOfYear(toDate)
-          increment = 12
-          format = (date) => date.getFullYear().toString()
-          break
+          startDate = startOfYear(fromDate);
+          endDate = endOfYear(toDate);
+          increment = 12;
+          format = (date: Date) => date.getFullYear().toString();
+          break;
       }
-
+    
       for (let date = new Date(startDate); date <= endDate; date.setMonth(date.getMonth() + increment)) {
-        let periodEnd = new Date(date)
-        periodEnd.setMonth(periodEnd.getMonth() + increment)
-        periodEnd = periodEnd > endDate ? endDate : periodEnd
-
+        let periodEnd = new Date(date);
+        periodEnd.setMonth(periodEnd.getMonth() + increment);
+        periodEnd = periodEnd > endDate ? endDate : periodEnd;
+    
         const tasksInPeriod = filteredTasks.filter((task) => {
-          const taskDate = new Date(task.completed || task.deadline)
-          return taskDate >= date && taskDate < periodEnd && task.status === "Completed"
-        })
-
+          const taskDate = new Date(task.completed || task.deadline);
+          return taskDate >= date && taskDate < periodEnd && task.status === "Completed";
+        });
+    
         const avgCompletionTime =
-          tasksInPeriod.reduce((sum, task) => sum + (task.completionTime || 0), 0) / tasksInPeriod.length || 0
-
+          tasksInPeriod.reduce((sum, task) => sum + (task.completionTime || 0), 0) / tasksInPeriod.length || 0;
+    
         data.push({
           name: format(date),
           value: Math.round(avgCompletionTime),
-        })
+        });
       }
-
-      return data
-    }
+    
+      return data;
+    };
 
     const getWeeklyStatusData = (fromDate: Date, toDate: Date) => {
       const data = []
@@ -247,13 +254,20 @@ export default function TaskReportDashboard() {
           return taskDate >= date && taskDate < periodEnd
         })
 
-        const onTime = tasksInPeriod.filter((task) => task.status === "Completed" && task.completionTime <= 100).length
+        const onTime = tasksInPeriod.filter(
+          (task) => task.status === "Completed" && task.completionTime !== null && task.completionTime <= 100,
+        ).length;
+        
         const missedDeadline = tasksInPeriod.filter(
-          (task) => (task.status === "Completed" && task.completionTime > 100) || task.status === "Overdue",
-        ).length
+          (task) =>
+            (task.status === "Completed" && task.completionTime !== null && task.completionTime > 100) ||
+            task.status === "Overdue",
+        ).length;
 
         const monthName = date.toLocaleString("default", { month: "short" })
-        const weekNumber = Math.floor((date - startDate) / (7 * 24 * 60 * 60 * 1000)) + 1
+        const weekNumber = Math.floor(
+          (date.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
+        ) + 1;
         data.push({
           name: `Week ${weekNumber} (${monthName})`,
           onTime,
@@ -266,61 +280,66 @@ export default function TaskReportDashboard() {
       return data
     }
 
-    const getTaskCompletionStatusData = (timeFrame) => {
+    const getTaskCompletionStatusData = (timeFrame: "weekly" | "monthly" | "quarterly" | "yearly") => {
       if (timeFrame === "weekly") {
-        return getWeeklyStatusData(appliedFilters.fromDate, appliedFilters.toDate)
+        return getWeeklyStatusData(appliedFilters.fromDate, appliedFilters.toDate);
       }
-
-      const data = []
-      const fromDate = appliedFilters.fromDate
-      const toDate = appliedFilters.toDate
-      let startDate, endDate, increment, format
-
+    
+      const data = [];
+      const fromDate = appliedFilters.fromDate;
+      const toDate = appliedFilters.toDate;
+      let startDate, endDate, increment, format;
+    
       switch (timeFrame) {
         case "monthly":
-          startDate = startOfMonth(fromDate)
-          endDate = endOfMonth(toDate)
-          increment = 1
-          format = (date) => date.toLocaleString("default", { month: "short", year: "numeric" })
-          break
+          startDate = startOfMonth(fromDate);
+          endDate = endOfMonth(toDate);
+          increment = 1;
+          format = (date: Date) => date.toLocaleString("default", { month: "short", year: "numeric" });
+          break;
         case "quarterly":
-          startDate = startOfQuarter(fromDate)
-          endDate = endOfQuarter(toDate)
-          increment = 3
-          format = (date) => `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`
-          break
+          startDate = startOfQuarter(fromDate);
+          endDate = endOfQuarter(toDate);
+          increment = 3;
+          format = (date: Date) => `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
+          break;
         case "yearly":
-          startDate = startOfYear(fromDate)
-          endDate = endOfYear(toDate)
-          increment = 12
-          format = (date) => date.getFullYear().toString()
-          break
+          startDate = startOfYear(fromDate);
+          endDate = endOfYear(toDate);
+          increment = 12;
+          format = (date: Date) => date.getFullYear().toString();
+          break;
       }
-
+    
       for (let date = new Date(startDate); date <= endDate; date.setMonth(date.getMonth() + increment)) {
-        let periodEnd = new Date(date)
-        periodEnd.setMonth(periodEnd.getMonth() + increment)
-        periodEnd = periodEnd > endDate ? endDate : periodEnd
-
+        let periodEnd = new Date(date);
+        periodEnd.setMonth(periodEnd.getMonth() + increment);
+        periodEnd = periodEnd > endDate ? endDate : periodEnd;
+    
         const tasksInPeriod = filteredTasks.filter((task) => {
-          const taskDate = new Date(task.completed || task.deadline)
-          return taskDate >= date && taskDate < periodEnd
-        })
-
-        const onTime = tasksInPeriod.filter((task) => task.status === "Completed" && task.completionTime <= 100).length
+          const taskDate = new Date(task.completed || task.deadline);
+          return taskDate >= date && taskDate < periodEnd;
+        });
+    
+        const onTime = tasksInPeriod.filter(
+          (task) => task.status === "Completed" && task.completionTime !== null && task.completionTime <= 100,
+        ).length;
+    
         const missedDeadline = tasksInPeriod.filter(
-          (task) => (task.status === "Completed" && task.completionTime > 100) || task.status === "Overdue",
-        ).length
-
+          (task) =>
+            (task.status === "Completed" && task.completionTime !== null && task.completionTime > 100) ||
+            task.status === "Overdue",
+        ).length;
+    
         data.push({
           name: format(date),
           onTime,
           missedDeadline,
-        })
+        });
       }
-
-      return data
-    }
+    
+      return data;
+    };
 
     return {
       completedTasksBreakdown,
@@ -907,12 +926,13 @@ export default function TaskReportDashboard() {
                         {activeTab === "barCharts" && (
                           <div className="max-w-[1600px] mx-auto" data-tab="barCharts">
                             <h3 className="text-xl font-semibold mb-4">Task Completion Status ({timeFrame})</h3>
+
                             <TaskCompletionStatusChart data={chartData.taskCompletionStatusData[timeFrame]}>
                               <Tooltip
                                 formatter={(value, name, entry) => {
                                   console.log("Tooltip data:", { value, name, entry });
                                   // More flexible approach - check if the name contains certain strings
-                                  if (name === "onTime" || name.includes("onTime")) {
+                                  if (typeof name === "string" && (name === "onTime" || name.includes("onTime"))) {
                                     return [value, "Completed On/Before Time"];
                                   } else {
                                     return [value, "Missed Deadline"];

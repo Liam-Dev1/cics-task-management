@@ -10,7 +10,7 @@ import html2canvas from "html2canvas"
 import { format } from "date-fns"
 
 interface ExportToPdfButtonProps {
-  reportRef: React.RefObject<HTMLDivElement>
+  reportRef: React.RefObject<HTMLDivElement | null>
   fromDate: Date
   toDate: Date
   onExportStart: () => void
