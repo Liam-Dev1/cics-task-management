@@ -44,8 +44,18 @@ export function ExportToPdfButton({
     const originalWidth = reportRef.current.style.width
     const originalOverflow = document.body.style.overflow
 
+    // Define a type for the elements to modify
+    type ElementToModify = {
+      element: HTMLElement;
+      originalClass?: string;
+      originalDisplay?: string;
+      originalParentDisplay?: string;
+      isStyle?: boolean;
+      restore?: () => void;
+    }
+
     // Store elements that will be modified to restore later
-    const elementsToModify = []
+    const elementsToModify: ElementToModify[] = []
 
     try {
       // We'll set the width dynamically based on the section we're capturing
@@ -102,13 +112,19 @@ export function ExportToPdfButton({
         logoCanvas.width = logoImg.width
         logoCanvas.height = logoImg.height
         const logoCtx = logoCanvas.getContext("2d")
-        logoCtx.drawImage(logoImg, 0, 0, logoImg.width, logoImg.height)
-
-        const logoDataUrl = logoCanvas.toDataURL("image/png")
-        pdf.addImage(logoDataUrl, "PNG", logoX, currentY, logoWidth, logoHeight)
-
-        // Update currentY to position text below the logo with increased bottom margin
-        currentY += logoHeight + 10 // Increased from 5 to 10mm for more space
+        
+        if (!logoCtx) {
+          // Handle the case where context couldn't be created
+          console.error("Failed to get canvas context")
+        } else {
+          logoCtx.drawImage(logoImg, 0, 0, logoImg.width, logoImg.height)
+          
+          const logoDataUrl = logoCanvas.toDataURL("image/png")
+          pdf.addImage(logoDataUrl, "PNG", logoX, currentY, logoWidth, logoHeight)
+          
+          // Update currentY to position text below the logo with increased bottom margin
+          currentY += logoHeight + 10 // Increased from 5 to 10mm for more space
+        }
       } catch (error) {
         console.error("Error loading logo:", error)
         // If logo fails to load, just continue without it
@@ -141,7 +157,7 @@ export function ExportToPdfButton({
 
         // Process each grid to apply medium screen layout
         gridElements.forEach((grid) => {
-          const originalClass = grid.className
+          const originalClass = grid.className;
 
           // Check if this is a stats grid by looking for common patterns
           if (
@@ -151,15 +167,15 @@ export function ExportToPdfButton({
               grid.className.includes("xl:grid-cols"))
           ) {
             // Force 1-column layout for stats grid (md typically has 1 column)
-            grid.className = "grid grid-cols-1 gap-y-1 p-4"
-            elementsToModify.push({ element: grid, originalClass })
+            grid.className = "grid grid-cols-1 gap-y-1 p-4";
+            elementsToModify.push({ element: grid as HTMLElement, originalClass }); // Explicit cast to HTMLElement
           }
 
           // Special handling for the filters grid
           if (grid.className.includes("grid-cols-1") && grid.className.includes("md:grid-cols")) {
             // Force 1-column layout for filters grid (md typically has 1 column)
-            grid.className = "grid grid-cols-1 gap-y-4 p-4"
-            elementsToModify.push({ element: grid, originalClass })
+            grid.className = "grid grid-cols-1 gap-y-4 p-4";
+            elementsToModify.push({ element: grid as HTMLElement, originalClass }); // Explicit cast to HTMLElement
           }
         })
 
@@ -298,27 +314,27 @@ export function ExportToPdfButton({
         const pieChartGrids = pieChartsSection.querySelectorAll(".grid")
         pieChartGrids.forEach((grid) => {
           if (grid.className.includes("grid-cols-2") || grid.className.includes("grid-cols-1")) {
-            const originalClass = grid.className
-            grid.className = "grid grid-cols-3 gap-6 mb-6" // Force 2-column layout for 2xl
-            elementsToModify.push({ element: grid, originalClass })
-            
+            const originalClass = grid.className;
+            grid.className = "grid grid-cols-3 gap-6 mb-6"; // Force 2-column layout for 2xl
+            elementsToModify.push({ element: grid as HTMLElement, originalClass }); // Explicit cast to HTMLElement
+        
             // Add bottom margin to each chart container
-            const chartContainers = grid.querySelectorAll("div")
-            chartContainers.forEach(container => {
+            const chartContainers = grid.querySelectorAll("div");
+            chartContainers.forEach((container) => {
               if (container.querySelector("svg")) {
-                const originalMargin = container.style.marginBottom
-                container.style.marginBottom = "15px"
+                const originalMargin = container.style.marginBottom;
+                container.style.marginBottom = "15px";
                 elementsToModify.push({
-                  element: container,
+                  element: container as HTMLElement, // Explicit cast to HTMLElement
                   isStyle: true,
                   restore: () => {
-                    container.style.marginBottom = originalMargin
-                  }
-                })
+                    container.style.marginBottom = originalMargin;
+                  },
+                });
               }
-            })
+            });
           }
-        })
+        });
       }
 
       // Wait 3 seconds for the layout to fully render with 2xl styling

@@ -6,6 +6,7 @@ type PieChartData = {
   name: string
   value: number
   color: string
+  strokeDasharray?: string | number // Add this property to match the expected type
 }
 
 interface TaskCompletionPieChartProps {
@@ -26,14 +27,37 @@ export function TaskCompletionPieChart({
   // Filter out zero values for the pie chart only
   const filteredData = data.filter(item => item.value > 0);
 
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+  const renderCustomizedLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+    index,
+  }: {
+    cx: number
+    cy: number
+    midAngle: number
+    innerRadius: number
+    outerRadius: number
+    percent: number
+    index: number
+  }) => {
     const RADIAN = Math.PI / 180
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5
     const x = cx + radius * Math.cos(-midAngle * RADIAN)
     const y = cy + radius * Math.sin(-midAngle * RADIAN)
-
+  
     return (
-      <text x={x} y={y} fill="white" textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={12}>
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={12}
+      >
         {`${(percent * 100).toFixed(0)}%`}
       </text>
     )
@@ -65,7 +89,7 @@ export function TaskCompletionPieChart({
             </Pie>
             <Tooltip
               formatter={(value) =>
-                `${value} (${((value / dataTotal) * 100).toFixed(1)}%)`
+                `${value} (${(((value as number) / dataTotal) * 100).toFixed(1)}%)`
               }
             />
             <Legend
@@ -75,13 +99,13 @@ export function TaskCompletionPieChart({
               payload={data.map((item, index) => ({
                 value: item.name,
                 type: 'square',
-                id: index,
+                id: index.toString(), // Convert index to string
                 color: item.color,
-                payload: item
+                payload: { ...item, strokeDasharray: item.strokeDasharray || '' }, // Ensure strokeDasharray is included
               }))}
-              formatter={(value, entry, index) => (
+              formatter={(value, entry) => (
                 <span style={{ color: entry.color, fontWeight: 500 }}>
-                  {value}{entry.payload.value === 0 ? '' : ''}
+                  {value}
                 </span>
               )}
             />
