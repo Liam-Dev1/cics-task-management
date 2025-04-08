@@ -929,14 +929,15 @@ export default function TaskReportDashboard() {
 
                             <TaskCompletionStatusChart data={chartData.taskCompletionStatusData[timeFrame]}>
                               <Tooltip
-                                formatter={(value, name, entry) => {
-                                  console.log("Tooltip data:", { value, name, entry });
-                                  // More flexible approach - check if the name contains certain strings
-                                  if (typeof name === "string" && (name === "onTime" || name.includes("onTime"))) {
-                                    return [value, "Completed On/Before Time"];
-                                  } else {
-                                    return [value, "Missed Deadline"];
+                                formatter={(value, name) => {
+                                  if (typeof name === "string") {
+                                    if (name.toLowerCase().includes("ontime")) {
+                                      return [value, "Completed On/Before Time"];
+                                    } else if (name.toLowerCase().includes("misseddeadline")) {
+                                      return [value, "Missed Deadline"];
+                                    }
                                   }
+                                  return [value, name];
                                 }}
                                 labelFormatter={(label, payload) => {
                                   if (payload && payload[0] && payload[0].payload) {
