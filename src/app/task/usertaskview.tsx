@@ -50,20 +50,40 @@ export default function UserTaskViewWrapper() {
   const [activeSort, setActiveSort] = useState<SortValue>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(searchParams.get("filter"))
 
-  // Check for filter from URL or localStorage
+  // Add after existing state declarations
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  // Add this useEffect for role monitoring
   useEffect(() => {
-    const urlFilter = searchParams.get("filter")
-    if (urlFilter) {
-      setActiveFilter(urlFilter)
-    } else {
-      const savedFilter = localStorage.getItem("activeTaskFilter")
-      if (savedFilter) {
-        setActiveFilter(savedFilter)
-        // Clear the filter from localStorage after using it
-        localStorage.removeItem("activeTaskFilter")
+    const fetchUserRole = async () => {
+      if (!auth.currentUser?.email) return
+
+      try {
+        const usersRef = collection(db, "users")
+        const q = query(usersRef, where("email", "==", auth.currentUser.email))
+        const querySnapshot = await getDocs(q)
+
+        if (!querySnapshot.empty) {
+          const userData = querySnapshot.docs[0].data()
+          const newUserRole = userData.role || "user"
+
+          // Check if role has changed
+          if (userRole && userRole !== newUserRole) {
+            // Role has changed, clear tasks and refetch
+            setTasks([])
+            setLoading(true)
+            showNotification(`Your role has been updated to ${newUserRole}. Task access has been rescoped.`, "success")
+          }
+
+          setUserRole(newUserRole)
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error)
       }
     }
-  }, [searchParams])
+
+    fetchUserRole()
+  }, [userRole])
 
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
 
@@ -125,7 +145,26 @@ export default function UserTaskViewWrapper() {
           return
         }
 
-        // Query tasks assigned to this user by ID
+        // Check user role before fetching tasks
+        const usersRef = collection(db, "users")
+        const userQuery = query(usersRef, where("email", "==", auth.currentUser?.email))
+        const userSnapshot = await getDocs(userQuery)
+
+        let currentUserRole = "user"
+        if (!userSnapshot.empty) {
+          const userData = userSnapshot.docs[0].data()
+          currentUserRole = userData.role || "user"
+          setUserRole(currentUserRole)
+        }
+
+        // If user has been promoted to admin/super admin, they should use admin view
+        if (currentUserRole === "admin" || currentUserRole === "super admin") {
+          showNotification("You have been promoted! Please use the admin task view.", "success")
+          // Optionally redirect to admin view or show different interface
+          return
+        }
+
+        // Query tasks assigned to this user by ID (only for regular users)
         const tasksCollection = collection(db, "tasks")
         const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"))
 
@@ -182,7 +221,7 @@ export default function UserTaskViewWrapper() {
     }
 
     fetchTasks()
-  }, [])
+  }, [userRole]) // Add userRole as dependency
 
   // Filter tasks based on search query and active filter
   const filteredTasks = tasks.filter((task) => {

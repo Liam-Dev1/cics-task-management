@@ -78,8 +78,6 @@ export default function AdminDashboard() {
 
     try {
       setLoading(true)
-      const tasksCollection = collection(db, "tasks")
-      const usersCollection = collection(db, "users")
 
       // Get current user's role and name
       const userQuery = query(collection(db, "users"), where("email", "==", user.email))
@@ -92,10 +90,26 @@ export default function AdminDashboard() {
         const userData = userSnapshot.docs[0].data()
         currentUserRole = userData.role || "user"
         currentUserName = userData.name || userData.displayName || user.displayName || "User"
+
+        // Check if role has changed
+        if (userRole && userRole !== currentUserRole) {
+          // Role has changed, show notification
+          console.log(`Role changed from ${userRole} to ${currentUserRole}`)
+        }
+
         setUserRole(currentUserRole)
       }
 
-      // Get tasks based on role
+      // If user is not admin or super admin, they shouldn't access this dashboard
+      if (currentUserRole !== "admin" && currentUserRole !== "super admin") {
+        console.log("User does not have admin privileges")
+        return
+      }
+
+      const tasksCollection = collection(db, "tasks")
+      const usersCollection = collection(db, "users")
+
+      // Get tasks based on role with proper scoping
       let tasksQuery
       if (currentUserRole === "super admin") {
         // Super admin can see all tasks
@@ -104,8 +118,11 @@ export default function AdminDashboard() {
         // Admin can only see tasks they assigned
         tasksQuery = query(tasksCollection, where("assignedBy", "==", currentUserName), orderBy("deadline", "asc"))
       } else {
-        // Regular users would see their assigned tasks (handled in user dashboard)
-        tasksQuery = query(tasksCollection, orderBy("deadline", "asc"))
+        // Fallback - no tasks
+        setTasks([])
+        setUsers([])
+        processTasksForDashboard([], [])
+        return
       }
 
       const tasksSnapshot = await getDocs(tasksQuery)
@@ -121,8 +138,19 @@ export default function AdminDashboard() {
 
       setTasks(fetchedTasks)
 
-      // Get all users except current user
-      const usersQuery = query(usersCollection)
+      // Get users based on role
+      let usersQuery
+      if (currentUserRole === "super admin") {
+        // Super admin can see all users
+        usersQuery = query(usersCollection)
+      } else if (currentUserRole === "admin") {
+        // Admin can see users they can assign tasks to (users with "user" role)
+        usersQuery = query(usersCollection, where("role", "==", "user"))
+      } else {
+        // Fallback
+        usersQuery = query(usersCollection, where("email", "==", user.email))
+      }
+
       const usersSnapshot = await getDocs(usersQuery)
 
       const fetchedUsers: User[] = []
@@ -150,7 +178,7 @@ export default function AdminDashboard() {
     if (user) {
       fetchData()
     }
-  }, [user])
+  }, [user, userRole])
 
   // Calculate task statistics
   const processTasksForDashboard = (tasks: Task[], users: User[]) => {
@@ -625,4 +653,3 @@ export default function AdminDashboard() {
     </div>
   )
 }
-

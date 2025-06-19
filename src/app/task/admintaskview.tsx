@@ -134,6 +134,11 @@ export default function TaskManagement() {
     }, 3000)
   }
 
+  // Add this after the existing showNotification function
+  const showRoleChangeNotification = (newRole: string) => {
+    showNotification(`Your role has been updated to ${newRole}. Task access has been rescoped.`, "success")
+  }
+
   // Fetch user's name and role from Firestore
   useEffect(() => {
     const fetchUserData = async () => {
@@ -145,8 +150,18 @@ export default function TaskManagement() {
 
           if (!querySnapshot.empty) {
             const userData = querySnapshot.docs[0].data()
-            setUserName(userData.name || userData.displayName || user.displayName || "Admin User")
-            setUserRole(userData.role || null)
+            const newUserName = userData.name || userData.displayName || user.displayName || "Admin User"
+            const newUserRole = userData.role || null
+
+            // Check if role has changed
+            if (userRole && userRole !== newUserRole) {
+              // Role has changed, clear tasks and refetch with new permissions
+              setTasks([])
+              setLoading(true)
+            }
+
+            setUserName(newUserName)
+            setUserRole(newUserRole)
           }
         } catch (error) {
           console.error("Error fetching user data:", error)
@@ -155,44 +170,32 @@ export default function TaskManagement() {
     }
 
     fetchUserData()
-  }, [user])
-
-  // Fetch users with role "user" from Firestore
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const usersRef = collection(db, "users")
-        // Remove the role filter to get all users
-        const querySnapshot = await getDocs(usersRef)
-
-        const fetchedUsers: User[] = []
-        querySnapshot.forEach((doc) => {
-          const userData = doc.data() as Omit<User, "id">
-          // Add the user to the list if they exist
-          if (userData.email) {
-            fetchedUsers.push({
-              id: doc.id,
-              ...(userData as Omit<User, "id">),
-            })
-          }
-        })
-
-        setUsers(fetchedUsers)
-      } catch (error) {
-        console.error("Error fetching users:", error)
-      }
-    }
-
-    fetchUsers()
-  }, [])
+  }, [user, userRole]) // Add userRole as dependency
 
   // Fetch tasks from Firestore
   useEffect(() => {
     const fetchTasks = async () => {
+      if (!userRole) return // Wait for role to be loaded
+
       try {
         setLoading(true)
         const tasksCollection = collection(db, "tasks")
-        const tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
+        let tasksQuery
+
+        // Apply role-based filtering at query level for better performance
+        if (userRole === "super admin") {
+          // Super admin sees all tasks
+          tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
+        } else if (userRole === "admin") {
+          // Admin only sees tasks they assigned
+          tasksQuery = query(tasksCollection, where("assignedBy", "==", userName), orderBy("assignedOn", "desc"))
+        } else {
+          // Regular users shouldn't access this view, but handle gracefully
+          setTasks([])
+          setLoading(false)
+          return
+        }
+
         const querySnapshot = await getDocs(tasksQuery)
 
         const fetchedTasks: Task[] = []
@@ -247,7 +250,7 @@ export default function TaskManagement() {
     }
 
     fetchTasks()
-  }, [taskIdFromUrl, expandFromUrl])
+  }, [taskIdFromUrl, expandFromUrl, userRole, userName]) // Add userRole and userName as dependencies
 
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
@@ -313,8 +316,8 @@ export default function TaskManagement() {
       return task.assignedBy === userName
     }
 
-    // Default case
-    return true
+    // For non-admin users, show no tasks (they shouldn't be on this page)
+    return false
   }
 
   // Update the filteredTasks function to include filtering by receiver
