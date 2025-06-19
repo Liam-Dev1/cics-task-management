@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { ChevronDown, Search, Paperclip, Send } from 'lucide-react'
+import { ChevronDown, Search, Paperclip, Send } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -116,73 +116,73 @@ export default function UserTaskViewWrapper() {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        setLoading(true);
+        setLoading(true)
 
         // Get current user ID from auth
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid
         if (!userId) {
-          console.error("No user ID found");
-          return;
+          console.error("No user ID found")
+          return
         }
 
         // Query tasks assigned to this user by ID
-        const tasksCollection = collection(db, "tasks");
-        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"));
+        const tasksCollection = collection(db, "tasks")
+        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"))
 
-        const querySnapshot = await getDocs(tasksQuery);
+        const querySnapshot = await getDocs(tasksQuery)
 
-        const fetchedTasks: Task[] = [];
+        const fetchedTasks: Task[] = []
         querySnapshot.forEach((doc) => {
           fetchedTasks.push({
             id: doc.id,
             ...(doc.data() as Omit<Task, "id">),
-          });
-        });
+          })
+        })
 
         // Fetch user data to ensure we have job titles
-        const usersCollection = collection(db, "users");
-        const usersSnapshot = await getDocs(usersCollection);
-        
-        const usersMap = new Map();
+        const usersCollection = collection(db, "users")
+        const usersSnapshot = await getDocs(usersCollection)
+
+        const usersMap = new Map()
         usersSnapshot.forEach((doc) => {
-          const userData = doc.data();
-          usersMap.set(doc.id, userData);
-        });
-        
+          const userData = doc.data()
+          usersMap.set(doc.id, userData)
+        })
+
         // Update tasks with job titles if missing
-        const updatedTasks = fetchedTasks.map(task => {
+        const updatedTasks = fetchedTasks.map((task) => {
           if (!task.assignedToJobTitle && task.assignedToId && usersMap.has(task.assignedToId)) {
-            const userData = usersMap.get(task.assignedToId);
+            const userData = usersMap.get(task.assignedToId)
             return {
               ...task,
-              assignedToJobTitle: userData.jobTitle || ""
-            };
+              assignedToJobTitle: userData.jobTitle || "",
+            }
           }
-          return task;
-        });
+          return task
+        })
 
-        setTasks(updatedTasks);
+        setTasks(updatedTasks)
 
         // Preserve expanded states for existing tasks and initialize new ones to false
         setExpandedTasks((prevExpandedState) => {
-          const updatedExpandedState = { ...prevExpandedState };
+          const updatedExpandedState = { ...prevExpandedState }
           updatedTasks.forEach((task) => {
             if (updatedExpandedState[task.id] === undefined) {
-              updatedExpandedState[task.id] = false;
+              updatedExpandedState[task.id] = false
             }
-          });
-          return updatedExpandedState;
-        });
+          })
+          return updatedExpandedState
+        })
       } catch (error) {
-        console.error("Error fetching tasks:", error);
-        showNotification("Failed to load tasks. Please try again.", "error");
+        console.error("Error fetching tasks:", error)
+        showNotification("Failed to load tasks. Please try again.", "error")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchTasks();
-  }, []);
+    fetchTasks()
+  }, [])
 
   // Filter tasks based on search query and active filter
   const filteredTasks = tasks.filter((task) => {
@@ -486,7 +486,7 @@ export default function UserTaskViewWrapper() {
 
         {/* Tasks List */}
         <div className="space-y-4">
-          <div className="grid grid-cols-7 gap-4 font-semibold mb-2 hidden md:grid">
+          <div className="grid grid-cols-7 gap-4 font-semibold mb-2 hidden md:grid text-center">
             <div>Task Name</div>
             <div>Assigned by</div>
             <div>Assigned to</div>
@@ -508,28 +508,28 @@ export default function UserTaskViewWrapper() {
             ? sortedTasks.map((task) => (
                 <div key={task.id} id={`task-${task.id}`} className="bg-[#8B2332] text-white p-4 rounded">
                   <div className="grid md:grid-cols-7 gap-4">
-                    <div className="md:col-span-1">
-                      <span className="md:hidden font-semibold">Task Name: </span> 
+                    <div className="md:col-span-1 text-center">
+                      <span className="md:hidden font-semibold">Task Name: </span>
                       {task.name}
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="md:col-span-1 text-center">
                       <span className="md:hidden font-semibold">Assigned by: </span>
                       {task.assignedBy}
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="md:col-span-1 text-center">
                       <span className="md:hidden font-semibold">Assigned to: </span>
                       {task.assignedTo}
                       {task.assignedToJobTitle ? ` (${task.assignedToJobTitle})` : ""}
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="md:col-span-1 text-center">
                       <span className="md:hidden font-semibold">Assigned on: </span>
                       {task.assignedOn}
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="md:col-span-1 text-center">
                       <span className="md:hidden font-semibold">Deadline: </span>
                       {task.deadline}
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="md:col-span-1 text-center">
                       <span className="md:hidden font-semibold">Status: </span>
                       <Badge
                         className={
@@ -547,8 +547,8 @@ export default function UserTaskViewWrapper() {
                         {task.status}
                       </Badge>
                     </div>
-                    <div className="md:col-span-1 flex justify-between items-center">
-                      <div>
+                    <div className="md:col-span-1 flex justify-center items-center">
+                      <div className="text-center">
                         <span className="md:hidden font-semibold">Priority: </span>
                         <Badge
                           className={
@@ -564,7 +564,7 @@ export default function UserTaskViewWrapper() {
                       </div>
                       <button
                         onClick={() => toggleTaskExpansion(task.id)}
-                        className="text-white hover:bg-[#9B3342] rounded p-1"
+                        className="text-white hover:bg-[#9B3342] rounded p-1 ml-2"
                         aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
                       >
                         <ChevronDown size={16} />
@@ -575,7 +575,7 @@ export default function UserTaskViewWrapper() {
                   {expandedTasks[task.id] && (
                     <div className="bg-white text-black p-4 rounded mt-2">
                       <p className="my-2">{task.description}</p>
-                      <div className="flex flex-wrap justify-between mt-4">
+                      <div className="flex flex-wrap justify-center mt-4">
                         <div className="space-x-2 mb-2">
                           {task.files &&
                             task.files.map((file, index) => (
@@ -589,7 +589,7 @@ export default function UserTaskViewWrapper() {
                               </Button>
                             ))}
                         </div>
-                        <div className="flex flex-row space-x-2">
+                        <div className="flex flex-row space-x-2 justify-center w-full">
                           <Button
                             variant="outline"
                             size="sm"
