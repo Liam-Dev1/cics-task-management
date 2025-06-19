@@ -795,9 +795,11 @@ export default function TaskManagement() {
           </div>
         )}
 
-        <h1 className="mb-6">
-          <span className="text-5xl font-bold">Tasks</span>{" "}
-          <span className="text-3xl text-[#8B2332] font-bold">Admin</span>
+        <h1 className="mb-6 flex items-baseline gap-4">
+          <span className="text-5xl font-bold">Tasks</span>
+          <span className="text-3xl text-[#8B2332] font-bold">
+            {userRole === "super admin" ? "Super Admin" : "Admin"}
+          </span>
         </h1>
 
         {/* Hidden file input for existing tasks */}
