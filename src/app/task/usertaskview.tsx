@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { ChevronDown, Search, Paperclip, Send } from 'lucide-react'
+import { ChevronDown, Search, Paperclip, Send, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -35,6 +35,10 @@ interface Task {
   description: string
   completed?: string | null
   files?: Array<{ name: string; url: string }>
+  // Add these for recurring tasks:
+  isRecurring?: boolean
+  recurrencePattern?: string
+  nextDeadlines?: string[]
 }
 
 export default function UserTaskViewWrapper() {
@@ -116,73 +120,73 @@ export default function UserTaskViewWrapper() {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        setLoading(true);
+        setLoading(true)
 
         // Get current user ID from auth
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid
         if (!userId) {
-          console.error("No user ID found");
-          return;
+          console.error("No user ID found")
+          return
         }
 
         // Query tasks assigned to this user by ID
-        const tasksCollection = collection(db, "tasks");
-        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"));
+        const tasksCollection = collection(db, "tasks")
+        const tasksQuery = query(tasksCollection, where("assignedToId", "==", userId), orderBy("assignedOn", "desc"))
 
-        const querySnapshot = await getDocs(tasksQuery);
+        const querySnapshot = await getDocs(tasksQuery)
 
-        const fetchedTasks: Task[] = [];
+        const fetchedTasks: Task[] = []
         querySnapshot.forEach((doc) => {
           fetchedTasks.push({
             id: doc.id,
             ...(doc.data() as Omit<Task, "id">),
-          });
-        });
+          })
+        })
 
         // Fetch user data to ensure we have job titles
-        const usersCollection = collection(db, "users");
-        const usersSnapshot = await getDocs(usersCollection);
-        
-        const usersMap = new Map();
+        const usersCollection = collection(db, "users")
+        const usersSnapshot = await getDocs(usersCollection)
+
+        const usersMap = new Map()
         usersSnapshot.forEach((doc) => {
-          const userData = doc.data();
-          usersMap.set(doc.id, userData);
-        });
-        
+          const userData = doc.data()
+          usersMap.set(doc.id, userData)
+        })
+
         // Update tasks with job titles if missing
-        const updatedTasks = fetchedTasks.map(task => {
+        const updatedTasks = fetchedTasks.map((task) => {
           if (!task.assignedToJobTitle && task.assignedToId && usersMap.has(task.assignedToId)) {
-            const userData = usersMap.get(task.assignedToId);
+            const userData = usersMap.get(task.assignedToId)
             return {
               ...task,
-              assignedToJobTitle: userData.jobTitle || ""
-            };
+              assignedToJobTitle: userData.jobTitle || "",
+            }
           }
-          return task;
-        });
+          return task
+        })
 
-        setTasks(updatedTasks);
+        setTasks(updatedTasks)
 
         // Preserve expanded states for existing tasks and initialize new ones to false
         setExpandedTasks((prevExpandedState) => {
-          const updatedExpandedState = { ...prevExpandedState };
+          const updatedExpandedState = { ...prevExpandedState }
           updatedTasks.forEach((task) => {
             if (updatedExpandedState[task.id] === undefined) {
-              updatedExpandedState[task.id] = false;
+              updatedExpandedState[task.id] = false
             }
-          });
-          return updatedExpandedState;
-        });
+          })
+          return updatedExpandedState
+        })
       } catch (error) {
-        console.error("Error fetching tasks:", error);
-        showNotification("Failed to load tasks. Please try again.", "error");
+        console.error("Error fetching tasks:", error)
+        showNotification("Failed to load tasks. Please try again.", "error")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchTasks();
-  }, []);
+    fetchTasks()
+  }, [])
 
   // Filter tasks based on search query and active filter
   const filteredTasks = tasks.filter((task) => {
@@ -406,22 +410,29 @@ export default function UserTaskViewWrapper() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-48">
-              <DropdownMenuCheckboxItem checked={activeFilter === null} onCheckedChange={() => setActiveFilter(null)}>
+              <DropdownMenuCheckboxItem
+                key="user-filter-all"
+                checked={activeFilter === null}
+                onCheckedChange={() => setActiveFilter(null)}
+              >
                 All
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
+                key="user-filter-pending"
                 checked={activeFilter === "Pending"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Pending" ? null : "Pending")}
               >
                 Pending
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
+                key="user-filter-verifying"
                 checked={activeFilter === "Verifying"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Verifying" ? null : "Verifying")}
               >
                 Verifying
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
+                key="user-filter-completed-on-time"
                 checked={activeFilter === "Completed On Time"}
                 onCheckedChange={() =>
                   setActiveFilter(activeFilter === "Completed On Time" ? null : "Completed On Time")
@@ -430,6 +441,7 @@ export default function UserTaskViewWrapper() {
                 Completed On Time
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
+                key="user-filter-completed-overdue"
                 checked={activeFilter === "Completed Overdue"}
                 onCheckedChange={() =>
                   setActiveFilter(activeFilter === "Completed Overdue" ? null : "Completed Overdue")
@@ -438,24 +450,28 @@ export default function UserTaskViewWrapper() {
                 Completed Overdue
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
+                key="user-filter-reopened"
                 checked={activeFilter === "Reopened"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Reopened" ? null : "Reopened")}
               >
                 Reopened
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
+                key="user-filter-high-priority"
                 checked={activeFilter === "High"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "High" ? null : "High")}
               >
                 High Priority
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
+                key="user-filter-medium-priority"
                 checked={activeFilter === "Medium"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Medium" ? null : "Medium")}
               >
                 Medium Priority
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
+                key="user-filter-low-priority"
                 checked={activeFilter === "Low"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Low" ? null : "Low")}
               >
@@ -472,13 +488,27 @@ export default function UserTaskViewWrapper() {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56">
               <DropdownMenuRadioGroup value={activeSort ?? ""} onValueChange={setActiveSort}>
-                <DropdownMenuRadioItem value="">Default</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="nameAsc">Task Name (A-Z)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="nameDesc">Task Name (Z-A)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="assignedAsc">Date Assigned (Oldest First)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="assignedDesc">Date Assigned (Newest First)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="deadlineAsc">Deadline (Earliest First)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="deadlineDesc">Deadline (Latest First)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem key="user-sort-default" value="">
+                  Default
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem key="user-sort-name-asc" value="nameAsc">
+                  Task Name (A-Z)
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem key="user-sort-name-desc" value="nameDesc">
+                  Task Name (Z-A)
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem key="user-sort-assigned-asc" value="assignedAsc">
+                  Date Assigned (Oldest First)
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem key="user-sort-assigned-desc" value="assignedDesc">
+                  Date Assigned (Newest First)
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem key="user-sort-deadline-asc" value="deadlineAsc">
+                  Deadline (Earliest First)
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem key="user-sort-deadline-desc" value="deadlineDesc">
+                  Deadline (Latest First)
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -506,11 +536,23 @@ export default function UserTaskViewWrapper() {
           {/* Existing Tasks */}
           {!loading && sortedTasks.length > 0
             ? sortedTasks.map((task) => (
-                <div key={task.id} id={`task-${task.id}`} className="bg-[#8B2332] text-white p-4 rounded">
+                <div
+                  key={`user-task-${task.id}`}
+                  id={`task-${task.id}`}
+                  className="bg-[#8B2332] text-white p-4 rounded"
+                >
                   <div className="grid md:grid-cols-7 gap-4">
                     <div className="md:col-span-1">
-                      <span className="md:hidden font-semibold">Task Name: </span> 
-                      {task.name}
+                      <span className="md:hidden font-semibold">Task Name: </span>
+                      <div className="flex items-center gap-2">
+                        {task.name}
+                        {task.isRecurring && (
+                          <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300 text-xs">
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Recurring
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="md:col-span-1">
                       <span className="md:hidden font-semibold">Assigned by: </span>
@@ -575,12 +617,32 @@ export default function UserTaskViewWrapper() {
                   {expandedTasks[task.id] && (
                     <div className="bg-white text-black p-4 rounded mt-2">
                       <p className="my-2">{task.description}</p>
+                      {/* Show recurring badge and deadlines if task is recurring */}
+                      {task.isRecurring && (
+                        <div className="mt-2 mb-4">
+                          <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
+                            Recurring Task ({task.recurrencePattern})
+                          </Badge>
+                          {task.nextDeadlines && task.nextDeadlines.length > 0 && (
+                            <div className="mt-2 text-sm text-gray-700">
+                              <strong>Upcoming Deadlines:</strong>
+                              <ul className="list-disc ml-6">
+                                {task.nextDeadlines.map((date, idx) => (
+                                  <li key={`user-task-${task.id}-deadline-${idx}-${date.replace(/[^a-zA-Z0-9]/g, "")}`}>
+                                    {date}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="flex flex-wrap justify-between mt-4">
                         <div className="space-x-2 mb-2">
                           {task.files &&
                             task.files.map((file, index) => (
                               <Button
-                                key={index}
+                                key={`user-task-${task.id}-file-${index}-${file.name.replace(/[^a-zA-Z0-9]/g, "")}`}
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => window.open(file.url, "_blank")}

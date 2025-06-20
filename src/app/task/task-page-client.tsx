@@ -12,14 +12,12 @@ import AdminTaskViewWrapper from "./admintaskview"
 import UserTaskViewWrapper from "./usertaskview"
 
 export default function TaskPageClient() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [user, loading] = useAuthState(auth)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [isRoleLoading, setIsRoleLoading] = useState(true)
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const taskId = searchParams.get("taskId")
-  const filterParam = searchParams.get("filter")
 
   // Get the admin view mode from session storage
   const [adminViewMode, setAdminViewMode] = useState<string | null>(null)
@@ -119,8 +117,7 @@ export default function TaskPageClient() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar with onMinimize prop */}
-      <SidebarComponent onMinimize={setIsSidebarMinimized} />
+      {!loading && !isRoleLoading && <SidebarComponent onMinimize={setIsSidebarMinimized} />}
 
       {/* Main content area with dynamic margin based on sidebar state */}
       <div
@@ -142,4 +139,3 @@ export default function TaskPageClient() {
     </div>
   )
 }
-

@@ -24,7 +24,16 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { useSearchParams } from "next/navigation"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import RecurringTaskModal, { type RecurringSettings } from "@/components/recurring-task-modal"
+
+type RecurringSettings = {
+  isRecurring: boolean
+  recurrencePattern: string
+  recurrenceInterval: number
+  recurrenceEndType: string
+  recurrenceCount: number
+  recurrenceEndDate: string
+  nextDeadlines: string[]
+}
 
 // File object interface
 interface FileObject extends File {
@@ -68,7 +77,7 @@ interface User {
   jobTitle?: string
 }
 
-export default function TaskManagement() {
+export default function AdminTaskViewWrapper() {
   const [showNewTask, setShowNewTask] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -480,53 +489,12 @@ export default function TaskManagement() {
 
   // Open recurring modal for a specific task
   const openRecurringModal = (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task) return
-
-    // Set the current task's recurring settings
-    setEditingRecurringTaskId(taskId)
-
-    // Initialize with default settings if not already set
-    const currentSettings: RecurringSettings = {
-      isRecurring: task.isRecurring || false,
-      recurrencePattern: (task.recurrencePattern as any) || "weekly",
-      recurrenceInterval: task.recurrenceInterval || 1,
-      recurrenceEndType: (task.recurrenceEndType as any) || "never",
-      recurrenceCount: task.recurrenceCount || 10,
-      recurrenceEndDate:
-        task.recurrenceEndDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      nextDeadlines: task.nextDeadlines || [],
-    }
-
-    setRecurringSettings(currentSettings)
-    setShowRecurringModal(true)
+    alert("Recurring task configuration would open here")
   }
 
   // Save recurring settings for a specific task
   const handleSaveRecurringSettings = (settings: RecurringSettings) => {
-    if (editingRecurringTaskId) {
-      // Update the task with new recurring settings
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === editingRecurringTaskId
-            ? {
-                ...task,
-                isRecurring: settings.isRecurring,
-                recurrencePattern: settings.recurrencePattern,
-                recurrenceInterval: settings.recurrenceInterval,
-                recurrenceEndType: settings.recurrenceEndType,
-                recurrenceCount: settings.recurrenceCount,
-                recurrenceEndDate: settings.recurrenceEndDate,
-                nextDeadlines: settings.nextDeadlines,
-              }
-            : task,
-        ),
-      )
-    } else {
-      // For new tasks
-      setRecurringSettings(settings)
-    }
-
+    // Simple implementation for now
     setShowRecurringModal(false)
     setEditingRecurringTaskId(null)
   }
@@ -778,6 +746,27 @@ export default function TaskManagement() {
     }
   }
 
+  // Helper function to generate safe keys
+  const generateSafeKey = (prefix: string, id: string, suffix?: string) => {
+    const cleanId = id.replace(/[^a-zA-Z0-9]/g, "")
+    const cleanSuffix = suffix ? suffix.replace(/[^a-zA-Z0-9]/g, "") : ""
+    return `${prefix}-${cleanId}${cleanSuffix ? `-${cleanSuffix}` : ""}`
+  }
+
+  // Filter users for dropdowns
+  const getFilteredUsers = () => {
+    return users.filter((userItem) => {
+      const isCurrentUser = userItem.name === userName
+      const isCurrentUserAdmin = userRole === "admin"
+      const isUserRoleUser = userItem.role === "user"
+
+      if (isCurrentUserAdmin) {
+        return !isCurrentUser && isUserRoleUser
+      }
+      return !isCurrentUser
+    })
+  }
+
   return (
     <div className="flex-1 bg-white">
       <div className="p-6">
@@ -812,7 +801,7 @@ export default function TaskManagement() {
             />
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           </div>
-          {/* Update the Receiver dropdown in the Action Bar section */}
+
           {/* Receiver dropdown with role-based filtering */}
           <Select value={selectedReceiver} onValueChange={handleReceiverChange}>
             <SelectTrigger className="w-[180px]">
@@ -822,24 +811,23 @@ export default function TaskManagement() {
               <SelectItem value="all">All Receivers</SelectItem>
               {users
                 .filter((userItem) => {
-                  // Filter out the current user
                   const isCurrentUser = userItem.email !== user?.email
-
-                  // For admin users, only show users with "user" role
                   if (userRole === "admin") {
                     return isCurrentUser && userItem.role === "user"
                   }
-
-                  // For super admins, show all users except themselves
                   return isCurrentUser
                 })
-                .map((userItem) => (
-                  <SelectItem key={userItem.id} value={userItem.name}>
+                .map((userItem, index) => (
+                  <SelectItem
+                    key={generateSafeKey("receiver-filter", userItem.id, index.toString())}
+                    value={userItem.name}
+                  >
                     {userItem.name}
                   </SelectItem>
                 ))}
             </SelectContent>
           </Select>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" className={activeFilter ? "bg-[#F5E6E8]" : ""}>
@@ -848,75 +836,30 @@ export default function TaskManagement() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-48">
-              <DropdownMenuCheckboxItem checked={activeFilter === null} onCheckedChange={() => setActiveFilter(null)}>
-                All
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "Pending"}
-                onCheckedChange={() => setActiveFilter(activeFilter === "Pending" ? null : "Pending")}
-              >
-                Pending
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "Verifying"}
-                onCheckedChange={() => setActiveFilter(activeFilter === "Verifying" ? null : "Verifying")}
-              >
-                Verifying
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "Completed On Time"}
-                onCheckedChange={() =>
-                  setActiveFilter(activeFilter === "Completed On Time" ? null : "Completed On Time")
-                }
-              >
-                Completed On Time On Time
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "Completed Overdue"}
-                onCheckedChange={() =>
-                  setActiveFilter(activeFilter === "Completed Overdue" ? null : "Completed Overdue")
-                }
-              >
-                Completed Overdue
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "Reopened"}
-                onCheckedChange={() => setActiveFilter(activeFilter === "Reopened" ? null : "Reopened")}
-              >
-                Reopened
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "High"}
-                onCheckedChange={() => setActiveFilter(activeFilter === "High" ? null : "High")}
-              >
-                High Priority
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "Medium"}
-                onCheckedChange={() => setActiveFilter(activeFilter === "Medium" ? null : "Medium")}
-              >
-                Medium Priority
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "Low"}
-                onCheckedChange={() => setActiveFilter(activeFilter === "Low" ? null : "Low")}
-              >
-                Low Priority
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "Completed"}
-                onCheckedChange={() => setActiveFilter(activeFilter === "Completed" ? null : "Completed")}
-              >
-                All Completed Tasks
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeFilter === "Overdue"}
-                onCheckedChange={() => setActiveFilter(activeFilter === "Overdue" ? null : "Overdue")}
-              >
-                All Overdue Tasks
-              </DropdownMenuCheckboxItem>
+              {[
+                { key: "all", label: "All", value: null },
+                { key: "pending", label: "Pending", value: "Pending" },
+                { key: "verifying", label: "Verifying", value: "Verifying" },
+                { key: "completed-on-time", label: "Completed On Time", value: "Completed On Time" },
+                { key: "completed-overdue", label: "Completed Overdue", value: "Completed Overdue" },
+                { key: "reopened", label: "Reopened", value: "Reopened" },
+                { key: "high-priority", label: "High Priority", value: "High" },
+                { key: "medium-priority", label: "Medium Priority", value: "Medium" },
+                { key: "low-priority", label: "Low Priority", value: "Low" },
+                { key: "all-completed", label: "All Completed Tasks", value: "Completed" },
+                { key: "all-overdue", label: "All Overdue Tasks", value: "Overdue" },
+              ].map((filter) => (
+                <DropdownMenuCheckboxItem
+                  key={generateSafeKey("filter", filter.key)}
+                  checked={activeFilter === filter.value}
+                  onCheckedChange={() => setActiveFilter(activeFilter === filter.value ? null : filter.value)}
+                >
+                  {filter.label}
+                </DropdownMenuCheckboxItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" className={activeSort ? "bg-[#F5E6E8]" : ""}>
@@ -926,15 +869,21 @@ export default function TaskManagement() {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56">
               <DropdownMenuRadioGroup value={activeSort ?? ""} onValueChange={setActiveSort}>
-                <DropdownMenuRadioItem value="">Default</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="nameAsc">Task Name (A-Z)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="nameDesc">Task Name (Z-A)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="receiverAsc">Task Receiver (A-Z)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="receiverDesc">Task Receiver (Z-A)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="assignedAsc">Date Assigned (Oldest First)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="assignedDesc">Date Assigned (Newest First)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="deadlineAsc">Deadline (Earliest First)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="deadlineDesc">Deadline (Latest First)</DropdownMenuRadioItem>
+                {[
+                  { key: "default", label: "Default", value: "" },
+                  { key: "name-asc", label: "Task Name (A-Z)", value: "nameAsc" },
+                  { key: "name-desc", label: "Task Name (Z-A)", value: "nameDesc" },
+                  { key: "receiver-asc", label: "Task Receiver (A-Z)", value: "receiverAsc" },
+                  { key: "receiver-desc", label: "Task Receiver (Z-A)", value: "receiverDesc" },
+                  { key: "assigned-asc", label: "Date Assigned (Oldest First)", value: "assignedAsc" },
+                  { key: "assigned-desc", label: "Date Assigned (Newest First)", value: "assignedDesc" },
+                  { key: "deadline-asc", label: "Deadline (Earliest First)", value: "deadlineAsc" },
+                  { key: "deadline-desc", label: "Deadline (Latest First)", value: "deadlineDesc" },
+                ].map((sort) => (
+                  <DropdownMenuRadioItem key={generateSafeKey("sort", sort.key)} value={sort.value}>
+                    {sort.label}
+                  </DropdownMenuRadioItem>
+                ))}
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -986,28 +935,15 @@ export default function TaskManagement() {
                           <SelectValue placeholder="Select assignee" />
                         </SelectTrigger>
                         <SelectContent>
-                          {users
-                            .filter((userItem) => {
-                              // Filter out the current user
-                              const isCurrentUser = userItem.name === userName
-
-                              // If current user is an admin (not super admin), only allow assigning to users with "user" role
-                              const isCurrentUserAdmin = userRole === "admin"
-                              const isUserRoleUser = userItem.role === "user"
-
-                              if (isCurrentUserAdmin) {
-                                return !isCurrentUser && isUserRoleUser
-                              }
-
-                              // For super admins, allow assigning to anyone except themselves
-                              return !isCurrentUser
-                            })
-                            .map((userItem) => (
-                              <SelectItem key={userItem.id} value={userItem.name}>
-                                {userItem.name}
-                                {userItem.jobTitle ? ` (${userItem.jobTitle})` : ""}
-                              </SelectItem>
-                            ))}
+                          {getFilteredUsers().map((userItem, index) => (
+                            <SelectItem
+                              key={generateSafeKey("new-task-assignee", userItem.id, index.toString())}
+                              value={userItem.name}
+                            >
+                              {userItem.name}
+                              {userItem.jobTitle ? ` (${userItem.jobTitle})` : ""}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1132,9 +1068,14 @@ export default function TaskManagement() {
           )}
 
           {/* Existing Tasks */}
-          {!loading && sortedTasks.length > 0
-            ? sortedTasks.map((task) => (
-                <div key={task.id} id={`task-${task.id}`} className="bg-[#8B2332] text-white p-4 rounded">
+          {!loading && sortedTasks.length > 0 ? (
+            <div>
+              {sortedTasks.map((task, taskIndex) => (
+                <div
+                  key={generateSafeKey("task", task.id, taskIndex.toString())}
+                  id={`task-${task.id}`}
+                  className="bg-[#8B2332] text-white p-4 rounded mb-4"
+                >
                   <div className="grid md:grid-cols-7 gap-4">
                     {editingTask === task.id ? (
                       <>
@@ -1162,28 +1103,15 @@ export default function TaskManagement() {
                               <SelectValue placeholder="Select assignee" />
                             </SelectTrigger>
                             <SelectContent>
-                              {users
-                                .filter((userItem) => {
-                                  // Filter out the current user
-                                  const isCurrentUser = userItem.name === userName
-
-                                  // If current user is an admin (not super admin), only allow assigning to users with "user" role
-                                  const isCurrentUserAdmin = userRole === "admin"
-                                  const isUserRoleUser = userItem.role === "user"
-
-                                  if (isCurrentUserAdmin) {
-                                    return !isCurrentUser && isUserRoleUser
-                                  }
-
-                                  // For super admins, allow assigning to anyone except themselves
-                                  return !isCurrentUser
-                                })
-                                .map((userItem) => (
-                                  <SelectItem key={userItem.id} value={userItem.name}>
-                                    {userItem.name}
-                                    {userItem.jobTitle ? ` (${userItem.jobTitle})` : ""}
-                                  </SelectItem>
-                                ))}
+                              {getFilteredUsers().map((userItem, index) => (
+                                <SelectItem
+                                  key={generateSafeKey("edit-task-assignee", task.id, `${userItem.id}-${index}`)}
+                                  value={userItem.name}
+                                >
+                                  {userItem.name}
+                                  {userItem.jobTitle ? ` (${userItem.jobTitle})` : ""}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -1242,7 +1170,18 @@ export default function TaskManagement() {
                       <>
                         <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Task Name: </span>
-                          {task.name}
+                          <div className="flex items-center gap-2">
+                            {task.name}
+                            {task.isRecurring && (
+                              <Badge
+                                variant="outline"
+                                className="bg-purple-100 text-purple-800 border-purple-300 text-xs"
+                              >
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                Recurring
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Assigned By: </span>
@@ -1299,7 +1238,7 @@ export default function TaskManagement() {
                             className="text-white hover:bg-[#9B3342] rounded p-1"
                             aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
                           >
-                            {expandedTasks[task.id] ? <ChevronDown size={16} /> : <ChevronDown size={16} />}
+                            <ChevronDown size={16} />
                           </button>
                         </div>
                       </>
@@ -1352,6 +1291,17 @@ export default function TaskManagement() {
                                 <RefreshCw className="h-3 w-3 mr-1" />
                                 Recurring Task ({task.recurrencePattern})
                               </Badge>
+                              {/* Display recurrence deadlines */}
+                              {task.nextDeadlines && task.nextDeadlines.length > 0 && (
+                                <div className="mt-2 text-sm text-gray-700">
+                                  <strong>Upcoming Deadlines:</strong>
+                                  <ul className="list-disc ml-6">
+                                    {task.nextDeadlines.map((date, idx) => (
+                                      <li key={generateSafeKey("deadline", task.id, `${idx}-${date}`)}>{date}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
                           )}
                         </>
@@ -1359,17 +1309,20 @@ export default function TaskManagement() {
 
                       <div className="flex flex-wrap justify-between mt-4">
                         <div className="space-x-2 mb-2">
-                          {task.files &&
-                            task.files.map((file, index) => (
-                              <Button
-                                key={index}
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => window.open(file.url, "_blank")}
-                              >
-                                {file.name}
-                              </Button>
-                            ))}
+                          {task.files && task.files.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {task.files.map((file, index) => (
+                                <Button
+                                  key={generateSafeKey("file", task.id, `${index}-${file.name}`)}
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => window.open(file.url, "_blank")}
+                                >
+                                  {file.name}
+                                </Button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-row space-x-2">
                           {editingTask === task.id ? (
@@ -1444,25 +1397,17 @@ export default function TaskManagement() {
                     </div>
                   )}
                 </div>
-              ))
-            : !loading && (
-                <div className="text-center py-8 bg-gray-50 rounded-lg">
-                  <p className="text-gray-500">No tasks match your current filters</p>
-                </div>
-              )}
+              ))}
+            </div>
+          ) : (
+            !loading && (
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">No tasks match your current filters</p>
+              </div>
+            )
+          )}
         </div>
       </div>
-      {/* Recurring Task Modal */}
-      <RecurringTaskModal
-        isOpen={showRecurringModal}
-        onClose={() => {
-          setShowRecurringModal(false)
-          setEditingRecurringTaskId(null)
-        }}
-        onSave={handleSaveRecurringSettings}
-        initialSettings={recurringSettings}
-      />
     </div>
   )
 }
-
