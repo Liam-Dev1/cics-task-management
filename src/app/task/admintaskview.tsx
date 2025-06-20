@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 import { useState, useRef, useEffect } from "react"
 import { ChevronDown, Search, Upload, Plus, Save, X, CheckCircle, RefreshCw, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -117,6 +117,10 @@ export default function AdminTaskViewWrapper() {
 
   // Track which task's recurring settings we're editing
   const [editingRecurringTaskId, setEditingRecurringTaskId] = useState<string | null>(null)
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [tasksPerPage] = useState(10)
 
   // Check for filter from localStorage (set by the dashboard)
   useEffect(() => {
@@ -356,6 +360,18 @@ export default function AdminTaskViewWrapper() {
         return 0
     }
   })
+
+  // Pagination calculations
+  const totalTasks = sortedTasks.length
+  const totalPages = Math.ceil(totalTasks / tasksPerPage)
+  const startIndex = (currentPage - 1) * tasksPerPage
+  const endIndex = startIndex + tasksPerPage
+  const currentTasks = sortedTasks.slice(startIndex, endIndex)
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, activeFilter, selectedReceiver, activeSort])
 
   const toggleTaskExpansion = (taskId: string) => {
     setExpandedTasks((prev) => ({
@@ -1068,9 +1084,9 @@ export default function AdminTaskViewWrapper() {
           )}
 
           {/* Existing Tasks */}
-          {!loading && sortedTasks.length > 0 ? (
+          {!loading && currentTasks.length > 0 ? (
             <div>
-              {sortedTasks.map((task, taskIndex) => (
+              {currentTasks.map((task, taskIndex) => (
                 <div
                   key={generateSafeKey("task", task.id, taskIndex.toString())}
                   id={`task-${task.id}`}
@@ -1405,6 +1421,66 @@ export default function AdminTaskViewWrapper() {
                 <p className="text-gray-500">No tasks match your current filters</p>
               </div>
             )
+          )}
+          {/* Pagination Controls */}
+          {!loading && totalTasks > 0 && (
+            <div className="flex items-center justify-between mt-6 px-4 py-3 bg-white border-t border-gray-200">
+              <div className="flex items-center text-sm text-gray-700">
+                <span>
+                  Showing {startIndex + 1} to {Math.min(endIndex, totalTasks)} of {totalTasks} tasks
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-1"
+                >
+                  Previous
+                </Button>
+
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                      // Show first page, last page, current page, and pages around current
+                      return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1
+                    })
+                    .map((page, index, array) => {
+                      // Add ellipsis if there's a gap
+                      const prevPage = array[index - 1]
+                      const showEllipsis = prevPage && page - prevPage > 1
+
+                      return (
+                        <React.Fragment key={generateSafeKey("pagination", page.toString())}>
+                          {showEllipsis && <span className="px-2 py-1 text-gray-500">...</span>}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className={`min-w-[32px] ${
+                              currentPage === page ? "bg-[#8B2332] hover:bg-[#9B3342] text-white" : ""
+                            }`}
+                          >
+                            {page}
+                          </Button>
+                        </React.Fragment>
+                      )
+                    })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center gap-1"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
