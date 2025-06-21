@@ -21,7 +21,10 @@ import {
   serverTimestamp,
   updateDoc,
   getDoc,
+  where,
 } from "firebase/firestore"
+import { useAuthState } from "react-firebase-hooks/auth"
+import { auth } from "@/lib/firebase/firebase.config"
 
 type TabType = "manual" | "faq" | "contact"
 
@@ -30,7 +33,7 @@ interface ManualSection {
   title: string
   items: string[]
   timestamp?: any
-  docId?: string // Store the actual Firestore document ID
+  docId?: string
 }
 
 interface FaqEntry {
@@ -38,7 +41,7 @@ interface FaqEntry {
   question: string
   answer: string
   timestamp?: any
-  docId?: string // Store the actual Firestore document ID
+  docId?: string
 }
 
 interface ContactInfo {
@@ -88,6 +91,8 @@ export default function AdminView() {
   const [openDialog, setOpenDialog] = useState<{ type: string; id?: string } | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [user] = useAuthState(auth)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   // Initialize state with empty arrays
   const [manualSections, setManualSections] = useState<ManualSection[]>([])
@@ -96,6 +101,30 @@ export default function AdminView() {
 
   // Store document IDs mapping
   const [docIdMap, setDocIdMap] = useState<Record<string, string>>({})
+
+  // Fetch user role - Updated to match tasks page logic
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (user?.email) {
+        try {
+          const usersRef = collection(db, "users")
+          const q = query(usersRef, where("email", "==", user.email))
+          const querySnapshot = await getDocs(q)
+
+          if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data()
+            setUserRole(userData.role || null)
+          }
+        } catch (error) {
+          console.error("Error fetching user role:", error)
+        }
+      }
+    }
+
+    if (user) {
+      fetchUserRole()
+    }
+  }, [user])
 
   // Load data from Firestore on component mount
   useEffect(() => {
@@ -655,7 +684,9 @@ export default function AdminView() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-5xl font-bold text-gray-800 flex items-center">
             Help and Support
-            <span className="ml-4 text-[#8B0000] text-3xl font-bold">Admin</span>
+            <span className="ml-4 text-[#8B0000] text-3xl font-bold">
+              {userRole === "super admin" ? "Super Admin" : "Admin"}
+            </span>
           </h1>
         </div>
 
@@ -1148,4 +1179,3 @@ export default function AdminView() {
     </div>
   )
 }
-

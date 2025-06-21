@@ -324,7 +324,7 @@ export default function TaskManagement() {
     return matchesSearch && matchesFilter(task) && matchesAdminView(task) && matchesReceiver
   })
 
-  // Sort tasks based on active sort option
+  // Sort tasks based on active sort option with automatic deadline sorting for pending tasks
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     switch (activeSort) {
       case "nameAsc":
@@ -344,7 +344,18 @@ export default function TaskManagement() {
       case "deadlineDesc":
         return new Date(b.deadline).getTime() - new Date(a.deadline).getTime()
       default:
-        return 0
+        // Auto-sort pending tasks by deadline (earliest first)
+        if (a.status === "Pending" && b.status === "Pending") {
+          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+        }
+        if (a.status === "Pending" && b.status !== "Pending") {
+          return -1 // Pending tasks come first
+        }
+        if (a.status !== "Pending" && b.status === "Pending") {
+          return 1 // Pending tasks come first
+        }
+        // For non-pending tasks, sort by assigned date (newest first)
+        return new Date(b.assignedOn).getTime() - new Date(a.assignedOn).getTime()
     }
   })
 
@@ -794,7 +805,9 @@ export default function TaskManagement() {
 
         <h1 className="mb-6">
           <span className="text-5xl font-bold">Tasks</span>{" "}
-          <span className="text-3xl text-[#8B2332] font-bold">Admin</span>
+          <span className="text-3xl text-[#8B2332] font-bold">
+            {userRole === "super admin" ? "Super Admin" : "Admin"}
+          </span>
         </h1>
 
         {/* Hidden file input for existing tasks */}
@@ -812,7 +825,6 @@ export default function TaskManagement() {
             />
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           </div>
-          {/* Update the Receiver dropdown in the Action Bar section */}
           {/* Receiver dropdown with role-based filtering */}
           <Select value={selectedReceiver} onValueChange={handleReceiverChange}>
             <SelectTrigger className="w-[180px]">
@@ -855,13 +867,13 @@ export default function TaskManagement() {
                 checked={activeFilter === "Pending"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Pending" ? null : "Pending")}
               >
-                Pending
+                STATUS - Pending
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Verifying"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Verifying" ? null : "Verifying")}
               >
-                Verifying
+                STATUS - Verifying
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed On Time"}
@@ -869,7 +881,7 @@ export default function TaskManagement() {
                   setActiveFilter(activeFilter === "Completed On Time" ? null : "Completed On Time")
                 }
               >
-                Completed On Time On Time
+                STATUS - Completed On Time
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed Overdue"}
@@ -877,43 +889,43 @@ export default function TaskManagement() {
                   setActiveFilter(activeFilter === "Completed Overdue" ? null : "Completed Overdue")
                 }
               >
-                Completed Overdue
+                STATUS - Completed Overdue
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Reopened"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Reopened" ? null : "Reopened")}
               >
-                Reopened
+                STATUS - Reopened
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "High"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "High" ? null : "High")}
               >
-                High Priority
+                PRIORITY - High
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Medium"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Medium" ? null : "Medium")}
               >
-                Medium Priority
+                PRIORITY - Medium
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Low"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Low" ? null : "Low")}
               >
-                Low Priority
+                PRIORITY - Low
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Completed" ? null : "Completed")}
               >
-                All Completed Tasks
+                STATUS - All Completed Tasks
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Overdue"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Overdue" ? null : "Overdue")}
               >
-                All Overdue Tasks
+                STATUS - All Overdue Tasks
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -994,9 +1006,11 @@ export default function TaskManagement() {
                               // If current user is an admin (not super admin), only allow assigning to users with "user" role
                               const isCurrentUserAdmin = userRole === "admin"
                               const isUserRoleUser = userItem.role === "user"
+                              const isUserSuperAdmin = userItem.role === "super admin"
 
                               if (isCurrentUserAdmin) {
-                                return !isCurrentUser && isUserRoleUser
+                                // Admin users cannot assign to themselves, super admins, or other admins
+                                return !isCurrentUser && isUserRoleUser && !isUserSuperAdmin
                               }
 
                               // For super admins, allow assigning to anyone except themselves
@@ -1170,9 +1184,11 @@ export default function TaskManagement() {
                                   // If current user is an admin (not super admin), only allow assigning to users with "user" role
                                   const isCurrentUserAdmin = userRole === "admin"
                                   const isUserRoleUser = userItem.role === "user"
+                                  const isUserSuperAdmin = userItem.role === "super admin"
 
                                   if (isCurrentUserAdmin) {
-                                    return !isCurrentUser && isUserRoleUser
+                                    // Admin users cannot assign to themselves, super admins, or other admins
+                                    return !isCurrentUser && isUserRoleUser && !isUserSuperAdmin
                                   }
 
                                   // For super admins, allow assigning to anyone except themselves
@@ -1465,4 +1481,3 @@ export default function TaskManagement() {
     </div>
   )
 }
-
