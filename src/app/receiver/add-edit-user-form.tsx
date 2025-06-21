@@ -10,14 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
-// Define the User interface here to match the one in the page component
 interface User {
   id: string
   name: string
   email: string
   role: "user" | "admin" | "super admin"
   isActive: boolean
-  jobTitle?: string
+  jobTitle: string // Changed from optional to required
 }
 
 interface AddEditUserFormProps {
@@ -29,56 +28,86 @@ interface AddEditUserFormProps {
 }
 
 export default function AddEditUserForm({ user, onSave, onCancel, isOpen, currentUserRole }: AddEditUserFormProps) {
-  // Update the formData state to include jobTitle
   const [formData, setFormData] = useState<{
     name: string
     email: string
     role: "user" | "admin" | "super admin"
-    jobTitle: string // Add job title field
+    jobTitle: string
   }>({
     name: "",
     email: "",
     role: "user",
-    jobTitle: "", // Initialize job title
+    jobTitle: "",
   })
 
-  // Update the useEffect to include jobTitle when user prop changes
+  const [errors, setErrors] = useState<{
+    jobTitle?: string
+    email?: string
+  }>({})
+
   useEffect(() => {
     if (user) {
       setFormData({
         name: user.name,
         email: user.email,
         role: user.role,
-        jobTitle: user.jobTitle || "", // Set job title from user data
+        jobTitle: user.jobTitle,
       })
     } else {
       setFormData({
         name: "",
         email: "",
         role: "user",
-        jobTitle: "", // Reset job title
+        jobTitle: "",
       })
     }
+    setErrors({}) // Reset errors when form is opened or user changes
   }, [user])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    
+    // Clear error when user starts typing
+    if (errors[name as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [name]: undefined }))
+    }
   }
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  // Update the handleSubmit function to include jobTitle in the new user object
+  const validateForm = () => {
+    const newErrors: typeof errors = {}
+    
+    if (!formData.jobTitle.trim()) {
+      newErrors.jobTitle = "Job Title is required"
+    }
+    
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required"
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address"
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+    
     const newUser: User = {
       id: user?.id || Date.now().toString(),
       name: formData.name.trim(),
-      email: formData.email,
+      email: formData.email.trim(),
       role: formData.role,
-      jobTitle: formData.jobTitle.trim(), // Include job title
+      jobTitle: formData.jobTitle.trim(),
       isActive: user?.isActive || true,
     }
     onSave(newUser)
@@ -104,21 +133,25 @@ export default function AddEditUserForm({ user, onSave, onCancel, isOpen, curren
             />
           </div>
 
-          {/* Job Title Field */}
+          {/* Job Title Field - Now Required */}
           <div className="space-y-2">
-            <Label htmlFor="jobTitle">Job Title</Label>
+            <Label htmlFor="jobTitle">Job Title *</Label>
             <Input
               id="jobTitle"
               name="jobTitle"
               value={formData.jobTitle}
               onChange={handleChange}
               placeholder="Enter job title"
+              required
             />
+            {errors.jobTitle && (
+              <p className="text-sm text-red-500">{errors.jobTitle}</p>
+            )}
           </div>
 
           {/* Email Field */}
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="email">Email Address *</Label>
             <Input
               id="email"
               name="email"
@@ -128,6 +161,9 @@ export default function AddEditUserForm({ user, onSave, onCancel, isOpen, curren
               placeholder="Enter email address"
               required
             />
+            {errors.email && (
+              <p className="text-sm text-red-500">{errors.email}</p>
+            )}
           </div>
 
           {/* Role Field */}
@@ -159,4 +195,3 @@ export default function AddEditUserForm({ user, onSave, onCancel, isOpen, curren
     </Dialog>
   )
 }
-
