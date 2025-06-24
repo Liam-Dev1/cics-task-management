@@ -20,9 +20,8 @@ import { TaskCompletionPieChart } from "@/components/task-completion-pie-chart"
 import { ProgressBar } from "@/components/progress-bar"
 import { AverageCompletionTimeChart } from "@/components/average-completion-time-chart"
 import { TaskCompletionStatusChart } from "@/components/task-completion-status-chart"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { Tooltip } from "recharts"; // Import Tooltip from the charting library
-
+import { TooltipProvider, Tooltip as UITooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { Tooltip } from "recharts";
 import { taskData } from "@/lib/task-data"
 import { ExportToPdfButton } from "@/components/export-to-pdf-button"
 import { LoadingOverlay } from "@/components/loading-overlay"
@@ -647,23 +646,32 @@ export default function TaskReportDashboard() {
                         {/* Filters and Buttons */}
                         <div className="">
                           <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-5 gap-x-4 gap-y-6 lg:gap-y-3 p-4 transition-all duration-500 ease-in-out">
-                          <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.taskReceivers.length === allReceivers.length 
-                              ? "All Receivers"
-                              : appliedFilters.taskReceivers.join(", ")}
-                          </Button>
+                          <TooltipProvider>
+                            <UITooltip>
+                              <TooltipTrigger>
+                                <div className="bg-[#8B2332] text-white rounded-md overflow-hidden text-ellipsis whitespace-nowrap px-4 py-2 text-sm">
+                                  {appliedFilters.taskReceivers.length === allReceivers.length
+                                    ? "All Receivers"
+                                    : appliedFilters.taskReceivers.slice(0, 3).join(", ") + (appliedFilters.taskReceivers.length > 3 ? ", ..." : "")}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {appliedFilters.taskReceivers.join(", ")}
+                              </TooltipContent>
+                            </UITooltip>
+                          </TooltipProvider>
                             <Button className="bg-[#8B2332] text-white rounded-md">
-                            {`${format(appliedFilters.fromDate, "MM/dd/yyyy")} - ${format(appliedFilters.toDate, "MM/dd/yyyy")}`}
+                              {`${format(appliedFilters.fromDate, "MM/dd/yyyy")} - ${format(appliedFilters.toDate, "MM/dd/yyyy")}`}
                             </Button>
                             <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.taskStatus.length === allTaskStatuses.length
-                            ? "All Task Status"
-                            : appliedFilters.taskStatus.join(", ")}
+                              {appliedFilters.taskStatus.length === allTaskStatuses.length
+                              ? "All Task Status"
+                              : appliedFilters.taskStatus.join(", ")}
                             </Button>
                             <Button className="bg-[#8B2332] text-white rounded-md">
-                            {appliedFilters.priority.length === allPriorities.length
-                            ? "All Priorities"
-                            : appliedFilters.priority.join(", ")}
+                              {appliedFilters.priority.length === allPriorities.length
+                              ? "All Priorities"
+                              : appliedFilters.priority.join(", ")}
                             </Button>
 
                           {/* Action Buttons for medium and larger screens */}
