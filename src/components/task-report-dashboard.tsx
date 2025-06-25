@@ -409,6 +409,18 @@ export default function TaskReportDashboard() {
     setActiveTab(tab as "pieCharts" | "lineCharts" | "barCharts")
   }
 
+  const areFiltersValid = () => {
+    const isValid =
+      currentFilters.taskReceivers.length > 0 &&
+      currentFilters.fromDate &&
+      currentFilters.toDate &&
+      currentFilters.taskStatus.length > 0 &&
+      currentFilters.priority.length > 0;
+  
+    console.log("Are filters valid:", isValid);
+    return isValid;
+  };
+
   return (
     <>
       <div className="flex h-screen overflow-hidden">
@@ -621,9 +633,24 @@ export default function TaskReportDashboard() {
                 <Button className="bg-gray-700 hover:bg-gray-600 text-white transition-all duration-300" onClick={handleResetFilters}>
                   Reset Filters
                 </Button>
-                <Button className="bg-gray-700 hover:bg-gray-600 text-white transition-all duration-300" onClick={handleGenerateReport}>
-                  Generate Report
-                </Button>
+                <div className="relative">
+                  {/* Background Button */}
+                  <Button
+                    className="bg-gray-700 hover:bg-gray-600 text-white transition-all duration-300 absolute top-0 left-0 w-full"
+                    disabled
+                  >
+                    Generate Report
+                  </Button>
+
+                  {/* Foreground Button */}
+                  <Button
+                    className="bg-gray-700 hover:bg-gray-600 text-white transition-all duration-300 relative"
+                    onClick={handleGenerateReport}
+                    disabled={!areFiltersValid()}
+                  >
+                    Generate Report
+                  </Button>
+                </div>
               </div>
             </div>
             </div>
@@ -649,14 +676,16 @@ export default function TaskReportDashboard() {
                           <TooltipProvider>
                             <UITooltip>
                               <TooltipTrigger>
-                                <div className="bg-[#8B2332] text-white rounded-md overflow-hidden text-ellipsis whitespace-nowrap px-4 py-2 text-sm">
-                                  {appliedFilters.taskReceivers.length === allReceivers.length
+                                <div className="bg-[#8B2332] text-white rounded-md overflow-hidden text-ellipsis whitespace-nowrap px-4 py-2.5 text-sm">
+                                  {appliedFilters.taskReceivers.length === 0
+                                    ? " " // Display a single space when no filters are chosen
+                                    : appliedFilters.taskReceivers.length === allReceivers.length
                                     ? "All Receivers"
                                     : appliedFilters.taskReceivers.slice(0, 3).join(", ") + (appliedFilters.taskReceivers.length > 3 ? ", ..." : "")}
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
-                                {appliedFilters.taskReceivers.join(", ")}
+                                {appliedFilters.taskReceivers.length === 0 ? "No filters applied" : appliedFilters.taskReceivers.join(", ")}
                               </TooltipContent>
                             </UITooltip>
                           </TooltipProvider>
