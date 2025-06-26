@@ -26,6 +26,8 @@ import { taskData } from "@/lib/task-data"
 import { ExportToPdfButton } from "@/components/export-to-pdf-button"
 import { LoadingOverlay } from "@/components/loading-overlay"
 import { LoadingOverlay2 } from "@/components/loading-overlay2"
+import * as Popover from "@radix-ui/react-popover";
+import { ChevronDown } from "lucide-react";
 
 
 
@@ -36,6 +38,9 @@ export default function TaskReportDashboard() {
   const [activeTab, setActiveTab] = useState<"pieCharts" | "lineCharts" | "barCharts">("pieCharts");
   const [showGraphs, setShowGraphs] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [isReceiverDropdownOpen, setIsReceiverDropdownOpen] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [isPriorityDropdownOpen, setIsPriorityDropdownOpen] = useState(false);
   
   
   const [currentFilters, setCurrentFilters] = useState({
@@ -435,61 +440,75 @@ export default function TaskReportDashboard() {
                 isExporting ? "hidden" : ""
               }`}
             >
+
+
+
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 transition-all duration-300 ease-in-out">
+        {/* Task Receiver Filter */}
                 <div>
-                  <label htmlFor="task-receiver" className="block text-sm font-medium mb-1">
-                    Task Receiver
-                  </label>
-                  <Select
-                    onValueChange={(value) => {
-                      if (value === "all") {
-                        handleFilterChange("taskReceivers", allReceivers);
-                      } else {
-                        handleFilterChange(
-                          "taskReceivers",
-                          currentFilters.taskReceivers.includes(value)
-                            ? currentFilters.taskReceivers.filter((r) => r !== value)
-                            : [...currentFilters.taskReceivers, value]
-                        );
-                      }
-                    }}
-                    value={currentFilters.taskReceivers.join(",")}
-                  >
-                    <SelectTrigger id="task-receiver" className="bg-white text-black w-full transition-all duration-300">
-                      <SelectValue placeholder="Select Receivers">
-                        {currentFilters.taskReceivers.length > 0
-                          ? currentFilters.taskReceivers.length === allReceivers.length
-                            ? "All Receivers"
-                            : currentFilters.taskReceivers.join(", ")
-                          : "Select Receivers"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Receivers</SelectItem>
+                  <label className="block text-sm font-medium mb-1">Task Receiver</label>
+                  <Popover.Root open={isReceiverDropdownOpen} onOpenChange={setIsReceiverDropdownOpen}>
+                    <Popover.Trigger asChild>
+                      <Button className="bg-white text-black w-full justify-between hover:bg-gray-300 transition-colors flex items-center">
+                        <span className="truncate max-w-[140px] text-left">
+                          {currentFilters.taskReceivers.length === 0
+                            ? "Select Receivers"
+                            : currentFilters.taskReceivers.length === allReceivers.length
+                              ? "All Receivers"
+                              : (() => {
+                                  const joined = currentFilters.taskReceivers.join(", ");
+                                  // Show up to 2 names, then ellipsis if more
+                                  if (joined.length > 22) {
+                                    return (
+                                      currentFilters.taskReceivers.slice(0, 2).join(", ") +
+                                      `, ...`
+                                    );
+                                  }
+                                  return joined;
+                                })()
+                          }
+                        </span>
+                        <ChevronDown
+                          className={`ml-2 h-4 w-4 transition-transform duration-200 ${isReceiverDropdownOpen ? "rotate-180" : ""}`}
+                        />
+                      </Button>
+                    </Popover.Trigger>
+                    <Popover.Content className="bg-white text-black rounded p-2 w-56 z-50">
+                      <div className="mb-2">
+                        <Checkbox
+                          checked={currentFilters.taskReceivers.length === allReceivers.length}
+                          onCheckedChange={(checked) =>
+                            handleFilterChange(
+                              "taskReceivers",
+                              checked ? allReceivers : []
+                            )
+                          }
+                        />
+                        <span className="ml-2">All Receivers</span>
+                      </div>
                       {allReceivers.map((receiver) => (
-                        <SelectItem key={receiver} value={receiver}>
-                          <div className="flex items-center">
-                            <Checkbox
-                              checked={currentFilters.taskReceivers.includes(receiver)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver]);
-                                } else {
-                                  handleFilterChange(
-                                    "taskReceivers",
-                                    currentFilters.taskReceivers.filter((r) => r !== receiver)
-                                  );
-                                }
-                              }}
-                            />
-                            <span className="ml-2">{receiver}</span>
-                          </div>
-                        </SelectItem>
+                        <div key={receiver} className="flex items-center mb-1 rounded hover:bg-gray-300 transition-colors">
+                          <Checkbox
+                            checked={currentFilters.taskReceivers.includes(receiver)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                handleFilterChange("taskReceivers", [...currentFilters.taskReceivers, receiver]);
+                              } else {
+                                handleFilterChange(
+                                  "taskReceivers",
+                                  currentFilters.taskReceivers.filter((r) => r !== receiver)
+                                );
+                              }
+                            }}
+                          />
+                          <span className="ml-2">{receiver}</span>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </Popover.Content>
+                  </Popover.Root>
                 </div>
 
+                {/* From Date */}
                 <div>
                   <label htmlFor="from-date" className="block text-sm font-medium mb-1">
                     From Date
@@ -505,6 +524,7 @@ export default function TaskReportDashboard() {
                   />
                 </div>
 
+                {/* To Date */}
                 <div>
                   <label htmlFor="to-date" className="block text-sm font-medium mb-1">
                     To Date
@@ -520,112 +540,110 @@ export default function TaskReportDashboard() {
                   />
                 </div>
 
+                {/* Task Status Filter */}
                 <div>
-                  <label htmlFor="task-status" className="block text-sm font-medium mb-1">
-                    Task Status
-                  </label>
-                  <Select
-                    onValueChange={(value) => {
-                      if (value === "all") {
-                        handleFilterChange("taskStatus", allTaskStatuses);
-                      } else {
-                        handleFilterChange(
-                          "taskStatus",
-                          currentFilters.taskStatus.includes(value)
-                            ? currentFilters.taskStatus.filter((s) => s !== value)
-                            : [...currentFilters.taskStatus, value]
-                        );
-                      }
-                    }}
-                    value={currentFilters.taskStatus.join(",")}
-                  >
-                    <SelectTrigger id="task-status" className="bg-white text-black w-full transition-all duration-300">
-                      <SelectValue placeholder="Task Status">
-                        {currentFilters.taskStatus.length > 0
-                          ? currentFilters.taskStatus.length === allTaskStatuses.length
-                            ? "All Task Statuses"
-                            : currentFilters.taskStatus.join(", ")
-                          : "Task Status"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Task Status</SelectItem>
+                  <label className="block text-sm font-medium mb-1">Task Status</label>
+                  <Popover.Root open={isStatusDropdownOpen} onOpenChange={setIsStatusDropdownOpen}>
+                    <Popover.Trigger asChild>
+                      <Button className="bg-white text-black w-full justify-between hover:bg-gray-300 transition-colors flex items-center">
+                        <span>
+                          {currentFilters.taskStatus.length === 0
+                            ? "Task Status"
+                            : currentFilters.taskStatus.length === allTaskStatuses.length
+                              ? "All Task Statuses"
+                              : currentFilters.taskStatus.join(", ")}
+                        </span>
+                        <ChevronDown
+                          className={`ml-2 h-4 w-4 transition-transform duration-200 ${isStatusDropdownOpen ? "rotate-180" : ""}`}
+                        />
+                      </Button>
+                    </Popover.Trigger>
+                    <Popover.Content className="bg-white text-black rounded shadow p-2 w-56 z-50">
+                      <div className="mb-2">
+                        <Checkbox
+                          checked={currentFilters.taskStatus.length === allTaskStatuses.length}
+                          onCheckedChange={(checked) =>
+                            handleFilterChange(
+                              "taskStatus",
+                              checked ? allTaskStatuses : []
+                            )
+                          }
+                        />
+                        <span className="ml-2">All Task Statuses</span>
+                      </div>
                       {allTaskStatuses.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          <div className="flex items-center">
-                            <Checkbox
-                              checked={currentFilters.taskStatus.includes(status)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  handleFilterChange("taskStatus", [...currentFilters.taskStatus, status]);
-                                } else {
-                                  handleFilterChange(
-                                    "taskStatus",
-                                    currentFilters.taskStatus.filter((s) => s !== status)
-                                  );
-                                }
-                              }}
-                            />
-                            <span className="ml-2">{status}</span>
-                          </div>
-                        </SelectItem>
+                        <div key={status} className="flex items-center mb-1 rounded hover:bg-gray-300 transition-colors">
+                          <Checkbox
+                            checked={currentFilters.taskStatus.includes(status)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                handleFilterChange("taskStatus", [...currentFilters.taskStatus, status]);
+                              } else {
+                                handleFilterChange(
+                                  "taskStatus",
+                                  currentFilters.taskStatus.filter((s) => s !== status)
+                                );
+                              }
+                            }}
+                          />
+                          <span className="ml-2">{status}</span>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </Popover.Content>
+                  </Popover.Root>
                 </div>
 
+                {/* Priority Filter */}
                 <div>
-                  <label htmlFor="priority" className="block text-sm font-medium mb-1">
-                    Priority
-                  </label>
-                  <Select
-                    onValueChange={(value) => {
-                      if (value === "all") {
-                        handleFilterChange("priority", allPriorities);
-                      } else {
-                        handleFilterChange(
-                          "priority",
-                          currentFilters.priority.includes(value)
-                            ? currentFilters.priority.filter((p) => p !== value)
-                            : [...currentFilters.priority, value]
-                        );
-                      }
-                    }}
-                    value={currentFilters.priority.join(",")}
-                  >
-                    <SelectTrigger id="priority" className="bg-white text-black w-full transition-all duration-300">
-                      <SelectValue placeholder="Priority">
-                        {currentFilters.priority.length > 0
-                          ? currentFilters.priority.length === allPriorities.length
-                            ? "All Priorities"
-                            : currentFilters.priority.join(", ")
-                          : "Priority"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
+                  <label className="block text-sm font-medium mb-1">Priority</label>
+                  <Popover.Root open={isPriorityDropdownOpen} onOpenChange={setIsPriorityDropdownOpen}>
+                    <Popover.Trigger asChild>
+                      <Button className="bg-white text-black w-full justify-between hover:bg-gray-300 transition-colors flex items-center">
+                        <span>
+                          {currentFilters.priority.length === 0
+                            ? "Priority"
+                            : currentFilters.priority.length === allPriorities.length
+                              ? "All Priorities"
+                              : currentFilters.priority.join(", ")}
+                        </span>
+                        <ChevronDown
+                          className={`ml-2 h-4 w-4 transition-transform duration-200 ${isPriorityDropdownOpen ? "rotate-180" : ""}`}
+                        />
+                      </Button>
+                    </Popover.Trigger>
+                    <Popover.Content className="bg-white text-black rounded shadow p-2 w-56 z-50">
+                      <div className="mb-2">
+                        <Checkbox
+                          checked={currentFilters.priority.length === allPriorities.length}
+                          onCheckedChange={(checked) =>
+                            handleFilterChange(
+                              "priority",
+                              checked ? allPriorities : []
+                            )
+                          }
+                        />
+                        <span className="ml-2">All Priorities</span>
+                      </div>
                       {allPriorities.map((priority) => (
-                        <SelectItem key={priority} value={priority}>
-                          <div className="flex items-center">
-                            <Checkbox
-                              checked={currentFilters.priority.includes(priority)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  handleFilterChange("priority", [...currentFilters.priority, priority]);
-                                } else {
-                                  handleFilterChange(
-                                    "priority",
-                                    currentFilters.priority.filter((p) => p !== priority)
-                                  );
-                                }
-                              }}
-                            />
-                            <span className="ml-2">{priority}</span>
-                          </div>
-                        </SelectItem>
+                        <div key={priority} className="flex items-center mb-1 rounded hover:bg-gray-300 transition-colors">
+                          <Checkbox
+                            checked={currentFilters.priority.includes(priority)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                handleFilterChange("priority", [...currentFilters.priority, priority]);
+                              } else {
+                                handleFilterChange(
+                                  "priority",
+                                  currentFilters.priority.filter((p) => p !== priority)
+                                );
+                              }
+                            }}
+                          />
+                          <span className="ml-2">{priority}</span>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </Popover.Content>
+                  </Popover.Root>
                 </div>
               </div>
 
