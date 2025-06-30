@@ -99,6 +99,13 @@ export default function AdminTaskViewWrapper() {
   const [users, setUsers] = useState<User[]>([])
   const [isRecurringTask, setIsRecurringTask] = useState(false)
 
+  // Task suggestion states
+  const [taskSuggestions, setTaskSuggestions] = useState<Array<{ name: string; frequency: number }>>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedUserTasks, setSelectedUserTasks] = useState<Array<{ name: string; frequency: number }>>([])
+  const [taskInputValue, setTaskInputValue] = useState("")
+  const [selectedAssignee, setSelectedAssignee] = useState("")
+
   type SortValue = string | null
   const [activeSort, setActiveSort] = useState<SortValue>(null)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
@@ -198,6 +205,14 @@ export default function AdminTaskViewWrapper() {
 
     fetchUsers()
   }, [])
+
+  // Initialize task suggestions based on all tasks
+  useEffect(() => {
+    if (tasks.length > 0) {
+      const allTaskSuggestions = getTaskFrequencyData()
+      setTaskSuggestions(allTaskSuggestions)
+    }
+  }, [tasks])
 
   // Fetch tasks from Firestore
   useEffect(() => {
@@ -391,7 +406,6 @@ export default function AdminTaskViewWrapper() {
     }
   }
 
-  // Update the handleSelectChange function to also update the job title when changing assignee
   const handleSelectChange = (name: string, value: string, taskId: string) => {
     if (name === "assignedTo") {
       const selectedUser = users.find((user) => user.name === value)
@@ -413,6 +427,36 @@ export default function AdminTaskViewWrapper() {
     } else {
       setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, [name]: value } : task)))
     }
+  }
+
+  // New function to handle assignee selection in new task form
+  const handleNewTaskAssigneeChange = (value: string) => {
+    setSelectedAssignee(value)
+    const selectedUser = users.find((user) => user.name === value)
+    if (selectedUser) {
+      const userTasks = getTaskFrequencyData(selectedUser.email)
+      setSelectedUserTasks(userTasks)
+    }
+  }
+
+  // Handle task name input changes with suggestions
+  const handleTaskNameChange = (value: string) => {
+    setTaskInputValue(value)
+
+    if (value.trim().length > 0) {
+      const suggestions = selectedAssignee
+        ? getFilteredSuggestions(value, selectedUserTasks)
+        : getFilteredSuggestions(value, taskSuggestions)
+      setShowSuggestions(suggestions.length > 0)
+    } else {
+      setShowSuggestions(false)
+    }
+  }
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestionName: string) => {
+    setTaskInputValue(suggestionName)
+    setShowSuggestions(false)
   }
 
   const handleNewTaskFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -515,6 +559,31 @@ export default function AdminTaskViewWrapper() {
     setEditingRecurringTaskId(null)
   }
 
+  // Helper function to get task frequency data
+  const getTaskFrequencyData = (userEmail?: string) => {
+    const taskFrequency = new Map<string, number>()
+
+    tasks.forEach((task) => {
+      if (!userEmail || task.assignedToEmail === userEmail) {
+        const taskName = task.name.toLowerCase().trim()
+        taskFrequency.set(taskName, (taskFrequency.get(taskName) || 0) + 1)
+      }
+    })
+
+    return Array.from(taskFrequency.entries())
+      .map(([name, frequency]) => ({ name, frequency }))
+      .sort((a, b) => b.frequency - a.frequency)
+  }
+
+  // Helper function to filter suggestions based on input
+  const getFilteredSuggestions = (input: string, suggestions: Array<{ name: string; frequency: number }>) => {
+    if (!input.trim()) return suggestions.slice(0, 5)
+
+    const filtered = suggestions.filter((suggestion) => suggestion.name.toLowerCase().includes(input.toLowerCase()))
+
+    return filtered.slice(0, 5)
+  }
+
   // Task management functions
   const handleAddTask = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -603,10 +672,14 @@ export default function AdminTaskViewWrapper() {
       }
 
       // Reset form
+      setTaskInputValue("")
+      setSelectedAssignee("")
+      setSelectedUserTasks([])
+      setShowSuggestions(false)
       setFile(null)
       setShowNewTask(false)
-      form.reset()
       setIsRecurringTask(false)
+      form.reset()
 
       showNotification("Task created successfully", "success")
     } catch (error) {
@@ -762,13 +835,6 @@ export default function AdminTaskViewWrapper() {
     }
   }
 
-  // Helper function to generate safe keys
-  const generateSafeKey = (prefix: string, id: string, suffix?: string) => {
-    const cleanId = id.replace(/[^a-zA-Z0-9]/g, "")
-    const cleanSuffix = suffix ? suffix.replace(/[^a-zA-Z0-9]/g, "") : ""
-    return `${prefix}-${cleanId}${cleanSuffix ? `-${cleanSuffix}` : ""}`
-  }
-
   // Filter users for dropdowns
   const getFilteredUsers = () => {
     return users.filter((userItem) => {
@@ -834,10 +900,7 @@ export default function AdminTaskViewWrapper() {
                   return isCurrentUser
                 })
                 .map((userItem, index) => (
-                  <SelectItem
-                    key={generateSafeKey("receiver-filter", userItem.id, index.toString())}
-                    value={userItem.name}
-                  >
+                  <SelectItem key={`receiver-filter-${userItem.id}-${index}`} value={userItem.name}>
                     {userItem.name}
                   </SelectItem>
                 ))}
@@ -866,7 +929,7 @@ export default function AdminTaskViewWrapper() {
                 { key: "all-overdue", label: "All Overdue Tasks", value: "Overdue" },
               ].map((filter) => (
                 <DropdownMenuCheckboxItem
-                  key={generateSafeKey("filter", filter.key)}
+                  key={filter.key}
                   checked={activeFilter === filter.value}
                   onCheckedChange={() => setActiveFilter(activeFilter === filter.value ? null : filter.value)}
                 >
@@ -896,7 +959,7 @@ export default function AdminTaskViewWrapper() {
                   { key: "deadline-asc", label: "Deadline (Earliest First)", value: "deadlineAsc" },
                   { key: "deadline-desc", label: "Deadline (Latest First)", value: "deadlineDesc" },
                 ].map((sort) => (
-                  <DropdownMenuRadioItem key={generateSafeKey("sort", sort.key)} value={sort.value}>
+                  <DropdownMenuRadioItem key={sort.key} value={sort.value}>
                     {sort.label}
                   </DropdownMenuRadioItem>
                 ))}
@@ -932,11 +995,68 @@ export default function AdminTaskViewWrapper() {
               <CardContent className="p-4">
                 <form onSubmit={handleAddTask} className="space-y-4">
                   <div className="grid md:grid-cols-7 gap-4">
-                    <div className="md:col-span-1">
+                    <div className="md:col-span-1 relative">
                       <label htmlFor="task-name" className="block text-sm font-medium mb-1">
                         Task Name
                       </label>
-                      <Input id="task-name" placeholder="Insert Task Name Here" name="name" required />
+                      <Input
+                        id="task-name"
+                        placeholder="Insert Task Name Here"
+                        name="name"
+                        value={taskInputValue}
+                        onChange={(e) => handleTaskNameChange(e.target.value)}
+                        onFocus={() => {
+                          if (taskInputValue.trim().length > 0) {
+                            const suggestions = selectedAssignee
+                              ? getFilteredSuggestions(taskInputValue, selectedUserTasks)
+                              : getFilteredSuggestions(taskInputValue, taskSuggestions)
+                            setShowSuggestions(suggestions.length > 0)
+                          }
+                        }}
+                        onBlur={() => {
+                          // Delay hiding suggestions to allow for clicks
+                          setTimeout(() => setShowSuggestions(false), 200)
+                        }}
+                        required
+                      />
+
+                      {/* Task Suggestions Dropdown */}
+                      {showSuggestions && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                          <div className="p-2 text-xs text-gray-500 border-b">
+                            {selectedAssignee ? `Frequent tasks for ${selectedAssignee}` : "Frequent tasks (all users)"}
+                          </div>
+                          {(selectedAssignee ? selectedUserTasks : taskSuggestions)
+                            .filter(
+                              (suggestion) =>
+                                taskInputValue.trim() === "" ||
+                                suggestion.name.toLowerCase().includes(taskInputValue.toLowerCase()),
+                            )
+                            .slice(0, 5)
+                            .map((suggestion, index) => (
+                              <div
+                                key={`suggestion-${selectedAssignee || "global"}-${index}-${suggestion.name.replace(/[^a-zA-Z0-9]/g, "")}`}
+                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                                onClick={() => handleSuggestionSelect(suggestion.name)}
+                              >
+                                <span className="text-sm">{suggestion.name}</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {suggestion.frequency}x
+                                </Badge>
+                              </div>
+                            ))}
+                          {taskInputValue.trim() && (
+                            <div className="p-2 border-t">
+                              <div
+                                className="px-2 py-1 text-sm text-blue-600 hover:bg-blue-50 cursor-pointer rounded"
+                                onClick={() => handleSuggestionSelect(taskInputValue)}
+                              >
+                                Use "{taskInputValue}" as new task
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="md:col-span-1">
                       <label className="block text-sm font-medium mb-1">Assigned By</label>
@@ -946,22 +1066,43 @@ export default function AdminTaskViewWrapper() {
                       <label htmlFor="assigned-to" className="block text-sm font-medium mb-1">
                         Assigned To
                       </label>
-                      <Select name="assignedTo" required>
+                      <Select
+                        name="assignedTo"
+                        value={selectedAssignee}
+                        onValueChange={handleNewTaskAssigneeChange}
+                        required
+                      >
                         <SelectTrigger id="assigned-to">
                           <SelectValue placeholder="Select assignee" />
                         </SelectTrigger>
                         <SelectContent>
                           {getFilteredUsers().map((userItem, index) => (
-                            <SelectItem
-                              key={generateSafeKey("new-task-assignee", userItem.id, index.toString())}
-                              value={userItem.name}
-                            >
+                            <SelectItem key={`new-task-assignee-${userItem.id}-${index}`} value={userItem.name}>
                               {userItem.name}
                               {userItem.jobTitle ? ` (${userItem.jobTitle})` : ""}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+
+                      {/* Show user's frequent tasks when assignee is selected */}
+                      {selectedAssignee && selectedUserTasks.length > 0 && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                          <div className="font-medium text-gray-700 mb-1">{selectedAssignee}'s frequent tasks:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedUserTasks.slice(0, 3).map((task, index) => (
+                              <Badge
+                                key={`frequent-task-${selectedAssignee.replace(/[^a-zA-Z0-9]/g, "")}-${index}-${task.name.replace(/[^a-zA-Z0-9]/g, "")}`}
+                                variant="outline"
+                                className="text-xs cursor-pointer hover:bg-gray-200"
+                                onClick={() => handleSuggestionSelect(task.name)}
+                              >
+                                {task.name} ({task.frequency}x)
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="md:col-span-1">
                       <label className="block text-sm font-medium mb-1">Assigned On</label>
@@ -1044,7 +1185,7 @@ export default function AdminTaskViewWrapper() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="flex gap-2"
+                      className="flex gap-2 bg-transparent"
                       onClick={() => newTaskFileInputRef.current?.click()}
                       disabled={uploadingFile}
                     >
@@ -1062,7 +1203,12 @@ export default function AdminTaskViewWrapper() {
                       className="hidden"
                     />
                     <div>
-                      <Button type="button" variant="outline" className="mr-2" onClick={() => setShowNewTask(false)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mr-2 bg-transparent"
+                        onClick={() => setShowNewTask(false)}
+                      >
                         Cancel
                       </Button>
                       <Button type="submit" disabled={uploadingFile}>
@@ -1088,7 +1234,7 @@ export default function AdminTaskViewWrapper() {
             <div>
               {currentTasks.map((task, taskIndex) => (
                 <div
-                  key={generateSafeKey("task", task.id, taskIndex.toString())}
+                  key={`task-${task.id}-${taskIndex}`}
                   id={`task-${task.id}`}
                   className="bg-[#8B2332] text-white p-4 rounded mb-4"
                 >
@@ -1121,7 +1267,7 @@ export default function AdminTaskViewWrapper() {
                             <SelectContent>
                               {getFilteredUsers().map((userItem, index) => (
                                 <SelectItem
-                                  key={generateSafeKey("edit-task-assignee", task.id, `${userItem.id}-${index}`)}
+                                  key={`edit-task-assignee-${task.id}-${userItem.id}-${index}`}
                                   value={userItem.name}
                                 >
                                   {userItem.name}
@@ -1313,7 +1459,7 @@ export default function AdminTaskViewWrapper() {
                                   <strong>Upcoming Deadlines:</strong>
                                   <ul className="list-disc ml-6">
                                     {task.nextDeadlines.map((date, idx) => (
-                                      <li key={generateSafeKey("deadline", task.id, `${idx}-${date}`)}>{date}</li>
+                                      <li key={`deadline-${task.id}-${idx}-${date}`}>{date}</li>
                                     ))}
                                   </ul>
                                 </div>
@@ -1329,7 +1475,7 @@ export default function AdminTaskViewWrapper() {
                             <div className="flex flex-wrap gap-2">
                               {task.files.map((file, index) => (
                                 <Button
-                                  key={generateSafeKey("file", task.id, `${index}-${file.name}`)}
+                                  key={`file-${task.id}-${index}-${file.name}`}
                                   variant="secondary"
                                   size="sm"
                                   onClick={() => window.open(file.url, "_blank")}
@@ -1370,7 +1516,7 @@ export default function AdminTaskViewWrapper() {
                                 variant="outline"
                                 size="sm"
                                 onClick={handleCancelEdit}
-                                className="flex items-center gap-1"
+                                className="flex items-center gap-1 bg-transparent"
                               >
                                 <X className="h-4 w-4" />
                                 Cancel
@@ -1453,7 +1599,7 @@ export default function AdminTaskViewWrapper() {
                       const showEllipsis = prevPage && page - prevPage > 1
 
                       return (
-                        <React.Fragment key={generateSafeKey("pagination", page.toString())}>
+                        <React.Fragment key={`pagination-${page}`}>
                           {showEllipsis && <span className="px-2 py-1 text-gray-500">...</span>}
                           <Button
                             variant={currentPage === page ? "default" : "outline"}
