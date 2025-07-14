@@ -62,7 +62,7 @@ export function ExportToPdfButton({
       document.body.style.overflow = "hidden"
 
       const pdf = new jsPDF({
-        orientation: "p",
+        orientation: "l",
         unit: "mm", 
         format: "a4",
         compress: true // Enable PDF compression
@@ -71,8 +71,8 @@ export function ExportToPdfButton({
       const fileName = `Task_Report_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`
 
       // Page dimensions
-      const pageWidth = 210 // A4 width in mm
-      const pageHeight = 297 // A4 height in mm
+      const pageWidth = 297 // A4 width in mm
+      const pageHeight = 210 // A4 height in mm
 
       // Different margins for sides vs top/bottom
       const sideMargin = 10 // Original side margin
@@ -134,19 +134,21 @@ export function ExportToPdfButton({
       // Add title
       pdf.setFontSize(18)
       pdf.setFont("helvetica", "bold")
-      pdf.text("Performance Report", 105, currentY, { align: "center" })
+      pdf.text("         Performance Report", 105, currentY, { align: "left" })
       currentY += 7
+      // Add date range and additional text
+      const additionalText = "                "; // Example additional text
+      pdf.setFontSize(12);
+      pdf.text(`${additionalText} ${dateRange} `, 105, currentY, { align: "left" });
+      currentY += 10;
       pdf.setFontSize(12)
-      pdf.text(dateRange, 105, currentY, { align: "center" })
-      currentY += 10
-      pdf.setFontSize(10)
       pdf.setFont("helvetica", "normal")
 
       // First capture the stats section with MD styling
       onTabChange("pieCharts")
 
       // Set MD width for user info and stats section
-      reportRef.current.style.width = "768px" // md breakpoint
+      reportRef.current.style.width = "1280px" // md breakpoint
 
       // Force medium screen layout for the stats section
       const statsSection = reportRef.current.querySelector(".bg-gray-300")
@@ -167,14 +169,14 @@ export function ExportToPdfButton({
               grid.className.includes("xl:grid-cols"))
           ) {
             // Force 1-column layout for stats grid (md typically has 1 column)
-            grid.className = "grid grid-cols-1 gap-y-1 p-4";
+            grid.className = "grid grid-cols-4 gap-y-1 gap-x-2 p-4";
             elementsToModify.push({ element: grid as HTMLElement, originalClass }); // Explicit cast to HTMLElement
           }
 
           // Special handling for the filters grid
-          if (grid.className.includes("grid-cols-1") && grid.className.includes("md:grid-cols")) {
+          if (grid.className.includes("grid-cols-4") && grid.className.includes("md:grid-cols")) {
             // Force 1-column layout for filters grid (md typically has 1 column)
-            grid.className = "grid grid-cols-1 gap-y-4 p-4";
+            grid.className = "grid grid-cols-1 gap-y-4 gap-x-2 p-4";
             elementsToModify.push({ element: grid as HTMLElement, originalClass }); // Explicit cast to HTMLElement
           }
         })
@@ -268,7 +270,7 @@ export function ExportToPdfButton({
           logging: false,
           useCORS: true,
           allowTaint: true,
-          width: 768, // Force md screen width
+          width: 1280, // Force md screen width
         })
 
         const statsImgData = statsCanvas.toDataURL("image/jpeg", 0.7) // Use JPEG with 70% quality
@@ -408,7 +410,7 @@ export function ExportToPdfButton({
 
             // Calculate image dimensions - reduced height to fit 4 per page
             const imgWidth = contentWidth
-            const imgHeight = Math.min((canvas.height * imgWidth) / canvas.width, 65) // Reduced height to fit 4 per page
+            const imgHeight = Math.min((canvas.height * imgWidth) / canvas.width, 85) // Reduced height to fit 4 per page
 
             // Check if we need a new page
             if (chartsOnCurrentPage === 4 || currentY + imgHeight > pageHeight - topBottomMargin) {
@@ -470,7 +472,7 @@ export function ExportToPdfButton({
   return (
     <Button onClick={exportToPdf} disabled={isExporting} className="bg-gray-700 hover:bg-gray-600 text-white">
       <Download className="mr-2 h-4 w-4" />
-      {isExporting ? "Exporting..." : "Export PDF"}
+      {isExporting ? "Exporting..." : "Save Report"}
     </Button>
   )
 }
