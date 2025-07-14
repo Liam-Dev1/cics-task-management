@@ -134,6 +134,11 @@ export default function TaskManagement() {
     }, 3000)
   }
 
+  // Add this after the existing showNotification function
+  const showRoleChangeNotification = (newRole: string) => {
+    showNotification(`Your role has been updated to ${newRole}. Task access has been rescoped.`, "success")
+  }
+
   // Fetch user's name and role from Firestore
   useEffect(() => {
     const fetchUserData = async () => {
@@ -145,8 +150,18 @@ export default function TaskManagement() {
 
           if (!querySnapshot.empty) {
             const userData = querySnapshot.docs[0].data()
-            setUserName(userData.name || userData.displayName || user.displayName || "Admin User")
-            setUserRole(userData.role || null)
+            const newUserName = userData.name || userData.displayName || user.displayName || "Admin User"
+            const newUserRole = userData.role || null
+
+            // Check if role has changed
+            if (userRole && userRole !== newUserRole) {
+              // Role has changed, clear tasks and refetch with new permissions
+              setTasks([])
+              setLoading(true)
+            }
+
+            setUserName(newUserName)
+            setUserRole(newUserRole)
           }
         } catch (error) {
           console.error("Error fetching user data:", error)
@@ -155,44 +170,32 @@ export default function TaskManagement() {
     }
 
     fetchUserData()
-  }, [user])
-
-  // Fetch users with role "user" from Firestore
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const usersRef = collection(db, "users")
-        // Remove the role filter to get all users
-        const querySnapshot = await getDocs(usersRef)
-
-        const fetchedUsers: User[] = []
-        querySnapshot.forEach((doc) => {
-          const userData = doc.data() as Omit<User, "id">
-          // Add the user to the list if they exist
-          if (userData.email) {
-            fetchedUsers.push({
-              id: doc.id,
-              ...(userData as Omit<User, "id">),
-            })
-          }
-        })
-
-        setUsers(fetchedUsers)
-      } catch (error) {
-        console.error("Error fetching users:", error)
-      }
-    }
-
-    fetchUsers()
-  }, [])
+  }, [user, userRole]) // Add userRole as dependency
 
   // Fetch tasks from Firestore
   useEffect(() => {
     const fetchTasks = async () => {
+      if (!userRole) return // Wait for role to be loaded
+
       try {
         setLoading(true)
         const tasksCollection = collection(db, "tasks")
-        const tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
+        let tasksQuery
+
+        // Apply role-based filtering at query level for better performance
+        if (userRole === "super admin") {
+          // Super admin sees all tasks
+          tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
+        } else if (userRole === "admin") {
+          // Admin only sees tasks they assigned
+          tasksQuery = query(tasksCollection, where("assignedBy", "==", userName), orderBy("assignedOn", "desc"))
+        } else {
+          // Regular users shouldn't access this view, but handle gracefully
+          setTasks([])
+          setLoading(false)
+          return
+        }
+
         const querySnapshot = await getDocs(tasksQuery)
 
         const fetchedTasks: Task[] = []
@@ -247,7 +250,7 @@ export default function TaskManagement() {
     }
 
     fetchTasks()
-  }, [taskIdFromUrl, expandFromUrl])
+  }, [taskIdFromUrl, expandFromUrl, userRole, userName]) // Add userRole and userName as dependencies
 
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
@@ -313,8 +316,8 @@ export default function TaskManagement() {
       return task.assignedBy === userName
     }
 
-    // Default case
-    return true
+    // For non-admin users, show no tasks (they shouldn't be on this page)
+    return false
   }
 
   // Update the filteredTasks function to include filtering by receiver
@@ -792,9 +795,11 @@ export default function TaskManagement() {
           </div>
         )}
 
-        <h1 className="mb-6">
-          <span className="text-5xl font-bold">Tasks</span>{" "}
-          <span className="text-3xl text-[#8B2332] font-bold">Admin</span>
+        <h1 className="mb-6 flex items-baseline gap-4">
+          <span className="text-5xl font-bold">Tasks</span>
+          <span className="text-3xl text-[#8B2332] font-bold">
+            {userRole === "super admin" ? "Super Admin" : "Admin"}
+          </span>
         </h1>
 
         {/* Hidden file input for existing tasks */}
@@ -942,7 +947,7 @@ export default function TaskManagement() {
 
         {/* Tasks List */}
         <div className="space-y-4">
-          <div className="grid grid-cols-7 gap-4 font-semibold mb-2 hidden md:grid">
+          <div className="grid grid-cols-7 gap-4 font-semibold mb-2 hidden md:grid text-center">
             <div>Task Name</div>
             <div>Assigned by</div>
             <div>Assigned to</div>
@@ -968,17 +973,17 @@ export default function TaskManagement() {
                 <form onSubmit={handleAddTask} className="space-y-4">
                   <div className="grid md:grid-cols-7 gap-4">
                     <div className="md:col-span-1">
-                      <label htmlFor="task-name" className="block text-sm font-medium mb-1">
+                      <label htmlFor="task-name" className="block text-sm font-medium mb-1 text-center">
                         Task Name
                       </label>
                       <Input id="task-name" placeholder="Insert Task Name Here" name="name" required />
                     </div>
                     <div className="md:col-span-1">
-                      <label className="block text-sm font-medium mb-1">Assigned By</label>
+                      <label className="block text-sm font-medium mb-1 text-center">Assigned By</label>
                       <div className="h-10 px-3 py-2 border rounded-md bg-gray-50">{userName}</div>
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="assigned-to" className="block text-sm font-medium mb-1">
+                      <label htmlFor="assigned-to" className="block text-sm font-medium mb-1 text-center">
                         Assigned To
                       </label>
                       <Select name="assignedTo" required>
@@ -1012,13 +1017,13 @@ export default function TaskManagement() {
                       </Select>
                     </div>
                     <div className="md:col-span-1">
-                      <label className="block text-sm font-medium mb-1">Assigned On</label>
+                      <label className="block text-sm font-medium mb-1 text-center">Assigned On</label>
                       <div className="h-10 px-3 py-2 border rounded-md bg-gray-50">
                         {new Date().toLocaleDateString()}
                       </div>
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="deadline" className="block text-sm font-medium mb-1">
+                      <label htmlFor="deadline" className="block text-sm font-medium mb-1 text-center">
                         Deadline
                       </label>
                       <Input
@@ -1030,7 +1035,7 @@ export default function TaskManagement() {
                       />
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="status" className="block text-sm font-medium mb-1">
+                      <label htmlFor="status" className="block text-sm font-medium mb-1 text-center">
                         Status
                       </label>
                       <Select name="status" required>
@@ -1043,7 +1048,7 @@ export default function TaskManagement() {
                       </Select>
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="priority" className="block text-sm font-medium mb-1">
+                      <label htmlFor="priority" className="block text-sm font-medium mb-1 text-center">
                         Priority
                       </label>
                       <Select name="priority" required>
@@ -1059,7 +1064,7 @@ export default function TaskManagement() {
                     </div>
                   </div>
                   <div>
-                    <label htmlFor="description" className="block text-sm font-medium mb-1">
+                    <label htmlFor="description" className="block text-sm font-medium mb-1 text-center">
                       Description
                     </label>
                     <Textarea
@@ -1088,11 +1093,11 @@ export default function TaskManagement() {
                       </Button>
                     )}
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-center">
                     <Button
                       type="button"
                       variant="outline"
-                      className="flex gap-2"
+                      className="flex gap-2 mr-2"
                       onClick={() => newTaskFileInputRef.current?.click()}
                       disabled={uploadingFile}
                     >
@@ -1109,8 +1114,8 @@ export default function TaskManagement() {
                       onChange={handleNewTaskFileChange}
                       className="hidden"
                     />
-                    <div>
-                      <Button type="button" variant="outline" className="mr-2" onClick={() => setShowNewTask(false)}>
+                    <div className="space-x-2">
+                      <Button type="button" variant="outline" onClick={() => setShowNewTask(false)}>
                         Cancel
                       </Button>
                       <Button type="submit" disabled={uploadingFile}>
@@ -1240,28 +1245,28 @@ export default function TaskManagement() {
                       </>
                     ) : (
                       <>
-                        <div className="md:col-span-1">
+                        <div className="md:col-span-1 text-center">
                           <span className="md:hidden font-semibold">Task Name: </span>
                           {task.name}
                         </div>
-                        <div className="md:col-span-1">
+                        <div className="md:col-span-1 text-center">
                           <span className="md:hidden font-semibold">Assigned By: </span>
                           {task.assignedBy}
                         </div>
-                        <div className="md:col-span-1">
+                        <div className="md:col-span-1 text-center">
                           <span className="md:hidden font-semibold">Assigned To: </span>
                           {task.assignedTo}
                           {task.assignedToJobTitle ? ` (${task.assignedToJobTitle})` : ""}
                         </div>
-                        <div className="md:col-span-1">
+                        <div className="md:col-span-1 text-center">
                           <span className="md:hidden font-semibold">Assigned On: </span>
                           {task.assignedOn}
                         </div>
-                        <div className="md:col-span-1">
+                        <div className="md:col-span-1 text-center">
                           <span className="md:hidden font-semibold">Deadline: </span>
                           {task.deadline}
                         </div>
-                        <div className="md:col-span-1">
+                        <div className="md:col-span-1 text-center">
                           <span className="md:hidden font-semibold">Status: </span>
                           <Badge
                             className={
@@ -1279,8 +1284,8 @@ export default function TaskManagement() {
                             {task.status}
                           </Badge>
                         </div>
-                        <div className="md:col-span-1 flex justify-between items-center">
-                          <div>
+                        <div className="md:col-span-1 flex justify-center items-center">
+                          <div className="text-center">
                             <span className="md:hidden font-semibold">Priority: </span>
                             <Badge
                               className={
@@ -1296,7 +1301,7 @@ export default function TaskManagement() {
                           </div>
                           <button
                             onClick={() => toggleTaskExpansion(task.id)}
-                            className="text-white hover:bg-[#9B3342] rounded p-1"
+                            className="text-white hover:bg-[#9B3342] rounded p-1 ml-2"
                             aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
                           >
                             {expandedTasks[task.id] ? <ChevronDown size={16} /> : <ChevronDown size={16} />}
@@ -1357,7 +1362,7 @@ export default function TaskManagement() {
                         </>
                       )}
 
-                      <div className="flex flex-wrap justify-between mt-4">
+                      <div className="flex flex-wrap justify-center mt-4">
                         <div className="space-x-2 mb-2">
                           {task.files &&
                             task.files.map((file, index) => (
@@ -1371,7 +1376,7 @@ export default function TaskManagement() {
                               </Button>
                             ))}
                         </div>
-                        <div className="flex flex-row space-x-2">
+                        <div className="flex flex-row space-x-2 justify-center w-full">
                           {editingTask === task.id ? (
                             <>
                               <Button
@@ -1465,4 +1470,3 @@ export default function TaskManagement() {
     </div>
   )
 }
-
