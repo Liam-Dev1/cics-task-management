@@ -134,11 +134,6 @@ export default function TaskManagement() {
     }, 3000)
   }
 
-  // Add this after the existing showNotification function
-  const showRoleChangeNotification = (newRole: string) => {
-    showNotification(`Your role has been updated to ${newRole}. Task access has been rescoped.`, "success")
-  }
-
   // Fetch user's name and role from Firestore
   useEffect(() => {
     const fetchUserData = async () => {
@@ -150,18 +145,8 @@ export default function TaskManagement() {
 
           if (!querySnapshot.empty) {
             const userData = querySnapshot.docs[0].data()
-            const newUserName = userData.name || userData.displayName || user.displayName || "Admin User"
-            const newUserRole = userData.role || null
-
-            // Check if role has changed
-            if (userRole && userRole !== newUserRole) {
-              // Role has changed, clear tasks and refetch with new permissions
-              setTasks([])
-              setLoading(true)
-            }
-
-            setUserName(newUserName)
-            setUserRole(newUserRole)
+            setUserName(userData.name || userData.displayName || user.displayName || "Admin User")
+            setUserRole(userData.role || null)
           }
         } catch (error) {
           console.error("Error fetching user data:", error)
@@ -170,32 +155,44 @@ export default function TaskManagement() {
     }
 
     fetchUserData()
-  }, [user, userRole]) // Add userRole as dependency
+  }, [user])
+
+  // Fetch users with role "user" from Firestore
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const usersRef = collection(db, "users")
+        // Remove the role filter to get all users
+        const querySnapshot = await getDocs(usersRef)
+
+        const fetchedUsers: User[] = []
+        querySnapshot.forEach((doc) => {
+          const userData = doc.data() as Omit<User, "id">
+          // Add the user to the list if they exist
+          if (userData.email) {
+            fetchedUsers.push({
+              id: doc.id,
+              ...(userData as Omit<User, "id">),
+            })
+          }
+        })
+
+        setUsers(fetchedUsers)
+      } catch (error) {
+        console.error("Error fetching users:", error)
+      }
+    }
+
+    fetchUsers()
+  }, [])
 
   // Fetch tasks from Firestore
   useEffect(() => {
     const fetchTasks = async () => {
-      if (!userRole) return // Wait for role to be loaded
-
       try {
         setLoading(true)
         const tasksCollection = collection(db, "tasks")
-        let tasksQuery
-
-        // Apply role-based filtering at query level for better performance
-        if (userRole === "super admin") {
-          // Super admin sees all tasks
-          tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
-        } else if (userRole === "admin") {
-          // Admin only sees tasks they assigned
-          tasksQuery = query(tasksCollection, where("assignedBy", "==", userName), orderBy("assignedOn", "desc"))
-        } else {
-          // Regular users shouldn't access this view, but handle gracefully
-          setTasks([])
-          setLoading(false)
-          return
-        }
-
+        const tasksQuery = query(tasksCollection, orderBy("assignedOn", "desc"))
         const querySnapshot = await getDocs(tasksQuery)
 
         const fetchedTasks: Task[] = []
@@ -250,7 +247,7 @@ export default function TaskManagement() {
     }
 
     fetchTasks()
-  }, [taskIdFromUrl, expandFromUrl, userRole, userName]) // Add userRole and userName as dependencies
+  }, [taskIdFromUrl, expandFromUrl])
 
   // Scroll to specific task if ID is provided in URL
   useEffect(() => {
@@ -316,8 +313,8 @@ export default function TaskManagement() {
       return task.assignedBy === userName
     }
 
-    // For non-admin users, show no tasks (they shouldn't be on this page)
-    return false
+    // Default case
+    return true
   }
 
   // Update the filteredTasks function to include filtering by receiver
@@ -327,7 +324,7 @@ export default function TaskManagement() {
     return matchesSearch && matchesFilter(task) && matchesAdminView(task) && matchesReceiver
   })
 
-  // Sort tasks based on active sort option
+  // Sort tasks based on active sort option with automatic deadline sorting for pending tasks
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     switch (activeSort) {
       case "nameAsc":
@@ -347,7 +344,18 @@ export default function TaskManagement() {
       case "deadlineDesc":
         return new Date(b.deadline).getTime() - new Date(a.deadline).getTime()
       default:
-        return 0
+        // Auto-sort pending tasks by deadline (earliest first)
+        if (a.status === "Pending" && b.status === "Pending") {
+          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+        }
+        if (a.status === "Pending" && b.status !== "Pending") {
+          return -1 // Pending tasks come first
+        }
+        if (a.status !== "Pending" && b.status === "Pending") {
+          return 1 // Pending tasks come first
+        }
+        // For non-pending tasks, sort by assigned date (newest first)
+        return new Date(b.assignedOn).getTime() - new Date(a.assignedOn).getTime()
     }
   })
 
@@ -795,8 +803,8 @@ export default function TaskManagement() {
           </div>
         )}
 
-        <h1 className="mb-6 flex items-baseline gap-4">
-          <span className="text-5xl font-bold">Tasks</span>
+        <h1 className="mb-6">
+          <span className="text-5xl font-bold">Tasks</span>{" "}
           <span className="text-3xl text-[#8B2332] font-bold">
             {userRole === "super admin" ? "Super Admin" : "Admin"}
           </span>
@@ -817,7 +825,6 @@ export default function TaskManagement() {
             />
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           </div>
-          {/* Update the Receiver dropdown in the Action Bar section */}
           {/* Receiver dropdown with role-based filtering */}
           <Select value={selectedReceiver} onValueChange={handleReceiverChange}>
             <SelectTrigger className="w-[180px]">
@@ -860,13 +867,13 @@ export default function TaskManagement() {
                 checked={activeFilter === "Pending"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Pending" ? null : "Pending")}
               >
-                Pending
+                STATUS - Pending
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Verifying"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Verifying" ? null : "Verifying")}
               >
-                Verifying
+                STATUS - Verifying
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed On Time"}
@@ -874,7 +881,7 @@ export default function TaskManagement() {
                   setActiveFilter(activeFilter === "Completed On Time" ? null : "Completed On Time")
                 }
               >
-                Completed On Time On Time
+                STATUS - Completed On Time
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed Overdue"}
@@ -882,43 +889,43 @@ export default function TaskManagement() {
                   setActiveFilter(activeFilter === "Completed Overdue" ? null : "Completed Overdue")
                 }
               >
-                Completed Overdue
+                STATUS - Completed Overdue
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Reopened"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Reopened" ? null : "Reopened")}
               >
-                Reopened
+                STATUS - Reopened
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "High"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "High" ? null : "High")}
               >
-                High Priority
+                PRIORITY - High
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Medium"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Medium" ? null : "Medium")}
               >
-                Medium Priority
+                PRIORITY - Medium
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Low"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Low" ? null : "Low")}
               >
-                Low Priority
+                PRIORITY - Low
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Completed" ? null : "Completed")}
               >
-                All Completed Tasks
+                STATUS - All Completed Tasks
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Overdue"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Overdue" ? null : "Overdue")}
               >
-                All Overdue Tasks
+                STATUS - All Overdue Tasks
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -947,7 +954,7 @@ export default function TaskManagement() {
 
         {/* Tasks List */}
         <div className="space-y-4">
-          <div className="grid grid-cols-7 gap-4 font-semibold mb-2 hidden md:grid text-center">
+          <div className="grid grid-cols-7 gap-4 font-semibold mb-2 hidden md:grid">
             <div>Task Name</div>
             <div>Assigned by</div>
             <div>Assigned to</div>
@@ -973,17 +980,17 @@ export default function TaskManagement() {
                 <form onSubmit={handleAddTask} className="space-y-4">
                   <div className="grid md:grid-cols-7 gap-4">
                     <div className="md:col-span-1">
-                      <label htmlFor="task-name" className="block text-sm font-medium mb-1 text-center">
+                      <label htmlFor="task-name" className="block text-sm font-medium mb-1">
                         Task Name
                       </label>
                       <Input id="task-name" placeholder="Insert Task Name Here" name="name" required />
                     </div>
                     <div className="md:col-span-1">
-                      <label className="block text-sm font-medium mb-1 text-center">Assigned By</label>
+                      <label className="block text-sm font-medium mb-1">Assigned By</label>
                       <div className="h-10 px-3 py-2 border rounded-md bg-gray-50">{userName}</div>
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="assigned-to" className="block text-sm font-medium mb-1 text-center">
+                      <label htmlFor="assigned-to" className="block text-sm font-medium mb-1">
                         Assigned To
                       </label>
                       <Select name="assignedTo" required>
@@ -999,9 +1006,11 @@ export default function TaskManagement() {
                               // If current user is an admin (not super admin), only allow assigning to users with "user" role
                               const isCurrentUserAdmin = userRole === "admin"
                               const isUserRoleUser = userItem.role === "user"
+                              const isUserSuperAdmin = userItem.role === "super admin"
 
                               if (isCurrentUserAdmin) {
-                                return !isCurrentUser && isUserRoleUser
+                                // Admin users cannot assign to themselves, super admins, or other admins
+                                return !isCurrentUser && isUserRoleUser && !isUserSuperAdmin
                               }
 
                               // For super admins, allow assigning to anyone except themselves
@@ -1017,13 +1026,13 @@ export default function TaskManagement() {
                       </Select>
                     </div>
                     <div className="md:col-span-1">
-                      <label className="block text-sm font-medium mb-1 text-center">Assigned On</label>
+                      <label className="block text-sm font-medium mb-1">Assigned On</label>
                       <div className="h-10 px-3 py-2 border rounded-md bg-gray-50">
                         {new Date().toLocaleDateString()}
                       </div>
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="deadline" className="block text-sm font-medium mb-1 text-center">
+                      <label htmlFor="deadline" className="block text-sm font-medium mb-1">
                         Deadline
                       </label>
                       <Input
@@ -1035,7 +1044,7 @@ export default function TaskManagement() {
                       />
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="status" className="block text-sm font-medium mb-1 text-center">
+                      <label htmlFor="status" className="block text-sm font-medium mb-1">
                         Status
                       </label>
                       <Select name="status" required>
@@ -1048,7 +1057,7 @@ export default function TaskManagement() {
                       </Select>
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="priority" className="block text-sm font-medium mb-1 text-center">
+                      <label htmlFor="priority" className="block text-sm font-medium mb-1">
                         Priority
                       </label>
                       <Select name="priority" required>
@@ -1064,7 +1073,7 @@ export default function TaskManagement() {
                     </div>
                   </div>
                   <div>
-                    <label htmlFor="description" className="block text-sm font-medium mb-1 text-center">
+                    <label htmlFor="description" className="block text-sm font-medium mb-1">
                       Description
                     </label>
                     <Textarea
@@ -1093,11 +1102,11 @@ export default function TaskManagement() {
                       </Button>
                     )}
                   </div>
-                  <div className="flex justify-center">
+                  <div className="flex justify-between">
                     <Button
                       type="button"
                       variant="outline"
-                      className="flex gap-2 mr-2"
+                      className="flex gap-2"
                       onClick={() => newTaskFileInputRef.current?.click()}
                       disabled={uploadingFile}
                     >
@@ -1114,8 +1123,8 @@ export default function TaskManagement() {
                       onChange={handleNewTaskFileChange}
                       className="hidden"
                     />
-                    <div className="space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setShowNewTask(false)}>
+                    <div>
+                      <Button type="button" variant="outline" className="mr-2" onClick={() => setShowNewTask(false)}>
                         Cancel
                       </Button>
                       <Button type="submit" disabled={uploadingFile}>
@@ -1175,9 +1184,11 @@ export default function TaskManagement() {
                                   // If current user is an admin (not super admin), only allow assigning to users with "user" role
                                   const isCurrentUserAdmin = userRole === "admin"
                                   const isUserRoleUser = userItem.role === "user"
+                                  const isUserSuperAdmin = userItem.role === "super admin"
 
                                   if (isCurrentUserAdmin) {
-                                    return !isCurrentUser && isUserRoleUser
+                                    // Admin users cannot assign to themselves, super admins, or other admins
+                                    return !isCurrentUser && isUserRoleUser && !isUserSuperAdmin
                                   }
 
                                   // For super admins, allow assigning to anyone except themselves
@@ -1245,28 +1256,28 @@ export default function TaskManagement() {
                       </>
                     ) : (
                       <>
-                        <div className="md:col-span-1 text-center">
+                        <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Task Name: </span>
                           {task.name}
                         </div>
-                        <div className="md:col-span-1 text-center">
+                        <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Assigned By: </span>
                           {task.assignedBy}
                         </div>
-                        <div className="md:col-span-1 text-center">
+                        <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Assigned To: </span>
                           {task.assignedTo}
                           {task.assignedToJobTitle ? ` (${task.assignedToJobTitle})` : ""}
                         </div>
-                        <div className="md:col-span-1 text-center">
+                        <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Assigned On: </span>
                           {task.assignedOn}
                         </div>
-                        <div className="md:col-span-1 text-center">
+                        <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Deadline: </span>
                           {task.deadline}
                         </div>
-                        <div className="md:col-span-1 text-center">
+                        <div className="md:col-span-1">
                           <span className="md:hidden font-semibold">Status: </span>
                           <Badge
                             className={
@@ -1284,8 +1295,8 @@ export default function TaskManagement() {
                             {task.status}
                           </Badge>
                         </div>
-                        <div className="md:col-span-1 flex justify-center items-center">
-                          <div className="text-center">
+                        <div className="md:col-span-1 flex justify-between items-center">
+                          <div>
                             <span className="md:hidden font-semibold">Priority: </span>
                             <Badge
                               className={
@@ -1301,7 +1312,7 @@ export default function TaskManagement() {
                           </div>
                           <button
                             onClick={() => toggleTaskExpansion(task.id)}
-                            className="text-white hover:bg-[#9B3342] rounded p-1 ml-2"
+                            className="text-white hover:bg-[#9B3342] rounded p-1"
                             aria-label={expandedTasks[task.id] ? "Collapse task details" : "Expand task details"}
                           >
                             {expandedTasks[task.id] ? <ChevronDown size={16} /> : <ChevronDown size={16} />}
@@ -1362,7 +1373,7 @@ export default function TaskManagement() {
                         </>
                       )}
 
-                      <div className="flex flex-wrap justify-center mt-4">
+                      <div className="flex flex-wrap justify-between mt-4">
                         <div className="space-x-2 mb-2">
                           {task.files &&
                             task.files.map((file, index) => (
@@ -1376,7 +1387,7 @@ export default function TaskManagement() {
                               </Button>
                             ))}
                         </div>
-                        <div className="flex flex-row space-x-2 justify-center w-full">
+                        <div className="flex flex-row space-x-2">
                           {editingTask === task.id ? (
                             <>
                               <Button
