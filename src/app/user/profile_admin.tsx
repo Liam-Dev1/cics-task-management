@@ -27,10 +27,12 @@ export default function ProfileAdmin({
   // Determine the display role based on admin mode state
   const displayRole = userRole
     ? isAdminMode
-      ? userRole
-          .split(" ")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ")
+      ? userRole === "super admin" 
+        ? "Super Admin"
+        : userRole
+            .split(" ")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ")
       : "Task Receiver (Admin)"
     : "Admin"
 
@@ -49,7 +51,9 @@ export default function ProfileAdmin({
     <div className="flex-1 p-8 bg-gray-100 min-h-screen">
       <div className="flex items-baseline gap-4 mb-4">
         <h1 className="text-5xl font-bold text-[#333333]">User Profile</h1>
-        {isAdminMode && <span className="text-4xl font-bold text-[#8B2332]">Admin</span>}
+        {isAdminMode && <span className="text-4xl font-bold text-[#8B2332]">
+          {userRole === "super admin" ? "Super Admin" : "Admin"}
+        </span>}
       </div>
 
       <div className="p-3 m-5">
@@ -80,4 +84,3 @@ export default function ProfileAdmin({
     </div>
   )
 }
-

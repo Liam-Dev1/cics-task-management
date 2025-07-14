@@ -234,7 +234,7 @@ export default function UserTaskViewWrapper() {
     return matchesSearch && matchesFilter
   })
 
-  // Sort tasks based on active sort option
+  // Sort tasks based on active sort option with automatic deadline sorting for pending tasks
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     switch (activeSort) {
       case "nameAsc":
@@ -254,7 +254,18 @@ export default function UserTaskViewWrapper() {
       case "deadlineDesc":
         return new Date(b.deadline).getTime() - new Date(a.deadline).getTime()
       default:
-        return 0
+        // Auto-sort pending tasks by deadline (earliest first)
+        if (a.status === "Pending" && b.status === "Pending") {
+          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+        }
+        if (a.status === "Pending" && b.status !== "Pending") {
+          return -1 // Pending tasks come first
+        }
+        if (a.status !== "Pending" && b.status === "Pending") {
+          return 1 // Pending tasks come first
+        }
+        // For non-pending tasks, sort by assigned date (newest first)
+        return new Date(b.assignedOn).getTime() - new Date(a.assignedOn).getTime()
     }
   })
 
@@ -445,20 +456,17 @@ export default function UserTaskViewWrapper() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-48">
-              <DropdownMenuCheckboxItem checked={activeFilter === null} onCheckedChange={() => setActiveFilter(null)}>
-                All
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
+               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Pending"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Pending" ? null : "Pending")}
               >
-                Pending
+                STATUS - Pending
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Verifying"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Verifying" ? null : "Verifying")}
               >
-                Verifying
+                STATUS - Verifying
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed On Time"}
@@ -466,7 +474,7 @@ export default function UserTaskViewWrapper() {
                   setActiveFilter(activeFilter === "Completed On Time" ? null : "Completed On Time")
                 }
               >
-                Completed On Time
+                STATUS - Completed On Time
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Completed Overdue"}
@@ -474,31 +482,31 @@ export default function UserTaskViewWrapper() {
                   setActiveFilter(activeFilter === "Completed Overdue" ? null : "Completed Overdue")
                 }
               >
-                Completed Overdue
+                STATUS - Completed Overdue
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Reopened"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Reopened" ? null : "Reopened")}
               >
-                Reopened
+                STATUS - Reopened
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "High"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "High" ? null : "High")}
               >
-                High Priority
+                PRIORITY - High
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Medium"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Medium" ? null : "Medium")}
               >
-                Medium Priority
+                PRIORITY - Medium
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={activeFilter === "Low"}
                 onCheckedChange={() => setActiveFilter(activeFilter === "Low" ? null : "Low")}
               >
-                Low Priority
+                PRIORITY - Low
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
